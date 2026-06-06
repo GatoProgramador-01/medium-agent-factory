@@ -1,19 +1,4 @@
 services:
-  mongodb:
-    image: mongo:7
-    container_name: medium-factory-mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: medium_agent_factory
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build: ./backend
     container_name: medium-factory-api
@@ -21,12 +6,13 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      MONGODB_URI: mongodb://mongodb:27017
+      # host.docker.internal resolves to the host machine on Windows/Mac.
+      # On Linux add: extra_hosts: ["host.docker.internal:host-gateway"]
+      MONGODB_URI: mongodb://host.docker.internal:27017
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/app
-    depends_on:
-      mongodb:
-        condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
@@ -44,6 +30,3 @@ services:
     depends_on:
       - backend
     command: npm run dev
-
-volumes:
-  mongo_data:

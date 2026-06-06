@@ -45,6 +45,15 @@ export type AgentUsage = {
   call_count: number;
 };
 
+export type AgentLog = {
+  run_id: string;
+  step: string;
+  level: "info" | "success" | "warning" | "error";
+  message: string;
+  data: Record<string, unknown>;
+  timestamp: string;
+};
+
 export type Summary = {
   pipeline_runs: number;
   completed_runs: number;
@@ -72,4 +81,6 @@ export const api = {
     request<AgentUsage[]>(`/analytics/token-usage${runId ? `?run_id=${runId}` : ""}`),
   tokenUsageByRun: () => request<AgentUsage[]>("/analytics/token-usage/by-run"),
   summary: () => request<Summary>("/analytics/summary"),
+
+  getLogs: (runId: string) => request<AgentLog[]>(`/pipeline/runs/${runId}/logs`),
 };

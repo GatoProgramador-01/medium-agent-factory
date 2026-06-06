@@ -33,3 +33,5 @@ async def create_indexes() -> None:
     await db.trends.create_index([("created_at", -1)])
     await db.pipeline_runs.create_index([("created_at", -1)])
     await db.pipeline_runs.create_index("status")
+    await db.agent_logs.create_index("run_id")
+    await db.agent_logs.create_index([("timestamp", 1)])

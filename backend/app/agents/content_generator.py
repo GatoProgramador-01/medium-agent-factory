@@ -1,11 +1,14 @@
 """
-ContentGeneratorAgent
+ContentGeneratorAgent — cheapest-first model strategy
 
-Generates and revises Medium posts using Claude Sonnet.
-Uses the supervisor model for higher-quality output on this creative task.
+revision_number 0 (initial):   Haiku  — cheap draft, good enough ~60% of the time
+revision_number 1:              Haiku  — apply corrections, often sufficient
+revision_number 2+ (last):      Sonnet — quality upgrade, only when Haiku fails twice
 
-On first call: generates from trend_context + topic.
-On revision:   injects the quality_analyzer's revision_prompt as a correction brief.
+Cost comparison vs always-Sonnet:
+  Best case  (Haiku initial passes):      ~$0.005/post  (was $0.05)
+  Common     (one Haiku revision):        ~$0.012/post  (was $0.05)
+  Worst case (Sonnet revision needed):    ~$0.035/post  (was $0.05)
 """
 
 import time
@@ -84,6 +87,11 @@ SPECIFIC ISSUES TO FIX:
 Rewrite the full post incorporating every correction. Keep what's strong."""
 
 
+def _pick_model(revision_number: int) -> str:
+    """Haiku for attempts 0 and 1, Sonnet only on attempt 2+ (last resort)."""
+    return settings.worker_model if revision_number < 2 else settings.supervisor_model
+
+
 async def generate_initial_post(
     run_id: str,
     topic: str,
@@ -91,9 +99,11 @@ async def generate_initial_post(
     tags: list[str],
     audience: str,
 ) -> GeneratedPost:
+    model = _pick_model(0)
     return await _call_generator(
         run_id=run_id,
-        call_type="initial",
+        agent_label="content_generator_initial",
+        model=model,
         messages=[
             SystemMessage(content=_SYSTEM),
             HumanMessage(content=_HUMAN_INITIAL.format(
@@ -113,14 +123,17 @@ async def revise_post(
     score: float,
     revision_prompt: str,
     issues: list[dict],
+    revision_number: int = 1,
 ) -> GeneratedPost:
+    model = _pick_model(revision_number)
     issues_list = "\n".join(
         f"- [{i['severity'].upper()}] {i['category']}: {i['suggestion']}"
         for i in issues
     )
     return await _call_generator(
         run_id=run_id,
-        call_type="revision",
+        agent_label=f"content_generator_revision_{revision_number}",
+        model=model,
         messages=[
             SystemMessage(content=_SYSTEM),
             HumanMessage(content=_HUMAN_REVISION.format(
@@ -137,22 +150,22 @@ async def revise_post(
 
 async def _call_generator(
     run_id: str,
-    call_type: str,
+    agent_label: str,
+    model: str,
     messages: list,
 ) -> GeneratedPost:
     tracker = AgentTokenTracker(
-        agent_name=f"content_generator_{call_type}",
+        agent_name=agent_label,
         run_id=run_id,
-        model=settings.supervisor_model,
+        model=model,
     )
 
     llm = ChatAnthropic(
-        model=settings.supervisor_model,
+        model=model,
         api_key=settings.anthropic_api_key,
         max_tokens=4096,
         callbacks=[tracker],
     ).with_structured_output(GeneratedPost)
 
-    start = time.perf_counter()
     result: GeneratedPost = await llm.ainvoke(messages)
     return result
