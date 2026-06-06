@@ -39,6 +39,7 @@ async def trigger_pipeline(
         run_pipeline,
         custom_topic=req.custom_topic,
         publish_live=req.publish_live,
+        run_id=run_id,
     )
     return {"run_id": run_id, "message": "Pipeline started"}
 

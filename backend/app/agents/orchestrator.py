@@ -317,17 +317,25 @@ pipeline = build_graph()
 async def run_pipeline(
     custom_topic: str | None = None,
     publish_live: bool = False,
+    run_id: str | None = None,
 ) -> dict[str, Any]:
-    run_id = str(uuid.uuid4())
     db = get_db()
 
-    await db.pipeline_runs.insert_one({
-        "run_id": run_id,
-        "custom_topic": custom_topic,
-        "publish_live": publish_live,
-        "status": "running",
-        "created_at": datetime.now(UTC),
-    })
+    if run_id:
+        # Caller pre-created the doc as "queued" — update to running
+        await db.pipeline_runs.update_one(
+            {"run_id": run_id},
+            {"$set": {"status": "running", "started_at": datetime.now(UTC)}},
+        )
+    else:
+        run_id = str(uuid.uuid4())
+        await db.pipeline_runs.insert_one({
+            "run_id": run_id,
+            "custom_topic": custom_topic,
+            "publish_live": publish_live,
+            "status": "running",
+            "created_at": datetime.now(UTC),
+        })
     await log_step(run_id, "orchestrator",
                    f"Pipeline started. Topic: {custom_topic or 'auto (trend research)'}",
                    data={"publish_live": publish_live})
