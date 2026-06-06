@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { NavLinks } from "@/components/NavLinks";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,34 +8,19 @@ export const metadata: Metadata = {
   description: "Multi-agent automated Medium post pipeline",
 };
 
-const nav = [
-  { href: "/", label: "Dashboard" },
-  { href: "/pipeline", label: "Run Pipeline" },
-  { href: "/posts", label: "Posts" },
-  { href: "/analytics", label: "Analytics" },
-];
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen">
-        <header className="border-b border-[var(--border)] px-6 py-4 flex items-center gap-8">
-          <span className="font-bold text-[var(--accent)] text-lg tracking-tight">
+      <body className="min-h-screen flex flex-col">
+        <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur-sm px-6 py-3 flex items-center gap-6">
+          <Link href="/" className="font-bold text-[var(--accent)] text-sm tracking-tight shrink-0">
             ✦ Medium Factory
-          </span>
-          <nav className="flex gap-6 text-sm text-[var(--muted)]">
-            {nav.map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                className="hover:text-[var(--text)] transition-colors"
-              >
-                {n.label}
-              </Link>
-            ))}
-          </nav>
+          </Link>
+          <NavLinks />
         </header>
-        <main className="px-6 py-8 max-w-6xl mx-auto">{children}</main>
+        <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
+          {children}
+        </main>
       </body>
     </html>
   );
