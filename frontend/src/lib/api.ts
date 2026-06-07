@@ -83,4 +83,22 @@ export const api = {
   summary: () => request<Summary>("/analytics/summary"),
 
   getLogs: (runId: string) => request<AgentLog[]>(`/pipeline/runs/${runId}/logs`),
+
+  publishPost: (runId: string, publishLive: boolean) =>
+    request<{ run_id: string; message: string }>(
+      `/posts/${runId}/publish?publish_live=${publishLive}`,
+      { method: "POST" },
+    ),
+
+  startMediumAuth: (email: string) =>
+    request<{ message: string }>("/posts/publisher/start-auth", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  completeMediumAuth: (magicUrl: string) =>
+    request<{ message: string }>("/posts/publisher/complete-auth", {
+      method: "POST",
+      body: JSON.stringify({ magic_url: magicUrl }),
+    }),
 };

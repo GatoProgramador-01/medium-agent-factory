@@ -283,7 +283,9 @@ def route_after_quality(state: PipelineState) -> str:
 
 
 def route_after_finalize(state: PipelineState) -> str:
-    return "publish" if state.get("publish_live") else END
+    # Publishing is always user-triggered (POST /posts/{run_id}/publish).
+    # The pipeline itself always stops here so it can never get stuck on Playwright.
+    return END
 
 
 # ── Graph ──────────────────────────────────────────────────────────────────────
@@ -295,7 +297,6 @@ def build_graph() -> Any:
     g.add_node("quality_analysis", quality_analysis_node)
     g.add_node("revision", content_revision_node)
     g.add_node("finalize", finalize_node)
-    g.add_node("publish", publish_node)
 
     g.add_edge(START, "trend_research")
     g.add_edge("trend_research", "content_generation")
@@ -303,9 +304,7 @@ def build_graph() -> Any:
     g.add_conditional_edges("quality_analysis", route_after_quality,
                             {"finalize": "finalize", "revision": "revision"})
     g.add_edge("revision", "quality_analysis")
-    g.add_conditional_edges("finalize", route_after_finalize,
-                            {"publish": "publish", END: END})
-    g.add_edge("publish", END)
+    g.add_edge("finalize", END)
     return g.compile()
 
 

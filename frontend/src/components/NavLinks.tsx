@@ -4,33 +4,33 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/", label: "Dashboard" },
-  { href: "/pipeline", label: "Run Pipeline" },
-  { href: "/posts", label: "Posts" },
-  { href: "/analytics", label: "Analytics" },
+  { href: "/",          label: "dashboard",  cmd: "~" },
+  { href: "/pipeline",  label: "pipeline",   cmd: "run" },
+  { href: "/posts",     label: "posts",      cmd: "ls"  },
+  { href: "/analytics", label: "analytics",  cmd: "top" },
 ];
 
 export function NavLinks() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-1">
-      {NAV.map(({ href, label }) => {
+    <nav className="flex items-center gap-1">
+      {NAV.map(({ href, label, cmd }) => {
         const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
         return (
           <Link
             key={href}
             href={href}
-            data-testid={`nav-${label.toLowerCase().replace(/\s+/g, "-")}`}
+            data-testid={`nav-${label}`}
             className={`
-              px-3 py-1.5 rounded-md text-sm transition-colors
+              px-3 py-1 text-xs transition-colors border
               ${active
-                ? "text-[var(--text)] bg-[var(--accent-dim)]"
-                : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]"
+                ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-dim)]"
+                : "border-transparent text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border2)]"
               }
             `}
           >
-            {label}
+            <span className="opacity-40">{cmd}/</span>{label}
           </Link>
         );
       })}

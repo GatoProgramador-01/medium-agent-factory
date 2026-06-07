@@ -1,163 +1,111 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { api, type AgentUsage } from "@/lib/api";
 
-function SkeletonChart() {
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 space-y-4">
-      <div className="skeleton h-3 w-48" />
-      <div className="skeleton h-[240px] w-full" />
-    </div>
-  );
-}
+const AgentCharts = dynamic(() => import("@/components/AgentCharts"), { ssr: false });
 
 export default function AnalyticsPage() {
-  const [usage, setUsage] = useState<AgentUsage[]>([]);
+  const [usage, setUsage]   = useState<AgentUsage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api
-      .tokenUsage()
-      .then(setUsage)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    api.tokenUsage().then(setUsage).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  const totalCost = usage.reduce((acc, u) => acc + u.total_cost_usd, 0);
-  const totalCalls = usage.reduce((acc, u) => acc + u.call_count, 0);
+  const totalCost  = usage.reduce((a, u) => a + u.total_cost_usd, 0);
+  const totalCalls = usage.reduce((a, u) => a + u.call_count, 0);
+  const totalIn    = usage.reduce((a, u) => a + u.total_tokens_in, 0);
+  const totalOut   = usage.reduce((a, u) => a + u.total_tokens_out, 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="page-heading">Analytics</h1>
-        <p className="text-[var(--muted)] text-sm mt-1">
-          Token usage, cost, and latency per agent.
-        </p>
+        <p className="text-[var(--muted)] text-xs mb-1">user@factory:~/factory$</p>
+        <h1 className="text-[var(--accent)] text-xl font-bold" data-testid="page-heading">Analytics</h1>
+        <p className="text-[var(--muted)] text-xs mt-1">top -n 1 --agents --sort=cost</p>
       </div>
 
-      {loading ? (
-        <>
-          <SkeletonChart />
-          <SkeletonChart />
-        </>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 space-y-1">
-              <p className="text-[var(--muted)] text-xs uppercase tracking-widest">Total Cost</p>
-              <p className="text-2xl font-bold text-[var(--accent)]">${totalCost.toFixed(4)}</p>
+      {/* Summary row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {loading ? (
+          Array.from({length: 4}).map((_, i) => (
+            <div key={i} className="term-box p-3 space-y-2">
+              <div className="skeleton h-2 w-20" />
+              <div className="skeleton h-5 w-12" />
             </div>
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 space-y-1">
-              <p className="text-[var(--muted)] text-xs uppercase tracking-widest">LLM Calls</p>
-              <p className="text-2xl font-bold">{totalCalls}</p>
-            </div>
-          </div>
+          ))
+        ) : (
+          <>
+            <StatBox label="total_cost_usd" value={`$${totalCost.toFixed(4)}`} accent />
+            <StatBox label="llm_calls" value={totalCalls} />
+            <StatBox label="tokens_in" value={totalIn.toLocaleString()} />
+            <StatBox label="tokens_out" value={totalOut.toLocaleString()} />
+          </>
+        )}
+      </div>
 
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6">
-            <p className="text-xs text-[var(--muted)] uppercase tracking-widest mb-4">
-              Cost per Agent (USD)
-            </p>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={usage} margin={{ top: 0, right: 0, left: 0, bottom: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a32" vertical={false} />
-                <XAxis
-                  dataKey="agent_name"
-                  tick={{ fill: "#6b6b7e", fontSize: 11 }}
-                  angle={-35}
-                  textAnchor="end"
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: "#6b6b7e", fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#1a1a1f",
-                    border: "1px solid #2a2a32",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  labelStyle={{ color: "#e8e8f0" }}
-                  formatter={(v: number) => [`$${v.toFixed(6)}`, "Cost USD"]}
-                />
-                <Bar dataKey="total_cost_usd" fill="#7c6af7" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Charts */}
+      {!loading && usage.length > 0 && <AgentCharts usage={usage} />}
 
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6">
-            <p className="text-xs text-[var(--muted)] uppercase tracking-widest mb-4">
-              Avg Latency per Agent (ms)
-            </p>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={usage} margin={{ top: 0, right: 0, left: 0, bottom: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a32" vertical={false} />
-                <XAxis
-                  dataKey="agent_name"
-                  tick={{ fill: "#6b6b7e", fontSize: 11 }}
-                  angle={-35}
-                  textAnchor="end"
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: "#6b6b7e", fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#1a1a1f",
-                    border: "1px solid #2a2a32",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  labelStyle={{ color: "#e8e8f0" }}
-                  formatter={(v: number) => [`${v}ms`, "Avg Duration"]}
-                />
-                <Bar dataKey="avg_duration_ms" fill="#22c55e" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Table */}
+      <div className="term-box overflow-hidden">
+        <div className="term-box-header">
+          <span>agent breakdown</span>
+          {!loading && <span className="ml-auto text-[var(--accent)]">{usage.length} agents</span>}
+        </div>
 
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="border-b border-[var(--border)]">
-                <tr className="text-xs text-[var(--muted)] uppercase tracking-widest">
-                  {["Agent", "Calls", "Tokens In", "Tokens Out", "Avg ms", "Cost USD"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left font-normal">{h}</th>
+        {loading ? (
+          <div className="p-4 space-y-2">
+            {[1,2,3,4].map((i) => (
+              <div key={i} className="flex gap-6">
+                <div className="skeleton h-3 w-32" />
+                <div className="skeleton h-3 w-12" />
+                <div className="skeleton h-3 w-20" />
+                <div className="skeleton h-3 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : usage.length === 0 ? (
+          <p className="p-4 text-xs text-[var(--muted)]">no data — run a pipeline to see metrics</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[var(--border)] text-[var(--muted)]">
+                  {["agent", "calls", "tok_in", "tok_out", "avg_ms", "cost_usd"].map((h) => (
+                    <th key={h} className="px-4 py-2 text-left font-normal tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {usage.map((u) => (
-                  <tr key={u.agent_name} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)] transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs">{u.agent_name}</td>
-                    <td className="px-4 py-3 tabular-nums">{u.call_count}</td>
-                    <td className="px-4 py-3 tabular-nums">{u.total_tokens_in.toLocaleString()}</td>
-                    <td className="px-4 py-3 tabular-nums">{u.total_tokens_out.toLocaleString()}</td>
-                    <td className="px-4 py-3 tabular-nums">{u.avg_duration_ms}ms</td>
-                    <td className="px-4 py-3 text-[var(--accent)] tabular-nums">${u.total_cost_usd.toFixed(6)}</td>
+                  <tr key={u.agent_name} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface2)] transition-colors">
+                    <td className="px-4 py-2 text-[var(--accent)]">{u.agent_name}</td>
+                    <td className="px-4 py-2 tabular-nums">{u.call_count}</td>
+                    <td className="px-4 py-2 tabular-nums">{u.total_tokens_in.toLocaleString()}</td>
+                    <td className="px-4 py-2 tabular-nums">{u.total_tokens_out.toLocaleString()}</td>
+                    <td className="px-4 py-2 tabular-nums">{u.avg_duration_ms}ms</td>
+                    <td className="px-4 py-2 tabular-nums text-[var(--accent)]">${u.total_cost_usd.toFixed(6)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </>
-      )}
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatBox({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
+  return (
+    <div className="term-box p-3 space-y-1">
+      <p className="text-[10px] text-[var(--muted)] tracking-wider">{label}</p>
+      <p className={`text-lg font-bold tabular-nums ${accent ? "text-[var(--accent)]" : "text-[var(--text)]"}`}>
+        {value}
+      </p>
     </div>
   );
 }
