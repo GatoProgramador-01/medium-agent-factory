@@ -1,18 +1,52 @@
 """
 PublisherAgent — human-in-the-loop Medium publishing
+=====================================================
 
-Two paths (auto-selected):
-  A. Medium API  — if MEDIUM_ACCESS_TOKEN is set in .env (recommended)
-  B. Playwright  — headless browser with session persistence in MongoDB
+NOTE — Medium API status (researched June 2025)
+------------------------------------------------
+Medium's official REST API (api.medium.com) is DEPRECATED and archived.
+- GitHub repo Medium/medium-api-docs archived 2023-03-02.
+- Integration token generation removed for all new accounts as of 2025-01-01.
+- Make.com confirmed (2024-12-25): "Medium has disabled their API. It only
+  works if you created a token before that date."
+- No working unofficial POST endpoint exists. The internal GraphQL endpoint
+  (medium.com/_/graphql) is READ-ONLY; no write path has been documented.
+- PyPI libraries: `medium-api` is read-only; `jupyter-to-medium` requires a
+  token and is abandoned (Python <3.11 only).
 
-Authentication (path B only, one-time setup):
+Conclusion: Playwright browser automation is the ONLY reliable publish path
+for any account that does not already hold a pre-2025 integration token.
+Playwright has a first-class Python SDK (playwright.async_api) — this module
+uses Python Playwright, not JavaScript.
+
+Two paths (auto-selected by config):
+  A. Medium API  — if MEDIUM_ACCESS_TOKEN is set in .env (legacy accounts only)
+  B. Playwright  — headless Chromium with session saved to MongoDB (default)
+
+Authentication (path B — one-time setup):
   1. POST /publisher/start-auth   {"email": "you@example.com"}
-     → triggers magic-link email from Medium
-  2. Copy the link URL from your email (do NOT click it — just copy)
+     Medium sends a magic-link email.
+  2. Right-click the link in your email → Copy link address (DO NOT click it).
   3. POST /publisher/complete-auth {"magic_url": "https://medium.com/m/callback/..."}
-     → Playwright navigates to that URL, session saved to MongoDB
+     Playwright opens the URL headlessly, authenticates, saves session to MongoDB.
+  Session persists across container restarts (stored in `publisher_sessions` col).
 
-Every action emits a log_step so the frontend terminal shows live progress.
+Human-in-the-loop visibility:
+  Every Playwright action emits a log_step → pipeline/runs/{run_id}/logs.
+  The frontend polls this endpoint and shows each step in the live terminal.
+
+Selector strategy:
+  Multiple CSS/aria fallback selectors per element (Medium changes UI often).
+  If a selector list misses, the error message names all attempted selectors
+  so they can be updated without reading this file.
+
+Future optimisation notes:
+  - Replace clipboard paste with Medium's internal GraphQL mutation if it
+    ever becomes documented.
+  - Consider BYOS (bring-your-own-session): let user paste their `sid` cookie
+    directly into .env to skip the magic-link flow entirely.
+  - The `grant_permissions(["clipboard-read","clipboard-write"])` call may
+    need `--allow-clipboard` Chromium flag in certain Docker environments.
 """
 
 from __future__ import annotations
