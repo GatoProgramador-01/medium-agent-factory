@@ -90,15 +90,20 @@ export const api = {
       { method: "POST" },
     ),
 
-  startMediumAuth: (email: string) =>
-    request<{ message: string }>("/posts/publisher/start-auth", {
+  checkMediumSession: () =>
+    request<{ has_session: boolean; valid: boolean; error?: string }>(
+      "/posts/publisher/session-status",
+    ),
+
+  setMediumSession: (sid: string) =>
+    request<{ message: string }>("/posts/publisher/set-session", {
       method: "POST",
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ sid }),
     }),
 
-  completeMediumAuth: (magicUrl: string) =>
-    request<{ message: string }>("/posts/publisher/complete-auth", {
+  setMediumSessionJson: (cookies: object[]) =>
+    request<{ message: string }>("/posts/publisher/set-session-json", {
       method: "POST",
-      body: JSON.stringify({ magic_url: magicUrl }),
+      body: JSON.stringify({ cookies }),
     }),
 };

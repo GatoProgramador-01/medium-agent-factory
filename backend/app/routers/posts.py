@@ -3,9 +3,10 @@ from pydantic import BaseModel
 
 from app.agents.logger import log_step
 from app.agents.publisher import (
-    complete_auth_flow,
+    check_session_status,
     publish_to_medium,
-    start_auth_flow,
+    set_session_from_cookies_json,
+    set_session_from_sid,
 )
 from app.database import get_db
 
@@ -94,31 +95,43 @@ async def publish_post(
     return {"run_id": run_id, "message": "Publishing started — watch logs for progress"}
 
 
-# ── Auth flow (Playwright session setup) ──────────────────────────────────────
+# ── Auth flow (cookie-based session setup) ────────────────────────────────────
+#
+# Medium no longer issues API tokens or passwords for new accounts.
+# The user pastes their `sid` cookie (or a full cookie JSON export) from an
+# already-logged-in browser session. Playwright verifies it, then saves the
+# full storage state to MongoDB so it persists across container restarts.
 
-class StartAuthRequest(BaseModel):
-    email: str
+class SetSessionRequest(BaseModel):
+    sid: str
 
 
-class CompleteAuthRequest(BaseModel):
-    magic_url: str
+class SetSessionJsonRequest(BaseModel):
+    cookies: list[dict]
 
 
-@router.post("/publisher/start-auth")
-async def publisher_start_auth(req: StartAuthRequest) -> dict:
+@router.get("/publisher/session-status")
+async def publisher_session_status() -> dict:
+    """Return whether a valid Medium session is stored."""
+    return await check_session_status()
+
+
+@router.post("/publisher/set-session")
+async def publisher_set_session(req: SetSessionRequest) -> dict:
     """
-    Step 1: Enter your Medium email. Medium sends a magic-link to that address.
-    Then copy (don't click) the link and pass it to /publisher/complete-auth.
+    Paste the `sid` cookie value from medium.com DevTools.
+    DevTools → Application → Cookies → https://medium.com → row named "sid" → Value.
+    Playwright verifies the session is live before saving it to MongoDB.
     """
-    message = await start_auth_flow(req.email)
+    message = await set_session_from_sid(req.sid)
     return {"message": message}
 
 
-@router.post("/publisher/complete-auth")
-async def publisher_complete_auth(req: CompleteAuthRequest) -> dict:
+@router.post("/publisher/set-session-json")
+async def publisher_set_session_json(req: SetSessionJsonRequest) -> dict:
     """
-    Step 2: Paste the magic-link URL from your email (copied, not clicked).
-    Playwright opens it, authenticates, saves session to MongoDB.
+    Paste the full cookie JSON exported from Cookie-Editor or EditThisCookie.
+    Playwright verifies and saves the session to MongoDB.
     """
-    message = await complete_auth_flow(req.magic_url)
+    message = await set_session_from_cookies_json(req.cookies)
     return {"message": message}

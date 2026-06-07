@@ -112,65 +112,124 @@ async def _save_session(storage_state: dict) -> None:
     )
 
 
-# ── Auth flow (path B) ─────────────────────────────────────────────────────────
+# ── Auth flow — cookie-based (path B) ─────────────────────────────────────────
+#
+# Medium login only issues a one-time code sent to your email — no password.
+# The easiest auth method is to copy the `sid` cookie from a browser where
+# you are already logged in, then hand it to Playwright.
+#
+# How to find your sid cookie:
+#   1. Open medium.com in Chrome/Firefox (logged in)
+#   2. Press F12 → Application (Chrome) or Storage (Firefox)
+#   3. Cookies → https://medium.com → find the row named "sid"
+#   4. Copy the Value column
+#
+# Alternatively grab a full cookie JSON export via the browser extension
+# "EditThisCookie" or "Cookie-Editor" → Export as JSON.
 
-async def start_auth_flow(email: str) -> str:
+async def set_session_from_sid(sid: str) -> str:
     """
-    Start a headless browser, navigate to Medium signin, enter the email.
-    Medium will send a magic-link email.  Returns instructions for the user.
+    Build a Playwright storage_state from a raw `sid` cookie value and
+    verify it against medium.com before saving to MongoDB.
     """
+    storage: dict = {
+        "cookies": [
+            {
+                "name": "sid",
+                "value": sid,
+                "domain": ".medium.com",
+                "path": "/",
+                "httpOnly": True,
+                "secure": True,
+                "sameSite": "None",
+            }
+        ],
+        "origins": [],
+    }
+
+    # Verify the session works before saving
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=True)
-        page    = await browser.new_page()
-
-        await page.goto("https://medium.com/m/signin", wait_until="domcontentloaded")
-        await page.wait_for_timeout(2000)
-
-        # Click "Sign in with email"
-        btn = page.get_by_text("Sign in with email", exact=False)
-        if await btn.count():
-            await btn.first.click()
-            await page.wait_for_timeout(1500)
-
-        # Enter email
-        email_box = page.get_by_role("textbox").first
-        await email_box.fill(email)
-        await page.keyboard.press("Enter")
-        await page.wait_for_timeout(2000)
-
-        await browser.close()
-
-    return (
-        f"Magic link sent to {email}. "
-        "Open your email, right-click the link → Copy link address "
-        "(do NOT click it), then call POST /publisher/complete-auth with the URL."
-    )
-
-
-async def complete_auth_flow(magic_url: str) -> str:
-    """
-    Open the magic link in a headless browser, wait for redirect to confirm
-    authentication, then save the session to MongoDB.
-    """
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
-        context = await browser.new_context()
+        context = await browser.new_context(storage_state=storage)
         page    = await context.new_page()
 
-        await page.goto(magic_url, wait_until="networkidle", timeout=30_000)
+        await page.goto("https://medium.com/me/stories/drafts", wait_until="domcontentloaded")
         await page.wait_for_timeout(3000)
 
-        # Verify we're logged in — Medium redirects to home or the story page
         current = page.url
-        if "medium.com/m/signin" in current:
+        if "signin" in current or "login" in current:
             await browser.close()
-            raise RuntimeError("Magic link expired or already used. Restart auth flow.")
+            raise RuntimeError(
+                "Session verification failed — the sid cookie is expired or invalid. "
+                "Copy a fresh sid from your browser DevTools and try again."
+            )
 
-        storage = await context.storage_state()
-        await _save_session(storage)
+        # Grab the full session state Medium set (may include additional cookies)
+        full_storage = await context.storage_state()
         await browser.close()
 
-    return "Session saved. Medium publishing is now ready."
+    await _save_session(full_storage)
+    return "Session verified and saved. Medium publishing is ready."
+
+
+async def set_session_from_cookies_json(cookies_json: list[dict]) -> str:
+    """
+    Accept a full cookie JSON array (e.g. from Cookie-Editor browser extension)
+    and build a Playwright session from it.  Verifies before saving.
+    """
+    # Normalise fields Playwright requires
+    normalised = []
+    for c in cookies_json:
+        normalised.append({
+            "name":     c.get("name", ""),
+            "value":    c.get("value", ""),
+            "domain":   c.get("domain", ".medium.com"),
+            "path":     c.get("path", "/"),
+            "httpOnly": c.get("httpOnly", False),
+            "secure":   c.get("secure", False),
+            "sameSite": c.get("sameSite", "Lax"),
+        })
+
+    storage: dict = {"cookies": normalised, "origins": []}
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=True)
+        context = await browser.new_context(storage_state=storage)
+        page    = await context.new_page()
+
+        await page.goto("https://medium.com/me/stories/drafts", wait_until="domcontentloaded")
+        await page.wait_for_timeout(3000)
+
+        if "signin" in page.url or "login" in page.url:
+            await browser.close()
+            raise RuntimeError("Cookie verification failed — cookies may be expired.")
+
+        full_storage = await context.storage_state()
+        await browser.close()
+
+    await _save_session(full_storage)
+    return "Session verified and saved. Medium publishing is ready."
+
+
+async def check_session_status() -> dict:
+    """Return whether a saved session exists and if it's still valid."""
+    session = await _load_session()
+    if not session:
+        return {"has_session": False, "valid": False}
+
+    try:
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(headless=True)
+            context = await browser.new_context(storage_state=session)
+            page    = await context.new_page()
+            await page.goto("https://medium.com/me/stories/drafts",
+                            wait_until="domcontentloaded")
+            await page.wait_for_timeout(2000)
+            valid = "signin" not in page.url and "login" not in page.url
+            await browser.close()
+        return {"has_session": True, "valid": valid}
+    except Exception as exc:
+        return {"has_session": True, "valid": False, "error": str(exc)}
 
 
 # ── Selector helper ────────────────────────────────────────────────────────────

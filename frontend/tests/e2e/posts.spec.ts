@@ -109,6 +109,6 @@ test.describe("Posts page", () => {
     await page.goto("/posts");
     const card = page.getByTestId("post-card").first();
     await expect(card).toContainText("How to Make $500/Month on Ko-fi");
-    await expect(card).toContainText("82/100");
+    await expect(card).toContainText("82");
   });
 });

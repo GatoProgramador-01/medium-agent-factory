@@ -10,7 +10,7 @@ test.describe("Navigation", () => {
 
   test("nav link Run Pipeline navigates to /pipeline", async ({ page }) => {
     await page.goto("/");
-    await page.getByTestId("nav-run-pipeline").click();
+    await page.getByTestId("nav-pipeline").click();
     await expect(page).toHaveURL("/pipeline");
     await expect(page.getByTestId("page-heading")).toHaveText("Run Pipeline");
   });
@@ -31,7 +31,7 @@ test.describe("Navigation", () => {
 
   test("logo link returns to dashboard", async ({ page }) => {
     await page.goto("/pipeline");
-    await page.locator("text=✦ Medium Factory").click();
+    await page.getByRole("link", { name: "~/factory" }).first().click();
     await expect(page).toHaveURL("/");
   });
 

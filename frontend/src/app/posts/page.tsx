@@ -223,33 +223,28 @@ function PostCard({ post, onPublished }: { post: Post; onPublished: () => void }
   );
 }
 
-// ── Auth helper modal ─────────────────────────────────────────────────────────
+// ── Auth helper modal (cookie-based) ─────────────────────────────────────────
 
-function AuthModal({ onClose }: { onClose: () => void }) {
-  const [email, setEmail]         = useState("");
-  const [magicUrl, setMagicUrl]   = useState("");
-  const [step, setStep]           = useState<"email" | "magic" | "done">("email");
-  const [message, setMessage]     = useState("");
-  const [loading, setLoading]     = useState(false);
+function AuthModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [sid, setSid]         = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [done, setDone]       = useState(false);
 
-  async function sendEmail() {
+  async function handleSave() {
     setLoading(true);
+    setError("");
     try {
-      const r = await api.startMediumAuth(email);
+      const r = await api.setMediumSession(sid.trim());
       setMessage(r.message);
-      setStep("magic");
-    } catch (e) { setMessage(String(e)); }
-    finally { setLoading(false); }
-  }
-
-  async function confirmMagic() {
-    setLoading(true);
-    try {
-      const r = await api.completeMediumAuth(magicUrl);
-      setMessage(r.message);
-      setStep("done");
-    } catch (e) { setMessage(String(e)); }
-    finally { setLoading(false); }
+      setDone(true);
+      onSaved();
+    } catch (e) {
+      setError(String(e).replace("Error: API 422: ", "").replace("Error: API 500: ", ""));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -257,60 +252,56 @@ function AuthModal({ onClose }: { onClose: () => void }) {
       <div className="term-box w-full max-w-lg">
         <div className="term-box-header">
           <span className="text-[var(--accent)]">$</span>
-          <span>medium auth setup</span>
+          <span>medium · connect session</span>
           <button onClick={onClose} className="ml-auto text-[var(--muted)] hover:text-[var(--text)]">[×]</button>
         </div>
-        <div className="p-5 space-y-4 text-sm font-mono">
-          {step === "email" && (
-            <>
-              <p className="text-[var(--muted)] text-xs">
-                Enter your Medium email. We'll send a magic link. Copy (don't click) the URL and paste it below.
-              </p>
-              <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg)] px-3 py-2 focus-within:border-[var(--accent)]">
-                <span className="text-[var(--accent)]">❯</span>
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="flex-1 bg-transparent focus:outline-none text-[var(--text)] placeholder:text-[var(--muted)]"
-                />
-              </div>
-              <button onClick={sendEmail} disabled={loading || !email}
-                className="term-btn term-btn-solid w-full py-2 text-xs tracking-widest">
-                {loading ? "sending…" : "❯ send_magic_link"}
-              </button>
-            </>
+        <div className="p-5 space-y-4 text-xs font-mono">
+
+          {/* Instructions */}
+          <div className="space-y-1 text-[var(--muted)] leading-relaxed">
+            <p className="text-[var(--text)]">How to find your <span className="text-[var(--accent)]">sid</span> cookie:</p>
+            <p>1. Open <span className="text-[var(--blue)]">medium.com</span> in Chrome/Firefox while logged in</p>
+            <p>2. Press <span className="text-[var(--yellow)]">F12</span> → <span className="text-[var(--yellow)]">Application</span> tab (Chrome) or <span className="text-[var(--yellow)]">Storage</span> (Firefox)</p>
+            <p>3. <span className="text-[var(--yellow)]">Cookies</span> → <span className="text-[var(--yellow)]">https://medium.com</span></p>
+            <p>4. Find the row named <span className="text-[var(--accent)]">sid</span> → copy the <span className="text-[var(--accent)]">Value</span></p>
+          </div>
+
+          <div className="border-t border-[var(--border)]" />
+
+          {/* sid input */}
+          <div>
+            <label className="text-[var(--muted)] mb-1 block">paste sid value:</label>
+            <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg)] px-3 py-2 focus-within:border-[var(--accent)] transition-colors">
+              <span className="text-[var(--accent)]">❯</span>
+              <input
+                value={sid}
+                onChange={(e) => setSid(e.target.value)}
+                placeholder="2:AbCdEf…"
+                type="password"
+                className="flex-1 bg-transparent focus:outline-none text-[var(--text)] placeholder:text-[var(--muted)] font-mono text-xs"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-[var(--red)] leading-relaxed">{error}</p>
           )}
 
-          {step === "magic" && (
-            <>
-              <p className="text-[var(--accent)] text-xs">✓ {message}</p>
-              <p className="text-[var(--muted)] text-xs">
-                Check your email. Right-click the link → Copy link address. Paste it below.
-              </p>
-              <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg)] px-3 py-2 focus-within:border-[var(--accent)]">
-                <span className="text-[var(--accent)]">❯</span>
-                <input
-                  value={magicUrl}
-                  onChange={(e) => setMagicUrl(e.target.value)}
-                  placeholder="https://medium.com/m/callback/…"
-                  className="flex-1 bg-transparent focus:outline-none text-[var(--text)] placeholder:text-[var(--muted)] text-xs"
-                />
-              </div>
-              <button onClick={confirmMagic} disabled={loading || !magicUrl}
-                className="term-btn term-btn-solid w-full py-2 text-xs tracking-widest">
-                {loading ? "authenticating…" : "❯ complete_auth"}
-              </button>
-            </>
-          )}
-
-          {step === "done" && (
+          {done ? (
             <>
               <p className="text-[var(--accent)]">✓ {message}</p>
-              <button onClick={onClose} className="term-btn w-full py-2 text-xs tracking-widest">
+              <button onClick={onClose} className="term-btn w-full py-2 tracking-widest">
                 [close]
               </button>
             </>
+          ) : (
+            <button
+              onClick={handleSave}
+              disabled={loading || !sid.trim()}
+              className="term-btn term-btn-solid w-full py-2 tracking-widest disabled:opacity-40"
+            >
+              {loading ? "verifying session…" : "❯ save_session"}
+            </button>
           )}
         </div>
       </div>
@@ -321,10 +312,11 @@ function AuthModal({ onClose }: { onClose: () => void }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PostsPage() {
-  const [posts, setPosts]     = useState<Post[]>([]);
-  const [filter, setFilter]   = useState("");
-  const [loading, setLoading] = useState(true);
+  const [posts, setPosts]       = useState<Post[]>([]);
+  const [filter, setFilter]     = useState("");
+  const [loading, setLoading]   = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+  const [sessionOk, setSessionOk] = useState<boolean | null>(null);
 
   async function load() {
     setLoading(true);
@@ -334,11 +326,26 @@ export default function PostsPage() {
       .finally(() => setLoading(false));
   }
 
+  async function checkSession() {
+    try {
+      const s = await api.checkMediumSession();
+      setSessionOk(s.has_session && s.valid);
+    } catch {
+      setSessionOk(false);
+    }
+  }
+
   useEffect(() => { load(); }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { checkSession(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-5">
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {showAuth && (
+        <AuthModal
+          onClose={() => setShowAuth(false)}
+          onSaved={() => { setSessionOk(true); setShowAuth(false); }}
+        />
+      )}
 
       <div>
         <p className="text-[var(--muted)] text-xs mb-1">user@factory:~/factory$</p>
@@ -365,9 +372,13 @@ export default function PostsPage() {
         ))}
         <button
           onClick={() => setShowAuth(true)}
-          className="ml-auto text-[10px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors border border-transparent hover:border-[var(--border)] px-2 py-1"
+          className="ml-auto flex items-center gap-1.5 text-[10px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors border border-transparent hover:border-[var(--border)] px-2 py-1"
         >
-          [medium auth]
+          <span className={
+            sessionOk === null ? "text-[var(--muted)]" :
+            sessionOk ? "text-[var(--accent)]" : "text-[var(--red)]"
+          }>●</span>
+          {sessionOk === null ? "[medium …]" : sessionOk ? "[medium ✓]" : "[medium auth]"}
         </button>
       </div>
 
