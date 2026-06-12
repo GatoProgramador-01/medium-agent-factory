@@ -26,6 +26,9 @@ dev = [
     "mypy>=1.13.0",
 ]
 
+[tool.setuptools.packages.find]
+include = ["app*"]   # evals/ is tests-only, not a distributable package
+
 [tool.black]
 line-length = 88
 

@@ -179,3 +179,4 @@ async def test_issues_have_specific_locations(bad_cases: list[dict]) -> None:
             f"Issue location '{issue.location}' is too vague — "
             f"should quote a specific excerpt"
         )
+
