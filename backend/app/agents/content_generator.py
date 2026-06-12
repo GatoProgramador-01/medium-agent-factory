@@ -11,11 +11,13 @@ Cost comparison vs always-Sonnet:
   Worst case (Sonnet revision needed):    ~$0.035/post  (was $0.05)
 """
 
+import json
 import time
+from typing import Any
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.agents.base import AgentTokenTracker
 from app.config import settings
@@ -35,6 +37,26 @@ class GeneratedPost(BaseModel):
     image_suggestions: list[str] = Field(
         description="3 image ideas with suggested search terms for Unsplash/Pexels"
     )
+
+    @field_validator("tags", "image_suggestions", mode="before")
+    @classmethod
+    def _coerce_json_string(cls, v: Any) -> Any:
+        if not isinstance(v, str):
+            return v
+        try:
+            return json.loads(v)
+        except json.JSONDecodeError:
+            cleaned = (
+                v
+                .replace("'", "'").replace("'", "'")
+                .replace(""", '"').replace(""", '"')
+                .replace("—", "-").replace("–", "-")
+                .replace("…", "...")
+            )
+            try:
+                return json.loads(cleaned)
+            except json.JSONDecodeError:
+                return []
 
 
 _SYSTEM = """You are a professional human content writer who has published 200+ successful

@@ -1,0 +1,45 @@
+name: eval-gate
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "backend/app/agents/**"
+      - "backend/evals/**"
+      - "backend/pyproject.toml"
+
+jobs:
+  eval:
+    name: LLM Eval Gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run eval gate (Layer 1 + 2 only — no deep LLM-judge tests)
+        run: pytest evals/ -v --tb=short -m "not eval_deep" --timeout=120
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # LangSmith tracing on CI — every eval run is visible in the dashboard
+          LANGCHAIN_TRACING_V2: "true"
+          LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
+          LANGCHAIN_PROJECT: medium-agent-factory-ci
+          MONGODB_URI: ""          # mocked in conftest — no real DB needed
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: backend/.pytest_cache/

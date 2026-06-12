@@ -12,12 +12,13 @@ Detects:
   - Missing human elements (no anecdote, no personal take, no specificity)
 """
 
+import json
 import time
 from typing import Any
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.agents.base import AgentTokenTracker
 from app.config import settings
@@ -45,6 +46,28 @@ class _AnalysisOutput(BaseModel):
             "Include the specific patterns to remove and the specific voice/style to add."
         )
     )
+
+    @field_validator("issues", "strengths", mode="before")
+    @classmethod
+    def _coerce_json_string(cls, v: Any) -> Any:
+        if not isinstance(v, str):
+            return v
+        try:
+            return json.loads(v)
+        except json.JSONDecodeError:
+            # LLMs sometimes embed smart-quotes or em-dashes in JSON strings,
+            # breaking strict parsing. Normalize the most common offenders.
+            cleaned = (
+                v
+                .replace("‘", "'").replace("’", "'")   # curly single quotes
+                .replace("“", '"').replace("”", '"')   # curly double quotes
+                .replace("—", "-").replace("–", "-")   # em/en dashes
+                .replace("…", "...")                         # ellipsis char
+            )
+            try:
+                return json.loads(cleaned)
+            except json.JSONDecodeError:
+                return []   # last resort: empty list, don't crash the pipeline
 
 
 _SYSTEM = """You are a senior human writing coach who helps AI-assisted content pass as
