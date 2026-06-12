@@ -11,8 +11,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type PipelineRun = {
   run_id: string;
-  custom_topic: string | null;
-  publish_live: boolean;
+  custom_topic: string;
   status: "queued" | "running" | "completed" | "failed";
   created_at: string;
   completed_at?: string;
@@ -64,10 +63,10 @@ export type Summary = {
 };
 
 export const api = {
-  triggerPipeline: (topic: string | null, publishLive: boolean) =>
+  triggerPipeline: (topic: string) =>
     request<{ run_id: string; message: string }>("/pipeline/run", {
       method: "POST",
-      body: JSON.stringify({ custom_topic: topic, publish_live: publishLive }),
+      body: JSON.stringify({ custom_topic: topic }),
     }),
 
   listRuns: () => request<PipelineRun[]>("/pipeline/runs"),
@@ -84,26 +83,7 @@ export const api = {
 
   getLogs: (runId: string) => request<AgentLog[]>(`/pipeline/runs/${runId}/logs`),
 
-  publishPost: (runId: string, publishLive: boolean) =>
-    request<{ run_id: string; message: string }>(
-      `/posts/${runId}/publish?publish_live=${publishLive}`,
-      { method: "POST" },
-    ),
-
-  checkMediumSession: () =>
-    request<{ has_session: boolean; valid: boolean; error?: string }>(
-      "/posts/publisher/session-status",
-    ),
-
-  setMediumSession: (sid: string) =>
-    request<{ message: string }>("/posts/publisher/set-session", {
-      method: "POST",
-      body: JSON.stringify({ sid }),
-    }),
-
-  setMediumSessionJson: (cookies: object[]) =>
-    request<{ message: string }>("/posts/publisher/set-session-json", {
-      method: "POST",
-      body: JSON.stringify({ cookies }),
-    }),
+  /** Open an SSE connection to the live log stream for a run. */
+  streamLogs: (runId: string): EventSource =>
+    new EventSource(`${BASE}/pipeline/runs/${runId}/stream`),
 };

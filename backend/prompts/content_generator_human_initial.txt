@@ -1,0 +1,11 @@
+Write a complete Medium post on this topic.
+
+TOPIC: {topic}
+
+TREND CONTEXT (use this to make the content timely and relevant):
+{trend_context}
+
+RECOMMENDED TAGS: {tags}
+TARGET AUDIENCE: {audience}
+
+Write the full post now. Remember: open with a hook, not an introduction.

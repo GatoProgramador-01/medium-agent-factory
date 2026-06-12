@@ -16,13 +16,14 @@ import json
 import time
 from typing import Any
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, field_validator
 
 from app.agents.base import AgentTokenTracker
-from app.config import settings
+from app.agents.llm_factory import get_llm, get_model_name
+from app.agents.retry import with_langchain_retry
 from app.models.post import QualityIssue, QualityReport
+from app.prompt_loader import load_prompt, load_template
 
 
 class _Issue(BaseModel):
@@ -70,76 +71,28 @@ class _AnalysisOutput(BaseModel):
                 return []   # last resort: empty list, don't crash the pipeline
 
 
-_SYSTEM = """You are a senior human writing coach who helps AI-assisted content pass as
-expert human writing. You have deep expertise in what makes Medium readers stay and finish
-an article versus bounce.
-
-Score rubric (0.0 – 1.0):
-  0.9–1.0 → Indistinguishable from a seasoned human writer. Publishes as-is.
-  0.75–0.89 → Mostly human. Minor polish needed.
-  0.5–0.74 → Obvious AI patterns. Significant revision needed.
-  0.0–0.49 → Clearly AI-generated. Rewrite required.
-
-Red flags (mark as issues):
-  AI PATTERNS:
-  - Opens with "In today's world" / "In this article" / "As a [title]"
-  - Overuses: Moreover, Furthermore, Additionally, In conclusion, It's worth noting
-  - Perfect parallel structure in every paragraph
-  - Transition sentences that summarize the previous section before starting the next
-  - Lists where prose would be more natural
-  - Every H2 ends with a colon
-
-  READABILITY:
-  - Sentence length never varies (all medium, or all long)
-  - No contractions (sounds formal and robotic)
-  - Passive voice in action-oriented sections
-  - Abstract explanations with zero concrete examples
-
-  MISSING HUMAN ELEMENTS:
-  - No personal anecdote or specific story
-  - No surprising fact or counterintuitive point
-  - No conversational aside (a em-dash aside, a parenthetical)
-  - No humor or personality
-  - Reads like a Wikipedia article, not a conversation
-
-  FORMATTING:
-  - More than 4 bullet lists in a 1500-word post
-  - Headers every 200 words (chopped up flow)
-  - Bold text on every third sentence"""
-
-
-_HUMAN = """Analyze this Medium draft:
-
-TITLE: {title}
-
-CONTENT:
-{content}
-
----
-Provide a detailed quality analysis with a score, specific issues, and a revision prompt
-that the content generator can use to fix this post."""
-
 
 async def run_quality_analysis(
     run_id: str,
     title: str,
     content: str,
 ) -> QualityReport:
+    model_name = get_model_name("worker")
     tracker = AgentTokenTracker(
         agent_name="quality_analyzer",
         run_id=run_id,
-        model=settings.worker_model,
+        model=model_name,
     )
 
-    llm = ChatAnthropic(
-        model=settings.worker_model,
-        api_key=settings.anthropic_api_key,
-        callbacks=[tracker],
-    ).with_structured_output(_AnalysisOutput)
+    llm = with_langchain_retry(
+        get_llm("worker", callbacks=[tracker]).with_structured_output(_AnalysisOutput)
+    )
 
     messages = [
-        SystemMessage(content=_SYSTEM),
-        HumanMessage(content=_HUMAN.format(title=title, content=content)),
+        SystemMessage(content=load_prompt("quality_analyzer_system")),
+        HumanMessage(content=load_template("quality_analyzer_human").format(
+            title=title, content=content,
+        )),
     ]
 
     start = time.perf_counter()

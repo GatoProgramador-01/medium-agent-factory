@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     supervisor_model: str = "claude-sonnet-4-6"
     worker_model: str = "claude-haiku-4-5-20251001"
 
+    # Local LLM via Ollama — set USE_LOCAL_LLM=true to skip Anthropic entirely
+    use_local_llm: bool = False
+    local_llm_model: str = "llama3.2"
+    local_llm_base_url: str = "http://ollama:11434"
+
     # Quality gate: min read-ratio score (0-1) before approving
     min_quality_score: float = 0.75
     max_revision_cycles: int = 2

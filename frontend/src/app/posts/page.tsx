@@ -223,9 +223,20 @@ function PostCard({ post, onPublished }: { post: Post; onPublished: () => void }
   );
 }
 
-// ── Auth helper modal (cookie-based) ─────────────────────────────────────────
+// ── Auth helper modal ─────────────────────────────────────────────────────────
 
-function AuthModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+type AuthTab = "cdp" | "cookie";
+
+function AuthModal({
+  onClose,
+  onSaved,
+  cdpOk,
+}: {
+  onClose: () => void;
+  onSaved: () => void;
+  cdpOk: boolean | null;
+}) {
+  const [tab, setTab]         = useState<AuthTab>(cdpOk ? "cookie" : "cdp");
   const [sid, setSid]         = useState("");
   const [message, setMessage] = useState("");
   const [error, setError]     = useState("");
@@ -247,6 +258,8 @@ function AuthModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
     }
   }
 
+  const chromeCmd = `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%TEMP%\\chrome-debug"`;
+
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="term-box w-full max-w-lg">
@@ -255,53 +268,113 @@ function AuthModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
           <span>medium · connect session</span>
           <button onClick={onClose} className="ml-auto text-[var(--muted)] hover:text-[var(--text)]">[×]</button>
         </div>
+
+        {/* Tab bar */}
+        <div className="flex border-b border-[var(--border)]">
+          {(["cdp", "cookie"] as AuthTab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 text-[10px] tracking-widest transition-colors ${
+                tab === t
+                  ? "border-b border-[var(--accent)] text-[var(--accent)]"
+                  : "text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              {t === "cdp" ? (
+                <span className="flex items-center gap-1.5">
+                  <span className={cdpOk ? "text-[var(--accent)]" : "text-[var(--red)]"}>●</span>
+                  CDP (recommended)
+                </span>
+              ) : "sid cookie (fallback)"}
+            </button>
+          ))}
+        </div>
+
         <div className="p-5 space-y-4 text-xs font-mono">
 
-          {/* Instructions */}
-          <div className="space-y-1 text-[var(--muted)] leading-relaxed">
-            <p className="text-[var(--text)]">How to find your <span className="text-[var(--accent)]">sid</span> cookie:</p>
-            <p>1. Open <span className="text-[var(--blue)]">medium.com</span> in Chrome/Firefox while logged in</p>
-            <p>2. Press <span className="text-[var(--yellow)]">F12</span> → <span className="text-[var(--yellow)]">Application</span> tab (Chrome) or <span className="text-[var(--yellow)]">Storage</span> (Firefox)</p>
-            <p>3. <span className="text-[var(--yellow)]">Cookies</span> → <span className="text-[var(--yellow)]">https://medium.com</span></p>
-            <p>4. Find the row named <span className="text-[var(--accent)]">sid</span> → copy the <span className="text-[var(--accent)]">Value</span></p>
-          </div>
-
-          <div className="border-t border-[var(--border)]" />
-
-          {/* sid input */}
-          <div>
-            <label className="text-[var(--muted)] mb-1 block">paste sid value:</label>
-            <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg)] px-3 py-2 focus-within:border-[var(--accent)] transition-colors">
-              <span className="text-[var(--accent)]">❯</span>
-              <input
-                value={sid}
-                onChange={(e) => setSid(e.target.value)}
-                placeholder="2:AbCdEf…"
-                type="password"
-                className="flex-1 bg-transparent focus:outline-none text-[var(--text)] placeholder:text-[var(--muted)] font-mono text-xs"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p className="text-[var(--red)] leading-relaxed">{error}</p>
+          {tab === "cdp" && (
+            <>
+              {cdpOk ? (
+                <div className="space-y-2">
+                  <p className="text-[var(--accent)]">✓ Chrome is connected via CDP</p>
+                  <p className="text-[var(--muted)]">
+                    When you publish, a new tab will open in your Chrome browser
+                    and Medium will be controlled through it — no Cloudflare blocking.
+                  </p>
+                  <p className="text-[var(--muted)]">
+                    Make sure you are logged into <span className="text-[var(--blue)]">medium.com</span> in that browser.
+                  </p>
+                  <button onClick={onClose} className="term-btn w-full py-2 tracking-widest mt-2">
+                    [close]
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3 text-[var(--muted)] leading-relaxed">
+                  <p className="text-[var(--text)]">Start Chrome with remote debugging enabled:</p>
+                  <p>1. <span className="text-[var(--yellow)]">Close all Chrome windows</span> first</p>
+                  <p>2. Run this command in PowerShell or CMD:</p>
+                  <pre className="bg-[var(--bg)] border border-[var(--border)] p-3 text-[10px] leading-relaxed overflow-auto whitespace-pre-wrap break-all text-[var(--accent)]">
+                    {chromeCmd}
+                  </pre>
+                  <p>3. Log in to <span className="text-[var(--blue)]">medium.com</span> in that Chrome window</p>
+                  <p>4. Come back here — the <span className="text-[var(--accent)]">CDP</span> dot will turn green</p>
+                  <div className="border-t border-[var(--border)] pt-3">
+                    <p className="text-[10px]">Verify it&apos;s working: open <span className="text-[var(--blue)]">http://localhost:9222/json/version</span> — you should see JSON.</p>
+                  </div>
+                  <button onClick={onClose} className="term-btn w-full py-2 tracking-widest">
+                    [close — I&apos;ll start Chrome]
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
-          {done ? (
+          {tab === "cookie" && (
             <>
-              <p className="text-[var(--accent)]">✓ {message}</p>
-              <button onClick={onClose} className="term-btn w-full py-2 tracking-widest">
-                [close]
-              </button>
+              <div className="space-y-1 text-[var(--muted)] leading-relaxed">
+                <p className="text-[var(--text)]">How to find your <span className="text-[var(--accent)]">sid</span> cookie:</p>
+                <p>1. Open <span className="text-[var(--blue)]">medium.com</span> in Chrome/Firefox while logged in</p>
+                <p>2. Press <span className="text-[var(--yellow)]">F12</span> → <span className="text-[var(--yellow)]">Application</span> (Chrome) or <span className="text-[var(--yellow)]">Storage</span> (Firefox)</p>
+                <p>3. <span className="text-[var(--yellow)]">Cookies</span> → <span className="text-[var(--yellow)]">https://medium.com</span></p>
+                <p>4. Find the row named <span className="text-[var(--accent)]">sid</span> → copy the <span className="text-[var(--accent)]">Value</span></p>
+              </div>
+
+              <div className="border-t border-[var(--border)]" />
+
+              <div>
+                <label className="text-[var(--muted)] mb-1 block">paste sid value:</label>
+                <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg)] px-3 py-2 focus-within:border-[var(--accent)] transition-colors">
+                  <span className="text-[var(--accent)]">❯</span>
+                  <input
+                    value={sid}
+                    onChange={(e) => setSid(e.target.value)}
+                    placeholder="2:AbCdEf…"
+                    type="password"
+                    className="flex-1 bg-transparent focus:outline-none text-[var(--text)] placeholder:text-[var(--muted)] font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              {error && <p className="text-[var(--red)] leading-relaxed">{error}</p>}
+
+              {done ? (
+                <>
+                  <p className="text-[var(--accent)]">✓ {message}</p>
+                  <button onClick={onClose} className="term-btn w-full py-2 tracking-widest">
+                    [close]
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleSave}
+                  disabled={loading || !sid.trim()}
+                  className="term-btn term-btn-solid w-full py-2 tracking-widest disabled:opacity-40"
+                >
+                  {loading ? "verifying session…" : "❯ save_session"}
+                </button>
+              )}
             </>
-          ) : (
-            <button
-              onClick={handleSave}
-              disabled={loading || !sid.trim()}
-              className="term-btn term-btn-solid w-full py-2 tracking-widest disabled:opacity-40"
-            >
-              {loading ? "verifying session…" : "❯ save_session"}
-            </button>
           )}
         </div>
       </div>
@@ -312,11 +385,12 @@ function AuthModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PostsPage() {
-  const [posts, setPosts]       = useState<Post[]>([]);
-  const [filter, setFilter]     = useState("");
-  const [loading, setLoading]   = useState(true);
-  const [showAuth, setShowAuth] = useState(false);
+  const [posts, setPosts]         = useState<Post[]>([]);
+  const [filter, setFilter]       = useState("");
+  const [loading, setLoading]     = useState(true);
+  const [showAuth, setShowAuth]   = useState(false);
   const [sessionOk, setSessionOk] = useState<boolean | null>(null);
+  const [cdpOk, setCdpOk]         = useState<boolean | null>(null);
 
   async function load() {
     setLoading(true);
@@ -335,8 +409,17 @@ export default function PostsPage() {
     }
   }
 
+  async function checkCdp() {
+    try {
+      const c = await api.checkCdpStatus();
+      setCdpOk(c.connected);
+    } catch {
+      setCdpOk(false);
+    }
+  }
+
   useEffect(() => { load(); }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { checkSession(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { checkSession(); checkCdp(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-5">
@@ -344,6 +427,7 @@ export default function PostsPage() {
         <AuthModal
           onClose={() => setShowAuth(false)}
           onSaved={() => { setSessionOk(true); setShowAuth(false); }}
+          cdpOk={cdpOk}
         />
       )}
 
@@ -374,11 +458,23 @@ export default function PostsPage() {
           onClick={() => setShowAuth(true)}
           className="ml-auto flex items-center gap-1.5 text-[10px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors border border-transparent hover:border-[var(--border)] px-2 py-1"
         >
-          <span className={
-            sessionOk === null ? "text-[var(--muted)]" :
-            sessionOk ? "text-[var(--accent)]" : "text-[var(--red)]"
-          }>●</span>
-          {sessionOk === null ? "[medium …]" : sessionOk ? "[medium ✓]" : "[medium auth]"}
+          {/* CDP dot */}
+          <span
+            title={cdpOk ? "Chrome CDP connected" : "Chrome CDP not connected"}
+            className={
+              cdpOk === null ? "text-[var(--muted)]" :
+              cdpOk ? "text-[var(--accent)]" : "text-[var(--border2)]"
+            }
+          >●</span>
+          {/* session dot */}
+          <span
+            title={sessionOk ? "Cookie session valid" : "No cookie session"}
+            className={
+              sessionOk === null ? "text-[var(--muted)]" :
+              sessionOk ? "text-[var(--blue)]" : "text-[var(--border2)]"
+            }
+          >●</span>
+          <span>[medium]</span>
         </button>
       </div>
 

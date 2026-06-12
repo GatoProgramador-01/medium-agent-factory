@@ -25,7 +25,7 @@ _PRICING: dict[str, tuple[float, float]] = {
     "claude-sonnet-4-6":        (3.00, 15.00),
     "claude-haiku-4-5-20251001": (0.25,  1.25),
 }
-_DEFAULT_PRICING = (3.00, 15.00)
+_DEFAULT_PRICING = (0.0, 0.0)   # local/unknown models: no API cost
 
 
 def _cost(model: str, tokens_in: int, tokens_out: int) -> float:

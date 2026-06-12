@@ -1,0 +1,10 @@
+Analyze this Medium draft:
+
+TITLE: {title}
+
+CONTENT:
+{content}
+
+---
+Provide a detailed quality analysis with a score, specific issues, and a revision prompt
+that the content generator can use to fix this post.

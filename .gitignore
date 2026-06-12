@@ -16,3 +16,9 @@ build/
 *.log
 .DS_Store
 Thumbs.db
+*.egg-info/
+playwright-report/
+test-results/
+analytics-error.md
+analytics-failed.png
+posts-failed.png

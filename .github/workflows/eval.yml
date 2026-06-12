@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "backend/app/agents/**"
+      - "backend/prompts/**"
       - "backend/evals/**"
       - "backend/pyproject.toml"
 

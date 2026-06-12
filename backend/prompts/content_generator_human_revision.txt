@@ -1,0 +1,15 @@
+Revise this Medium post based on the quality analysis below.
+
+ORIGINAL TITLE: {title}
+ORIGINAL CONTENT:
+{content}
+
+QUALITY SCORE: {score}/1.0 (needs to reach {min_score})
+
+REVISION BRIEF (apply ALL of these):
+{revision_prompt}
+
+SPECIFIC ISSUES TO FIX:
+{issues_list}
+
+Rewrite the full post incorporating every correction. Keep what's strong.
