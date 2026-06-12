@@ -1,17 +1,23 @@
-FROM python:3.11-slim
+# ── Stage 1: install dependencies ─────────────────────────────────────────────
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl wget gnupg && rm -rf /var/lib/apt/lists/*
+    gcc g++ && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir --prefix=/install -e .
 
-# Install Playwright browsers for the publisher agent
-RUN playwright install chromium --with-deps
+# ── Stage 2: lean runtime image ────────────────────────────────────────────────
+FROM python:3.11-slim
 
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
 COPY . .
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# 2 workers handles concurrent requests without OOMing on 512 MB
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
