@@ -4,6 +4,19 @@ from enum import StrEnum
 from typing import Any
 
 
+@dataclass
+class SeriesDocument:
+    series_id: str
+    theme: str
+    series_title: str
+    series_description: str
+    post_count: int
+    status: str  # "running" | "completed" | "failed"
+    run_ids: list[str] = field(default_factory=list)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    completed_at: datetime | None = None
+
+
 class PostStatus(StrEnum):
     DRAFT = "draft"
     REVISED = "revised"
@@ -42,6 +55,8 @@ class PostDocument:
     quality_report: QualityReport | None = None
     pull_quote: str | None = None
     format_changes: list[str] = field(default_factory=list)
+    series_id: str | None = None
+    series_position: int | None = None
     medium_url: str | None = None
     revision_count: int = 0
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))

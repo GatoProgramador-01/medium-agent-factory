@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import close_client, create_indexes
-from app.routers import analytics, pipeline, posts
+from app.routers import analytics, pipeline, posts, series
 
 if settings.langchain_tracing_v2:
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
@@ -29,6 +29,7 @@ app.add_middleware(
 app.include_router(pipeline.router)
 app.include_router(posts.router)
 app.include_router(analytics.router)
+app.include_router(series.router)
 
 
 @app.on_event("startup")

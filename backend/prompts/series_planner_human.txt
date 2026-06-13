@@ -1,0 +1,17 @@
+Plan a Medium post series on this theme.
+
+THEME: {theme}
+
+ADDITIONAL CONTEXT (use this to make each post specific and grounded):
+{context}
+
+Return a series with:
+- series_title: a compelling series name (shown as a collection title on Medium)
+- series_description: one sentence describing what a reader gains from the full series
+- posts: a list of 3–5 post plans, ordered as they should be published
+
+Each post plan must have:
+- position: publication order (1, 2, 3...)
+- topic: the exact topic string to pass to the content generator (specific, 1–2 sentences, written as first-person experience)
+- angle: the unique perspective this post covers that no other post in the series covers
+- hook_seed: the opening scene, stat, or failure that should anchor this post's hook

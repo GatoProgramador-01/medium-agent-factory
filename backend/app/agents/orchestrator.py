@@ -37,6 +37,7 @@ from app.agents.content_generator import (
 from app.agents.formatter import format_post
 from app.agents.logger import log_step
 from app.agents.quality_analyzer import run_quality_analysis
+from app.agents.series_planner import plan_series
 from app.config import settings
 from app.database import get_db
 from app.models.post import PostStatus, QualityReport
@@ -45,6 +46,8 @@ from app.models.post import PostStatus, QualityReport
 class PipelineState(TypedDict):
     run_id: str
     custom_topic: str
+    series_id: str | None
+    series_position: int | None
 
     post: GeneratedPost | None
     quality_report: QualityReport | None
@@ -84,7 +87,13 @@ async def content_generation_node(state: PipelineState) -> dict[str, Any]:
             level="success",
             data={"title": post.title, "word_count": word_count, "tags": post.tags},
         )
-        await _upsert_post(run_id, post, PostStatus.DRAFT)
+        await _upsert_post(
+            run_id,
+            post,
+            PostStatus.DRAFT,
+            series_id=state.get("series_id"),
+            series_position=state.get("series_position"),
+        )
         return {
             "post": post,
             "revision_count": 0,
@@ -365,6 +374,8 @@ pipeline = build_graph()
 async def run_pipeline(
     custom_topic: str,
     run_id: str | None = None,
+    series_id: str | None = None,
+    series_position: int | None = None,
 ) -> dict[str, Any]:
     db = get_db()
 
@@ -388,6 +399,8 @@ async def run_pipeline(
     initial_state: PipelineState = {
         "run_id": run_id,
         "custom_topic": custom_topic,
+        "series_id": series_id,
+        "series_position": series_position,
         "post": None,
         "quality_report": None,
         "pull_quote": None,
@@ -434,6 +447,94 @@ async def run_pipeline(
     }
 
 
+async def run_series(
+    theme: str,
+    context: str = "",
+    series_id: str | None = None,
+) -> dict[str, Any]:
+    """Plan and run a multi-post series. Posts execute sequentially."""
+    db = get_db()
+    series_id = series_id or str(uuid.uuid4())
+
+    # ── Step 1: plan ──────────────────────────────────────────────────────────
+    plan_run_id = f"{series_id}-planner"
+    await log_step(plan_run_id, "series_planner", f'Planning series for theme: "{theme}"')
+
+    plan = await plan_series(run_id=plan_run_id, theme=theme, context=context)
+
+    await log_step(
+        plan_run_id,
+        "series_planner",
+        f'Series planned: "{plan.series_title}" — {len(plan.posts)} posts',
+        level="success",
+        data={
+            "series_title": plan.series_title,
+            "series_description": plan.series_description,
+            "posts": [
+                {"position": p.position, "angle": p.angle} for p in plan.posts
+            ],
+        },
+    )
+
+    await db.series.insert_one(
+        {
+            "series_id": series_id,
+            "theme": theme,
+            "series_title": plan.series_title,
+            "series_description": plan.series_description,
+            "post_count": len(plan.posts),
+            "status": "running",
+            "run_ids": [],
+            "created_at": datetime.now(UTC),
+        }
+    )
+
+    # ── Step 2: generate each post sequentially ───────────────────────────────
+    results = []
+    run_ids = []
+
+    for post_plan in sorted(plan.posts, key=lambda p: p.position):
+        await log_step(
+            plan_run_id,
+            "series_planner",
+            f"Starting post {post_plan.position}/{len(plan.posts)}: {post_plan.angle}",
+        )
+        result = await run_pipeline(
+            custom_topic=post_plan.topic,
+            series_id=series_id,
+            series_position=post_plan.position,
+        )
+        results.append(result)
+        run_ids.append(result["run_id"])
+
+        await db.series.update_one(
+            {"series_id": series_id},
+            {"$push": {"run_ids": result["run_id"]}},
+        )
+
+        await log_step(
+            plan_run_id,
+            "series_planner",
+            f'Post {post_plan.position} done: "{result.get("title","")}" '
+            f'(score={result.get("quality_score","?")}, boost={result.get("medium_boost_eligible","?")})',
+            level="success" if result["status"] == "completed" else "error",
+        )
+
+    series_status = "completed" if all(r["status"] == "completed" for r in results) else "failed"
+    await db.series.update_one(
+        {"series_id": series_id},
+        {"$set": {"status": series_status, "completed_at": datetime.now(UTC)}},
+    )
+
+    return {
+        "series_id": series_id,
+        "series_title": plan.series_title,
+        "series_description": plan.series_description,
+        "status": series_status,
+        "posts": results,
+    }
+
+
 # ── DB helpers ─────────────────────────────────────────────────────────────────
 
 
@@ -444,6 +545,8 @@ async def _upsert_post(
     revision_count: int = 0,
     pull_quote: str | None = None,
     format_changes: list[str] | None = None,
+    series_id: str | None = None,
+    series_position: int | None = None,
 ) -> None:
     db = get_db()
     fields: dict[str, Any] = {
@@ -462,6 +565,10 @@ async def _upsert_post(
         fields["pull_quote"] = pull_quote
     if format_changes is not None:
         fields["format_changes"] = format_changes
+    if series_id is not None:
+        fields["series_id"] = series_id
+    if series_position is not None:
+        fields["series_position"] = series_position
     await db.posts.update_one(
         {"run_id": run_id},
         {"$set": fields, "$setOnInsert": {"created_at": datetime.now(UTC)}},
