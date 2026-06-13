@@ -222,7 +222,7 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
         await log_step(
             run_id,
             "content_generator",
-            f'Revision {revision_number} complete: '
+            f"Revision {revision_number} complete: "
             f'"{revised.title}" (~{word_count} words)',
             level="success",
             data={"title": revised.title, "word_count": word_count},
