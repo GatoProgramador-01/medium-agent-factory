@@ -34,6 +34,7 @@ from app.agents.content_generator import (
     generate_initial_post,
     revise_post,
 )
+from app.agents.formatter import format_post
 from app.agents.logger import log_step
 from app.agents.quality_analyzer import run_quality_analysis
 from app.config import settings
@@ -47,6 +48,8 @@ class PipelineState(TypedDict):
 
     post: GeneratedPost | None
     quality_report: QualityReport | None
+    pull_quote: str | None
+    format_changes: Annotated[list[str], operator.add]
     revision_count: int
     errors: Annotated[list[str], operator.add]
     completed_steps: Annotated[list[str], operator.add]
@@ -248,6 +251,58 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
         return {"errors": [f"revision failed: {e}"]}
 
 
+async def format_node(state: PipelineState) -> dict[str, Any]:
+    run_id = state["run_id"]
+    post = state["post"]
+    if not post:
+        await log_step(run_id, "formatter", "No post to format", level="error")
+        return {"errors": ["format: no post"]}
+
+    await log_step(
+        run_id,
+        "formatter",
+        f"Formatting post: splitting long paragraphs, adding separator, extracting pull quote...",
+    )
+    try:
+        result = await format_post(run_id=run_id, title=post.title, content=post.content)
+
+        # Patch the post content in-place so finalize_node sees the formatted version
+        post.content = result.formatted_content
+
+        changes_summary = (
+            f"{len(result.changes_applied)} change(s) applied"
+            if result.changes_applied
+            else "no structural changes needed"
+        )
+        await log_step(
+            run_id,
+            "formatter",
+            f'Formatting complete — {changes_summary}. Pull quote: "{result.pull_quote[:80]}..."',
+            level="success",
+            data={
+                "changes_applied": result.changes_applied,
+                "pull_quote": result.pull_quote,
+            },
+        )
+        await _upsert_post(
+            run_id,
+            post,
+            PostStatus.REVISED,
+            revision_count=state.get("revision_count", 0),
+            pull_quote=result.pull_quote,
+            format_changes=result.changes_applied,
+        )
+        return {
+            "post": post,
+            "pull_quote": result.pull_quote,
+            "format_changes": result.changes_applied,
+            "completed_steps": ["formatted"],
+        }
+    except Exception as e:
+        await log_step(run_id, "formatter", f"Failed: {e}", level="error")
+        return {"errors": [f"format failed: {e}"]}
+
+
 async def finalize_node(state: PipelineState) -> dict[str, Any]:
     run_id = state["run_id"]
     qr = state.get("quality_report")
@@ -271,9 +326,9 @@ def route_after_quality(state: PipelineState) -> str:
     report = state.get("quality_report")
     revisions = state.get("revision_count", 0)
     if not report or report.score >= settings.min_quality_score:
-        return "finalize"
+        return "format"
     if revisions >= settings.max_revision_cycles:
-        return "finalize"
+        return "format"
     return "revision"
 
 
@@ -285,6 +340,7 @@ def build_graph() -> Any:
     g.add_node("content_generation", content_generation_node)
     g.add_node("quality_analysis", quality_analysis_node)
     g.add_node("revision", content_revision_node)
+    g.add_node("format", format_node)
     g.add_node("finalize", finalize_node)
 
     g.add_edge(START, "content_generation")
@@ -292,9 +348,10 @@ def build_graph() -> Any:
     g.add_conditional_edges(
         "quality_analysis",
         route_after_quality,
-        {"finalize": "finalize", "revision": "revision"},
+        {"format": "format", "revision": "revision"},
     )
     g.add_edge("revision", "quality_analysis")
+    g.add_edge("format", "finalize")
     g.add_edge("finalize", END)
     return g.compile()
 
@@ -333,6 +390,8 @@ async def run_pipeline(
         "custom_topic": custom_topic,
         "post": None,
         "quality_report": None,
+        "pull_quote": None,
+        "format_changes": [],
         "revision_count": 0,
         "errors": [],
         "completed_steps": [],
@@ -367,6 +426,8 @@ async def run_pipeline(
         "quality_score": qr.score if qr else None,
         "read_ratio_prediction": qr.read_ratio_prediction if qr else None,
         "medium_boost_eligible": qr.medium_boost_eligible if qr else None,
+        "pull_quote": final_state.get("pull_quote"),
+        "format_changes": final_state.get("format_changes", []),
         "revision_count": final_state.get("revision_count", 0),
         "errors": final_state.get("errors", []),
         "steps": final_state.get("completed_steps", []),
@@ -377,26 +438,33 @@ async def run_pipeline(
 
 
 async def _upsert_post(
-    run_id: str, post: GeneratedPost, status: PostStatus, revision_count: int = 0
+    run_id: str,
+    post: GeneratedPost,
+    status: PostStatus,
+    revision_count: int = 0,
+    pull_quote: str | None = None,
+    format_changes: list[str] | None = None,
 ) -> None:
     db = get_db()
+    fields: dict[str, Any] = {
+        "run_id": run_id,
+        "topic": post.title,
+        "title": post.title,
+        "subtitle": post.subtitle,
+        "content": post.content,
+        "tags": post.tags,
+        "image_suggestions": post.image_suggestions,
+        "status": str(status),
+        "revision_count": revision_count,
+        "updated_at": datetime.now(UTC),
+    }
+    if pull_quote is not None:
+        fields["pull_quote"] = pull_quote
+    if format_changes is not None:
+        fields["format_changes"] = format_changes
     await db.posts.update_one(
         {"run_id": run_id},
-        {
-            "$set": {
-                "run_id": run_id,
-                "topic": post.title,
-                "title": post.title,
-                "subtitle": post.subtitle,
-                "content": post.content,
-                "tags": post.tags,
-                "image_suggestions": post.image_suggestions,
-                "status": str(status),
-                "revision_count": revision_count,
-                "updated_at": datetime.now(UTC),
-            },
-            "$setOnInsert": {"created_at": datetime.now(UTC)},
-        },
+        {"$set": fields, "$setOnInsert": {"created_at": datetime.now(UTC)}},
         upsert=True,
     )
 

@@ -1,0 +1,14 @@
+Apply structural formatting to this Medium post.
+
+TITLE: {title}
+
+CONTENT:
+{content}
+
+PARAGRAPHS THAT NEED SPLITTING (these exceed 4 sentences — split each one):
+{long_paragraphs}
+
+Return:
+- formatted_content: the complete post with all fixes applied (words unchanged)
+- pull_quote: the single most quotable sentence copied exactly from the content
+- changes_applied: a list describing each structural change made (e.g. "Split paragraph starting with 'I wasn't tired...' after sentence 3", "Added --- separator before first heading", "Added alt text to image 2")

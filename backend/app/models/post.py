@@ -40,6 +40,8 @@ class PostDocument:
     tags: list[str]
     status: PostStatus
     quality_report: QualityReport | None = None
+    pull_quote: str | None = None
+    format_changes: list[str] = field(default_factory=list)
     medium_url: str | None = None
     revision_count: int = 0
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
