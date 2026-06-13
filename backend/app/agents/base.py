@@ -9,10 +9,8 @@ Every agent call is wrapped with AgentTokenTracker which records:
 Then persists the record to MongoDB agent_runs collection.
 """
 
-import asyncio
 import time
 from typing import Any
-from uuid import UUID
 
 from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.outputs import LLMResult
@@ -22,10 +20,10 @@ from app.models.agent_run import AgentRunRecord
 
 # Pricing per 1M tokens (USD) — update when Anthropic changes rates
 _PRICING: dict[str, tuple[float, float]] = {
-    "claude-sonnet-4-6":        (3.00, 15.00),
-    "claude-haiku-4-5-20251001": (0.25,  1.25),
+    "claude-sonnet-4-6": (3.00, 15.00),
+    "claude-haiku-4-5-20251001": (0.25, 1.25),
 }
-_DEFAULT_PRICING = (0.0, 0.0)   # local/unknown models: no API cost
+_DEFAULT_PRICING = (0.0, 0.0)  # local/unknown models: no API cost
 
 
 def _cost(model: str, tokens_in: int, tokens_out: int) -> float:
@@ -58,16 +56,8 @@ class AgentTokenTracker(AsyncCallbackHandler):
         if response.llm_output:
             usage = response.llm_output.get("usage", {})
 
-        tokens_in = (
-            usage.get("input_tokens")
-            or usage.get("prompt_tokens")
-            or 0
-        )
-        tokens_out = (
-            usage.get("output_tokens")
-            or usage.get("completion_tokens")
-            or 0
-        )
+        tokens_in = usage.get("input_tokens") or usage.get("prompt_tokens") or 0
+        tokens_out = usage.get("output_tokens") or usage.get("completion_tokens") or 0
         self._tokens_in += tokens_in
         self._tokens_out += tokens_out
 

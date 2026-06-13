@@ -1,6 +1,7 @@
 """
 Unit tests for prompt_loader — fail-fast on missing prompts, correct variable injection.
 """
+
 import pytest
 
 from app.prompt_loader import load_prompt, load_template

@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-
 # ── Dataset loader ─────────────────────────────────────────────────────────────
+
 
 def _load_dataset() -> list[dict[str, Any]]:
     path = Path(__file__).parent / "datasets" / "quality_analyzer.jsonl"
@@ -14,8 +14,8 @@ def _load_dataset() -> list[dict[str, Any]]:
 
 
 DATASET = _load_dataset()
-GOOD_CASES   = [c for c in DATASET if c["label"] == "good"]
-BAD_CASES    = [c for c in DATASET if c["label"] == "bad"]
+GOOD_CASES = [c for c in DATASET if c["label"] == "good"]
+BAD_CASES = [c for c in DATASET if c["label"] == "bad"]
 MEDIUM_CASES = [c for c in DATASET if c["label"] == "medium"]
 
 
@@ -41,6 +41,7 @@ def all_cases() -> list[dict]:
 
 # ── DB mock — evals test LLM quality, not MongoDB writes ──────────────────────
 
+
 @pytest.fixture(autouse=True)
 def mock_db(monkeypatch: pytest.MonkeyPatch) -> None:
     """
@@ -56,4 +57,6 @@ def mock_db(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_db_obj.posts = mock_col
 
     monkeypatch.setattr("app.agents.base.get_db", lambda: mock_db_obj)
-    monkeypatch.setattr("app.agents.quality_analyzer.get_db", lambda: mock_db_obj, raising=False)
+    monkeypatch.setattr(
+        "app.agents.quality_analyzer.get_db", lambda: mock_db_obj, raising=False
+    )

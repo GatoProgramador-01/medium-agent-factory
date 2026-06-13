@@ -1,10 +1,11 @@
 """
 Unit tests for route_after_quality — pure routing function, no LLM calls.
 """
+
 from unittest.mock import patch
 
 from app.agents.orchestrator import route_after_quality
-from app.models.post import QualityIssue, QualityReport
+from app.models.post import QualityReport
 
 
 def _make_report(score: float) -> QualityReport:

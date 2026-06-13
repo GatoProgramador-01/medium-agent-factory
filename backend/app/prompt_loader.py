@@ -29,7 +29,6 @@ LangChain Hub alternative (team collaboration layer, optional):
 """
 
 from pathlib import Path
-from string import Template
 
 _PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
@@ -52,9 +51,7 @@ def load_prompt(name: str) -> str:
         return _CACHE[name]
     except KeyError:
         available = sorted(_CACHE.keys())
-        raise KeyError(
-            f"Prompt '{name}' not found. Available: {available}"
-        ) from None
+        raise KeyError(f"Prompt '{name}' not found. Available: {available}") from None
 
 
 class _PromptTemplate:

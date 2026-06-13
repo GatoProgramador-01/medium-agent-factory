@@ -13,7 +13,6 @@ Detects:
 """
 
 import json
-import time
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -36,15 +35,19 @@ class _Issue(BaseModel):
 class _AnalysisOutput(BaseModel):
     score: float = Field(ge=0.0, le=1.0, description="Overall human-likeness score")
     read_ratio_prediction: float = Field(
-        ge=0.0, le=1.0,
+        ge=0.0,
+        le=1.0,
         description="Estimated fraction of viewers who will finish reading",
     )
-    issues: list[_Issue] = Field(description="Specific problems found, ordered by impact")
+    issues: list[_Issue] = Field(
+        description="Specific problems found, ordered by impact"
+    )
     strengths: list[str] = Field(description="What the post does well")
     revision_prompt: str = Field(
         description=(
             "A precise rewrite instruction for the content generator. "
-            "Include the specific patterns to remove and the specific voice/style to add."
+            "Include the specific patterns to remove and the "
+            "specific voice/style to add."
         )
     )
 
@@ -59,17 +62,18 @@ class _AnalysisOutput(BaseModel):
             # LLMs sometimes embed smart-quotes or em-dashes in JSON strings,
             # breaking strict parsing. Normalize the most common offenders.
             cleaned = (
-                v
-                .replace("‘", "'").replace("’", "'")   # curly single quotes
-                .replace("“", '"').replace("”", '"')   # curly double quotes
-                .replace("—", "-").replace("–", "-")   # em/en dashes
-                .replace("…", "...")                         # ellipsis char
+                v.replace("‘", "'")
+                .replace("’", "'")  # curly single quotes
+                .replace("“", '"')
+                .replace("”", '"')  # curly double quotes
+                .replace("—", "-")
+                .replace("–", "-")  # em/en dashes
+                .replace("…", "...")  # ellipsis char
             )
             try:
                 return json.loads(cleaned)
             except json.JSONDecodeError:
-                return []   # last resort: empty list, don't crash the pipeline
-
+                return []  # last resort: empty list, don't crash the pipeline
 
 
 async def run_quality_analysis(
@@ -90,14 +94,15 @@ async def run_quality_analysis(
 
     messages = [
         SystemMessage(content=load_prompt("quality_analyzer_system")),
-        HumanMessage(content=load_template("quality_analyzer_human").format(
-            title=title, content=content,
-        )),
+        HumanMessage(
+            content=load_template("quality_analyzer_human").format(
+                title=title,
+                content=content,
+            )
+        ),
     ]
 
-    start = time.perf_counter()
     output: _AnalysisOutput = await llm.ainvoke(messages)
-    duration_ms = int((time.perf_counter() - start) * 1000)
 
     issues = [
         QualityIssue(

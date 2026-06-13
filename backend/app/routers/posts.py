@@ -13,8 +13,9 @@ async def list_posts(
 ) -> list[dict]:
     db = get_db()
     query = {"status": status} if status else {}
-    cursor = db.posts.find(query, {"_id": 0}, sort=[("created_at", -1)],
-                           skip=offset, limit=limit)
+    cursor = db.posts.find(
+        query, {"_id": 0}, sort=[("created_at", -1)], skip=offset, limit=limit
+    )
     return await cursor.to_list(length=limit)
 
 

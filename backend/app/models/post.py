@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from enum import StrEnum
 
 
@@ -13,19 +13,19 @@ class PostStatus(StrEnum):
 
 @dataclass
 class QualityIssue:
-    category: str       # "ai_pattern" | "readability" | "formatting" | "structure"
-    severity: str       # "high" | "medium" | "low"
-    location: str       # excerpt or section reference
+    category: str  # "ai_pattern" | "readability" | "formatting" | "structure"
+    severity: str  # "high" | "medium" | "low"
+    location: str  # excerpt or section reference
     suggestion: str
 
 
 @dataclass
 class QualityReport:
-    score: float                            # 0.0 – 1.0
-    read_ratio_prediction: float            # estimated % of viewers who finish
+    score: float  # 0.0 – 1.0
+    read_ratio_prediction: float  # estimated % of viewers who finish
     issues: list[QualityIssue]
     strengths: list[str]
-    revision_prompt: str                    # injected into next content-gen pass
+    revision_prompt: str  # injected into next content-gen pass
 
 
 @dataclass

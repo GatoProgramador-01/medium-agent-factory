@@ -36,7 +36,10 @@ def get_llm(role: str = "worker", **kwargs: object) -> BaseChatModel:
     Extra kwargs are forwarded to the LLM constructor (e.g. max_tokens, callbacks).
     """
     if settings.use_local_llm:
-        from langchain_ollama import ChatOllama  # optional dep — only imported when needed
+        from langchain_ollama import (
+            ChatOllama,  # optional dep — only imported when needed
+        )
+
         return ChatOllama(
             model=settings.local_llm_model,
             base_url=settings.local_llm_base_url,
@@ -44,6 +47,7 @@ def get_llm(role: str = "worker", **kwargs: object) -> BaseChatModel:
         )
 
     from langchain_anthropic import ChatAnthropic
+
     model = settings.supervisor_model if role == "supervisor" else settings.worker_model
     return ChatAnthropic(
         model=model,

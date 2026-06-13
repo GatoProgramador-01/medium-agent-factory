@@ -48,11 +48,13 @@ class GeneratedPost(BaseModel):
             return json.loads(v)
         except json.JSONDecodeError:
             cleaned = (
-                v
-                .replace("‘", "'").replace("’", "'")   # ' '
-                .replace("“", '"').replace("”", '"')   # " "
-                .replace("—", "-").replace("–", "-")   # — –
-                .replace("…", "...")                         # …
+                v.replace("‘", "'")
+                .replace("’", "'")  # ' '
+                .replace("“", '"')
+                .replace("”", '"')  # " "
+                .replace("—", "-")
+                .replace("–", "-")  # — –
+                .replace("…", "...")  # …
             )
             try:
                 return json.loads(cleaned)
@@ -60,10 +62,8 @@ class GeneratedPost(BaseModel):
                 return []
 
 
-
-
 def _pick_role(revision_number: int) -> str:
-    """worker (Haiku) for attempts 0–1, supervisor (Sonnet) only on attempt 2+ (last resort)."""
+    """worker (Haiku) for revision 0–1, supervisor (Sonnet) on revision 2+ only."""
     return "worker" if revision_number < 2 else "supervisor"
 
 
@@ -81,12 +81,14 @@ async def generate_initial_post(
         role=role,
         messages=[
             SystemMessage(content=load_prompt("content_generator_system")),
-            HumanMessage(content=load_template("content_generator_human_initial").format(
-                topic=topic,
-                trend_context=trend_context,
-                tags=", ".join(tags),
-                audience=audience,
-            )),
+            HumanMessage(
+                content=load_template("content_generator_human_initial").format(
+                    topic=topic,
+                    trend_context=trend_context,
+                    tags=", ".join(tags),
+                    audience=audience,
+                )
+            ),
         ],
     )
 
@@ -111,14 +113,16 @@ async def revise_post(
         role=role,
         messages=[
             SystemMessage(content=load_prompt("content_generator_system")),
-            HumanMessage(content=load_template("content_generator_human_revision").format(
-                title=title,
-                content=content,
-                score=round(score, 2),
-                min_score=settings.min_quality_score,
-                revision_prompt=revision_prompt,
-                issues_list=issues_list,
-            )),
+            HumanMessage(
+                content=load_template("content_generator_human_revision").format(
+                    title=title,
+                    content=content,
+                    score=round(score, 2),
+                    min_score=settings.min_quality_score,
+                    revision_prompt=revision_prompt,
+                    issues_list=issues_list,
+                )
+            ),
         ],
     )
 
@@ -137,7 +141,9 @@ async def _call_generator(
     )
 
     llm = with_langchain_retry(
-        get_llm(role, max_tokens=4096, callbacks=[tracker]).with_structured_output(GeneratedPost)
+        get_llm(role, max_tokens=4096, callbacks=[tracker]).with_structured_output(
+            GeneratedPost
+        )
     )
 
     result: GeneratedPost = await llm.ainvoke(messages)

@@ -1,7 +1,7 @@
 import asyncio
 import json
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -25,13 +25,17 @@ async def trigger_pipeline(
     """Trigger pipeline asynchronously. Poll /runs/{run_id} for status."""
     run_id = str(uuid.uuid4())
     db = get_db()
-    await db.pipeline_runs.insert_one({
-        "run_id": run_id,
-        "custom_topic": req.custom_topic,
-        "status": "queued",
-        "created_at": datetime.now(UTC),
-    })
-    background_tasks.add_task(run_pipeline, custom_topic=req.custom_topic, run_id=run_id)
+    await db.pipeline_runs.insert_one(
+        {
+            "run_id": run_id,
+            "custom_topic": req.custom_topic,
+            "status": "queued",
+            "created_at": datetime.now(UTC),
+        }
+    )
+    background_tasks.add_task(
+        run_pipeline, custom_topic=req.custom_topic, run_id=run_id
+    )
     return {"run_id": run_id, "message": "Pipeline started"}
 
 
@@ -44,8 +48,9 @@ async def trigger_pipeline_sync(req: PipelineRequest) -> dict:
 @router.get("/runs")
 async def list_runs(limit: int = 20, offset: int = 0) -> list[dict]:
     db = get_db()
-    cursor = db.pipeline_runs.find({}, {"_id": 0}, sort=[("created_at", -1)],
-                                   skip=offset, limit=limit)
+    cursor = db.pipeline_runs.find(
+        {}, {"_id": 0}, sort=[("created_at", -1)], skip=offset, limit=limit
+    )
     return await cursor.to_list(length=limit)
 
 
@@ -62,14 +67,14 @@ async def get_run(run_id: str) -> dict:
 async def get_logs(run_id: str) -> list[dict]:
     """All log entries for a run, ordered by timestamp."""
     db = get_db()
-    cursor = db.agent_logs.find({"run_id": run_id}, {"_id": 0},
-                                sort=[("timestamp", 1)])
+    cursor = db.agent_logs.find({"run_id": run_id}, {"_id": 0}, sort=[("timestamp", 1)])
     return await cursor.to_list(length=500)
 
 
 @router.get("/runs/{run_id}/stream")
 async def stream_logs(run_id: str, request: Request) -> StreamingResponse:
     """SSE stream of agent logs for a run. Closes when pipeline finishes."""
+
     async def event_generator():
         db = get_db()
         seen_count = 0
@@ -80,8 +85,9 @@ async def stream_logs(run_id: str, request: Request) -> StreamingResponse:
                 break
 
             logs = await (
-                db.agent_logs.find({"run_id": run_id}, {"_id": 0},
-                                   sort=[("timestamp", 1)])
+                db.agent_logs.find(
+                    {"run_id": run_id}, {"_id": 0}, sort=[("timestamp", 1)]
+                )
                 .skip(seen_count)
                 .to_list(length=100)
             )
@@ -91,9 +97,11 @@ async def stream_logs(run_id: str, request: Request) -> StreamingResponse:
                 payload = json.dumps(log, default=str)
                 yield f"data: {payload}\n\n"
 
-            run = await db.pipeline_runs.find_one({"run_id": run_id}, {"_id": 0, "status": 1})
+            run = await db.pipeline_runs.find_one(
+                {"run_id": run_id}, {"_id": 0, "status": 1}
+            )
             if run and run.get("status") in terminal:
-                yield "data: {\"__done__\": true}\n\n"
+                yield 'data: {"__done__": true}\n\n'
                 break
 
             await asyncio.sleep(1.5)

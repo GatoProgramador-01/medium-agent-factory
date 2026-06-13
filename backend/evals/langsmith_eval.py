@@ -27,15 +27,18 @@ from langsmith.schemas import Example, Run
 
 from app.agents.quality_analyzer import run_quality_analysis
 
-
 # ── Dataset management ─────────────────────────────────────────────────────────
 
 DATASET_NAME = "quality-analyzer-v1"
-_JSONL_PATH  = Path(__file__).parent / "datasets" / "quality_analyzer.jsonl"
+_JSONL_PATH = Path(__file__).parent / "datasets" / "quality_analyzer.jsonl"
 
 
 def _load_local_dataset() -> list[dict]:
-    return [json.loads(l) for l in _JSONL_PATH.read_text().splitlines() if l.strip()]
+    return [
+        json.loads(line)
+        for line in _JSONL_PATH.read_text().splitlines()
+        if line.strip()
+    ]
 
 
 def upload_dataset_if_missing(client: Client) -> str:
@@ -53,11 +56,14 @@ def upload_dataset_if_missing(client: Client) -> str:
     cases = _load_local_dataset()
     client.create_examples(
         inputs=[{"title": c["title"], "content": c["content"]} for c in cases],
-        outputs=[{
-            "label":     c["label"],
-            "min_score": c.get("min_score"),
-            "max_score": c.get("max_score"),
-        } for c in cases],
+        outputs=[
+            {
+                "label": c["label"],
+                "min_score": c.get("min_score"),
+                "max_score": c.get("max_score"),
+            }
+            for c in cases
+        ],
         dataset_id=dataset.id,
     )
     print(f"Uploaded {len(cases)} examples to '{DATASET_NAME}'.")
@@ -65,6 +71,7 @@ def upload_dataset_if_missing(client: Client) -> str:
 
 
 # ── Target function — what LangSmith will call for each example ───────────────
+
 
 async def run_analyzer(inputs: dict[str, Any]) -> dict[str, Any]:
     """Wraps run_quality_analysis for the LangSmith evaluate() harness."""
@@ -74,11 +81,11 @@ async def run_analyzer(inputs: dict[str, Any]) -> dict[str, Any]:
         content=inputs["content"],
     )
     return {
-        "score":               report.score,
-        "read_ratio":          report.read_ratio_prediction,
-        "issue_count":         len(report.issues),
-        "revision_prompt":     report.revision_prompt,
-        "top_issues":          [i.suggestion for i in report.issues[:3]],
+        "score": report.score,
+        "read_ratio": report.read_ratio_prediction,
+        "issue_count": len(report.issues),
+        "revision_prompt": report.revision_prompt,
+        "top_issues": [i.suggestion for i in report.issues[:3]],
     }
 
 
@@ -89,15 +96,16 @@ def run_analyzer_sync(inputs: dict[str, Any]) -> dict[str, Any]:
 
 # ── Evaluators — each returns a score between 0 and 1 ────────────────────────
 
+
 def score_direction_evaluator(run: Run, example: Example) -> dict[str, Any]:
     """
     Checks whether the analyzer scored the post in the expected direction.
     Returns 1.0 for correct direction, 0.0 for wrong.
     """
-    actual_score  = run.outputs.get("score", 0)
-    label         = example.outputs.get("label")
-    min_score     = example.outputs.get("min_score")
-    max_score     = example.outputs.get("max_score")
+    actual_score = run.outputs.get("score", 0)
+    label = example.outputs.get("label")
+    min_score = example.outputs.get("min_score")
+    max_score = example.outputs.get("max_score")
 
     if label == "good" and min_score is not None:
         correct = actual_score >= min_score
@@ -109,7 +117,7 @@ def score_direction_evaluator(run: Run, example: Example) -> dict[str, Any]:
         correct = lo <= actual_score <= hi
 
     return {
-        "key":   "score_direction",
+        "key": "score_direction",
         "score": 1.0 if correct else 0.0,
         "comment": (
             f"{label} post: score={actual_score:.2f} "
@@ -124,7 +132,7 @@ def issue_count_evaluator(run: Run, example: Example) -> dict[str, Any]:
     label = example.outputs.get("label")
 
     if label == "bad":
-        score = min(count / 3, 1.0)   # 3+ issues → full score
+        score = min(count / 3, 1.0)  # 3+ issues → full score
     elif label == "good":
         score = 1.0 if count <= 2 else 0.5
     else:
@@ -135,15 +143,20 @@ def issue_count_evaluator(run: Run, example: Example) -> dict[str, Any]:
 
 # ── Run eval ───────────────────────────────────────────────────────────────────
 
+
 def run_eval(experiment_prefix: str = "manual") -> None:
     api_key = os.getenv("LANGCHAIN_API_KEY")
     if not api_key:
-        raise RuntimeError("Set LANGCHAIN_API_KEY in .env before running LangSmith evals.")
+        raise RuntimeError(
+            "Set LANGCHAIN_API_KEY in .env before running LangSmith evals."
+        )
 
     client = Client()
     upload_dataset_if_missing(client)
 
-    print(f"\nRunning eval experiment '{experiment_prefix}' on dataset '{DATASET_NAME}'...")
+    print(
+        f"\nRunning eval experiment '{experiment_prefix}' on dataset '{DATASET_NAME}'..."
+    )
     results = evaluate(
         run_analyzer_sync,
         data=DATASET_NAME,
@@ -152,12 +165,12 @@ def run_eval(experiment_prefix: str = "manual") -> None:
         max_concurrency=3,
     )
 
-    stats = results.stats          # type: ignore[attr-defined]
+    stats = results.stats  # type: ignore[attr-defined]
     direction_mean = stats.get("score_direction", {}).get("mean", 0)
-    print(f"\n── Results ──────────────────────────────────────")
+    print("\n── Results ──────────────────────────────────────")
     print(f"  score_direction mean : {direction_mean:.2f}  (pass threshold: 0.75)")
-    print(f"  View in LangSmith    : https://smith.langchain.com")
-    print(f"─────────────────────────────────────────────────\n")
+    print("  View in LangSmith    : https://smith.langchain.com")
+    print("─────────────────────────────────────────────────\n")
 
     if direction_mean < 0.75:
         raise SystemExit(
@@ -168,5 +181,6 @@ def run_eval(experiment_prefix: str = "manual") -> None:
 
 if __name__ == "__main__":
     import sys
+
     prefix = sys.argv[1] if len(sys.argv) > 1 else "manual"
     run_eval(experiment_prefix=prefix)

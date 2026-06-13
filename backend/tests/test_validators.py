@@ -5,7 +5,6 @@ LLMs regularly emit curly quotes, em-dashes, and ellipsis characters inside
 JSON strings, breaking json.loads. These tests verify the normalizer handles
 all known failure modes without crashing the pipeline.
 """
-import pytest
 
 from app.agents.content_generator import GeneratedPost
 
@@ -23,19 +22,25 @@ def _make_post(**overrides) -> dict:
 
 class TestGeneratedPostCoerce:
     def test_tags_as_list_passes_through(self) -> None:
-        post = GeneratedPost(**_make_post(tags=["ai", "llm", "python", "tools", "writing"]))
+        post = GeneratedPost(
+            **_make_post(tags=["ai", "llm", "python", "tools", "writing"])
+        )
         assert post.tags == ["ai", "llm", "python", "tools", "writing"]
 
     def test_tags_as_valid_json_string(self) -> None:
-        post = GeneratedPost(**_make_post(tags='["ai", "llm", "python", "tools", "writing"]'))
+        post = GeneratedPost(
+            **_make_post(tags='["ai", "llm", "python", "tools", "writing"]')
+        )
         assert post.tags == ["ai", "llm", "python", "tools", "writing"]
 
     def test_tags_with_curly_double_quotes(self) -> None:
         # U+201C = LEFT DOUBLE QUOTATION MARK, U+201D = RIGHT DOUBLE QUOTATION MARK
         lq, rq = chr(0x201C), chr(0x201D)
-        curly = f'[{lq}ai{rq}, {lq}llm{rq}, {lq}python{rq}, {lq}tools{rq}, {lq}writing{rq}]'
+        curly = (
+            f"[{lq}ai{rq}, {lq}llm{rq}, {lq}python{rq}, {lq}tools{rq}, {lq}writing{rq}]"
+        )
         post = GeneratedPost(**_make_post(tags=curly))
-        expected = ['ai', 'llm', 'python', 'tools', 'writing']
+        expected = ["ai", "llm", "python", "tools", "writing"]
         assert post.tags == expected
 
     def test_tags_with_em_dash_falls_back_to_empty(self) -> None:
@@ -52,7 +57,7 @@ class TestGeneratedPostCoerce:
     def test_image_suggestions_with_curly_double_quotes(self) -> None:
         # LLMs use curly double quotes as string delimiters — normalizer fixes these
         lq, rq = chr(0x201C), chr(0x201D)
-        curly = f'[{lq}laptop photo{rq}, {lq}team meeting{rq}, {lq}coffee{rq}]'
+        curly = f"[{lq}laptop photo{rq}, {lq}team meeting{rq}, {lq}coffee{rq}]"
         post = GeneratedPost(**_make_post(image_suggestions=curly))
         assert len(post.image_suggestions) == 3
 
@@ -73,17 +78,21 @@ class TestGeneratedPostCoerce:
 class TestPickRole:
     def test_initial_draft_uses_worker(self) -> None:
         from app.agents.content_generator import _pick_role
+
         assert _pick_role(0) == "worker"
 
     def test_first_revision_uses_worker(self) -> None:
         from app.agents.content_generator import _pick_role
+
         assert _pick_role(1) == "worker"
 
     def test_second_revision_escalates_to_supervisor(self) -> None:
         from app.agents.content_generator import _pick_role
+
         assert _pick_role(2) == "supervisor"
 
     def test_any_revision_above_two_stays_supervisor(self) -> None:
         from app.agents.content_generator import _pick_role
+
         assert _pick_role(3) == "supervisor"
         assert _pick_role(10) == "supervisor"

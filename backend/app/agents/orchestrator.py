@@ -21,15 +21,19 @@ Graph:
   finalize → END
 """
 
-import uuid
-from datetime import datetime, UTC
-from typing import Annotated, Any
 import operator
+import uuid
+from datetime import UTC, datetime
+from typing import Annotated, Any
 
-from langgraph.graph import StateGraph, END, START
+from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
-from app.agents.content_generator import GeneratedPost, generate_initial_post, revise_post
+from app.agents.content_generator import (
+    GeneratedPost,
+    generate_initial_post,
+    revise_post,
+)
 from app.agents.logger import log_step
 from app.agents.quality_analyzer import run_quality_analysis
 from app.config import settings
@@ -50,13 +54,15 @@ class PipelineState(TypedDict):
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
 
+
 async def content_generation_node(state: PipelineState) -> dict[str, Any]:
     run_id = state["run_id"]
     topic = state["custom_topic"]
 
     await log_step(
-        run_id, "content_generator",
-        f"Generating initial draft for topic: \"{topic}\" (Claude Haiku)...",
+        run_id,
+        "content_generator",
+        f'Generating initial draft for topic: "{topic}" (Claude Haiku)...',
         data={"model": settings.worker_model, "topic": topic},
     )
     try:
@@ -69,13 +75,18 @@ async def content_generation_node(state: PipelineState) -> dict[str, Any]:
         )
         word_count = len(post.content.split())
         await log_step(
-            run_id, "content_generator",
-            f"Draft generated: \"{post.title}\" (~{word_count} words)",
+            run_id,
+            "content_generator",
+            f'Draft generated: "{post.title}" (~{word_count} words)',
             level="success",
             data={"title": post.title, "word_count": word_count, "tags": post.tags},
         )
         await _upsert_post(run_id, post, PostStatus.DRAFT)
-        return {"post": post, "revision_count": 0, "completed_steps": ["content_generation"]}
+        return {
+            "post": post,
+            "revision_count": 0,
+            "completed_steps": ["content_generation"],
+        }
     except Exception as e:
         await log_step(run_id, "content_generator", f"Failed: {e}", level="error")
         return {"errors": [f"content_generation failed: {e}"]}
@@ -88,10 +99,15 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
         await log_step(run_id, "quality_analyzer", "No post to analyze", level="error")
         return {"errors": ["quality_analysis: no post"]}
 
-    await log_step(run_id, "quality_analyzer",
-                   "Analyzing post for AI patterns and readability issues...")
+    await log_step(
+        run_id,
+        "quality_analyzer",
+        "Analyzing post for AI patterns and readability issues...",
+    )
     try:
-        report = await run_quality_analysis(run_id=run_id, title=post.title, content=post.content)
+        report = await run_quality_analysis(
+            run_id=run_id, title=post.title, content=post.content
+        )
 
         passed = report.score >= settings.min_quality_score
         level = "success" if passed else "warning"
@@ -103,7 +119,8 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
             f"Found {len(report.issues)} issues. Queuing revision."
         )
         await log_step(
-            run_id, "quality_analyzer",
+            run_id,
+            "quality_analyzer",
             f"Quality score: {report.score:.2f}/1.0 — {verdict}",
             level=level,
             data={
@@ -112,7 +129,11 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
                 "passed": passed,
                 "issue_count": len(report.issues),
                 "top_issues": [
-                    {"severity": i.severity, "category": i.category, "suggestion": i.suggestion}
+                    {
+                        "severity": i.severity,
+                        "category": i.category,
+                        "suggestion": i.suggestion,
+                    }
                     for i in report.issues[:3]
                 ],
                 "strengths": report.strengths,
@@ -122,17 +143,25 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
         db = get_db()
         await db.posts.update_one(
             {"run_id": run_id},
-            {"$set": {"quality_report": {
-                "score": report.score,
-                "read_ratio_prediction": report.read_ratio_prediction,
-                "issues": [
-                    {"category": i.category, "severity": i.severity,
-                     "location": i.location, "suggestion": i.suggestion}
-                    for i in report.issues
-                ],
-                "strengths": report.strengths,
-                "revision_prompt": report.revision_prompt,
-            }}},
+            {
+                "$set": {
+                    "quality_report": {
+                        "score": report.score,
+                        "read_ratio_prediction": report.read_ratio_prediction,
+                        "issues": [
+                            {
+                                "category": i.category,
+                                "severity": i.severity,
+                                "location": i.location,
+                                "suggestion": i.suggestion,
+                            }
+                            for i in report.issues
+                        ],
+                        "strengths": report.strengths,
+                        "revision_prompt": report.revision_prompt,
+                    }
+                }
+            },
         )
         return {"quality_report": report, "completed_steps": ["quality_analysis"]}
     except Exception as e:
@@ -147,18 +176,30 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
     revision_number = state["revision_count"] + 1
 
     if not post or not report:
-        await log_step(run_id, "content_generator", "Missing post or report for revision", level="error")
+        await log_step(
+            run_id,
+            "content_generator",
+            "Missing post or report for revision",
+            level="error",
+        )
         return {"errors": ["revision: missing post or quality report"]}
 
     # revision_number determines model: 1 → Haiku, 2 → Sonnet
     model = settings.worker_model if revision_number < 2 else settings.supervisor_model
-    model_label = "Claude Haiku" if revision_number < 2 else "Claude Sonnet (quality upgrade)"
+    model_label = (
+        "Claude Haiku" if revision_number < 2 else "Claude Sonnet (quality upgrade)"
+    )
     max_rev = settings.max_revision_cycles
 
     await log_step(
-        run_id, "content_generator",
+        run_id,
+        "content_generator",
         f"Revision {revision_number}/{max_rev} — rewriting with {model_label}...",
-        data={"revision_number": revision_number, "model": model, "score_before": report.score},
+        data={
+            "revision_number": revision_number,
+            "model": model,
+            "score_before": report.score,
+        },
     )
     try:
         revised = await revise_post(
@@ -168,27 +209,39 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
             score=report.score,
             revision_prompt=report.revision_prompt,
             issues=[
-                {"category": i.category, "severity": i.severity, "suggestion": i.suggestion}
+                {
+                    "category": i.category,
+                    "severity": i.severity,
+                    "suggestion": i.suggestion,
+                }
                 for i in report.issues
             ],
             revision_number=revision_number,
         )
         word_count = len(revised.content.split())
         await log_step(
-            run_id, "content_generator",
-            f"Revision {revision_number} complete: \"{revised.title}\" (~{word_count} words)",
+            run_id,
+            "content_generator",
+            f'Revision {revision_number} complete: '
+            f'"{revised.title}" (~{word_count} words)',
             level="success",
             data={"title": revised.title, "word_count": word_count},
         )
-        await _upsert_post(run_id, revised, PostStatus.REVISED, revision_count=revision_number)
+        await _upsert_post(
+            run_id, revised, PostStatus.REVISED, revision_count=revision_number
+        )
         return {
             "post": revised,
             "revision_count": revision_number,
             "completed_steps": [f"revision_{revision_number}"],
         }
     except Exception as e:
-        await log_step(run_id, "content_generator", f"Revision {revision_number} failed: {e}",
-                       level="error")
+        await log_step(
+            run_id,
+            "content_generator",
+            f"Revision {revision_number} failed: {e}",
+            level="error",
+        )
         return {"errors": [f"revision failed: {e}"]}
 
 
@@ -202,12 +255,14 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
     )
     await _update_pipeline_run(state, "approved")
     score_msg = f" Final quality score: {qr.score:.2f}" if qr else ""
-    await log_step(run_id, "orchestrator", f"Post approved and saved.{score_msg}",
-                   level="success")
+    await log_step(
+        run_id, "orchestrator", f"Post approved and saved.{score_msg}", level="success"
+    )
     return {"completed_steps": ["finalized"]}
 
 
 # ── Routing ────────────────────────────────────────────────────────────────────
+
 
 def route_after_quality(state: PipelineState) -> str:
     report = state.get("quality_report")
@@ -221,6 +276,7 @@ def route_after_quality(state: PipelineState) -> str:
 
 # ── Graph ──────────────────────────────────────────────────────────────────────
 
+
 def build_graph() -> Any:
     g = StateGraph(PipelineState)
     g.add_node("content_generation", content_generation_node)
@@ -230,8 +286,11 @@ def build_graph() -> Any:
 
     g.add_edge(START, "content_generation")
     g.add_edge("content_generation", "quality_analysis")
-    g.add_conditional_edges("quality_analysis", route_after_quality,
-                            {"finalize": "finalize", "revision": "revision"})
+    g.add_conditional_edges(
+        "quality_analysis",
+        route_after_quality,
+        {"finalize": "finalize", "revision": "revision"},
+    )
     g.add_edge("revision", "quality_analysis")
     g.add_edge("finalize", END)
     return g.compile()
@@ -241,6 +300,7 @@ pipeline = build_graph()
 
 
 # ── Public entrypoint ──────────────────────────────────────────────────────────
+
 
 async def run_pipeline(
     custom_topic: str,
@@ -255,13 +315,15 @@ async def run_pipeline(
         )
     else:
         run_id = str(uuid.uuid4())
-        await db.pipeline_runs.insert_one({
-            "run_id": run_id,
-            "custom_topic": custom_topic,
-            "status": "running",
-            "created_at": datetime.now(UTC),
-        })
-    await log_step(run_id, "orchestrator", f"Pipeline started. Topic: \"{custom_topic}\"")
+        await db.pipeline_runs.insert_one(
+            {
+                "run_id": run_id,
+                "custom_topic": custom_topic,
+                "status": "running",
+                "created_at": datetime.now(UTC),
+            }
+        )
+    await log_step(run_id, "orchestrator", f'Pipeline started. Topic: "{custom_topic}"')
 
     initial_state: PipelineState = {
         "run_id": run_id,
@@ -282,12 +344,16 @@ async def run_pipeline(
     )
 
     if status == "failed":
-        await log_step(run_id, "orchestrator",
-                       f"Pipeline failed: {'; '.join(final_state.get('errors', []))}",
-                       level="error")
+        await log_step(
+            run_id,
+            "orchestrator",
+            f"Pipeline failed: {'; '.join(final_state.get('errors', []))}",
+            level="error",
+        )
     else:
-        await log_step(run_id, "orchestrator", "Pipeline completed successfully.",
-                       level="success")
+        await log_step(
+            run_id, "orchestrator", "Pipeline completed successfully.", level="success"
+        )
 
     post = final_state.get("post")
     qr = final_state.get("quality_report")
@@ -305,8 +371,10 @@ async def run_pipeline(
 
 # ── DB helpers ─────────────────────────────────────────────────────────────────
 
-async def _upsert_post(run_id: str, post: GeneratedPost, status: PostStatus,
-                       revision_count: int = 0) -> None:
+
+async def _upsert_post(
+    run_id: str, post: GeneratedPost, status: PostStatus, revision_count: int = 0
+) -> None:
     db = get_db()
     await db.posts.update_one(
         {"run_id": run_id},

@@ -2,7 +2,8 @@
 LLM retry utilities — two patterns, one choice per situation.
 
 Pattern A — LangChain-native  (use this by default)
-  chain.with_retry(...)  works on any Runnable, including .with_structured_output() chains.
+  chain.with_retry(...)  works on any Runnable, including
+  .with_structured_output() chains.
   Retries appear in LangSmith traces automatically.
   Import: with_langchain_retry(chain)
 
@@ -42,6 +43,7 @@ _RETRYABLE: tuple[type[BaseException], ...] = (ConnectionError, TimeoutError, OS
 
 try:
     from anthropic import APIConnectionError, InternalServerError, RateLimitError
+
     _RETRYABLE = _RETRYABLE + (RateLimitError, APIConnectionError, InternalServerError)
 except ImportError:
     pass
@@ -49,12 +51,14 @@ except ImportError:
 try:
     # ollama connection errors when local model is unavailable
     from httpx import ConnectError, RemoteProtocolError
+
     _RETRYABLE = _RETRYABLE + (ConnectError, RemoteProtocolError)
 except ImportError:
     pass
 
 
 # ── Pattern A: LangChain-native ────────────────────────────────────────────────
+
 
 def with_langchain_retry(chain: Any, max_attempts: int = 3) -> Any:
     """
@@ -77,6 +81,7 @@ def with_langchain_retry(chain: Any, max_attempts: int = 3) -> Any:
 
 
 # ── Pattern B: tenacity decorator ─────────────────────────────────────────────
+
 
 def retryable_llm_call(max_attempts: int = 3):
     """

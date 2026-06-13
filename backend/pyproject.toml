@@ -36,7 +36,12 @@ line-length = 88
 
 [tool.ruff]
 line-length = 88
+
+[tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"evals/*" = ["E501"]  # eval datasets contain intentionally long inline content strings
 
 [tool.mypy]
 strict = true
