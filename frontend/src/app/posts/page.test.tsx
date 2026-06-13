@@ -116,13 +116,19 @@ describe("PostsPage", () => {
 
   it("copy_markdown button writes markdown to clipboard", async () => {
     const user = userEvent.setup();
+    // userEvent.setup() replaces navigator.clipboard with its own stub.
+    // Spy on the replacement so we get a proper mock function to assert against.
+    const writeTextSpy = jest
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+
     (api.listPosts as jest.Mock).mockResolvedValue([MOCK_POST]);
     render(<PostsPage />);
     await waitFor(() => expect(screen.getByTestId("post-card")).toBeInTheDocument());
 
     await user.click(screen.getByText(/copy_markdown/));
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+    expect(writeTextSpy).toHaveBeenCalledWith(
       expect.stringContaining(MOCK_POST.title)
     );
   });

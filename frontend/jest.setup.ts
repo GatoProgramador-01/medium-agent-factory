@@ -11,8 +11,13 @@ jest.mock("next/navigation", () => ({
   })),
 }));
 
-// navigator.clipboard is not available in jsdom
+// navigator.clipboard is not available in jsdom.
+// configurable: true is required so userEvent.setup() can redefine it internally.
 Object.defineProperty(navigator, "clipboard", {
   value: { writeText: jest.fn().mockResolvedValue(undefined) },
   writable: true,
+  configurable: true,
 });
+
+// jsdom does not implement scrollIntoView
+window.HTMLElement.prototype.scrollIntoView = jest.fn();
