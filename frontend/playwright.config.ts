@@ -20,5 +20,16 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
+  // In CI: build first (see ci.yml), then start the production server here.
+  // Locally: start manually with `npm run dev` and set reuseExistingServer.
+  webServer: {
+    command: "npm run start",
+    url: "http://localhost:3000",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+    env: {
+      NEXT_PUBLIC_API_URL: "http://localhost:8000",
+    },
+  },
   globalSetup: "./tests/e2e/global-setup.ts",
 });

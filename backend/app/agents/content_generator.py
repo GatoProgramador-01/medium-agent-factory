@@ -49,10 +49,10 @@ class GeneratedPost(BaseModel):
         except json.JSONDecodeError:
             cleaned = (
                 v
-                .replace("'", "'").replace("'", "'")
-                .replace(""", '"').replace(""", '"')
-                .replace("—", "-").replace("–", "-")
-                .replace("…", "...")
+                .replace("‘", "'").replace("’", "'")   # ' '
+                .replace("“", '"').replace("”", '"')   # " "
+                .replace("—", "-").replace("–", "-")   # — –
+                .replace("…", "...")                         # …
             )
             try:
                 return json.loads(cleaned)

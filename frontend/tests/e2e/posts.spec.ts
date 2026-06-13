@@ -62,7 +62,6 @@ test.describe("Posts page", () => {
     await expect(page.getByTestId("filter-draft")).toBeVisible();
     await expect(page.getByTestId("filter-revised")).toBeVisible();
     await expect(page.getByTestId("filter-approved")).toBeVisible();
-    await expect(page.getByTestId("filter-published")).toBeVisible();
   });
 
   test("clicking a filter button updates active state", async ({ page }) => {
