@@ -8,7 +8,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    anthropic_api_key: str
+    anthropic_api_key: str = ""  # loaded from env at runtime; default silences mypy
 
     mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_database: str = "medium_agent_factory"

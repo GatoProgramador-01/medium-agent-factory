@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -13,7 +14,7 @@ class AgentRunRecord:
     model: str
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
-    def to_doc(self) -> dict:
+    def to_doc(self) -> dict[str, Any]:
         return {
             "run_id": self.run_id,
             "agent_name": self.agent_name,

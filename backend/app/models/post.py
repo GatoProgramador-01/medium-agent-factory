@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
 
 class PostStatus(StrEnum):
@@ -43,8 +44,8 @@ class PostDocument:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
-    def to_doc(self) -> dict:
-        doc: dict = {
+    def to_doc(self) -> dict[str, Any]:
+        doc: dict[str, Any] = {
             "run_id": self.run_id,
             "topic": self.topic,
             "trend_context": self.trend_context,

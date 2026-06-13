@@ -38,6 +38,8 @@
     "node_modules",
     "jest.config.ts",
     "jest.setup.ts",
-    "tests/e2e/**"
+    "tests/e2e/**",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
   ]
 }

@@ -24,6 +24,7 @@ Non-retryable (our fault — never retry):
 """
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from tenacity import (
@@ -83,7 +84,7 @@ def with_langchain_retry(chain: Any, max_attempts: int = 3) -> Any:
 # ── Pattern B: tenacity decorator ─────────────────────────────────────────────
 
 
-def retryable_llm_call(max_attempts: int = 3):
+def retryable_llm_call(max_attempts: int = 3) -> Callable[..., Any]:
     """
     Tenacity decorator for async functions that call an LLM.
 

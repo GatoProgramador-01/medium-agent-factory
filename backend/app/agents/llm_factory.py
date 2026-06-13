@@ -13,7 +13,10 @@ Switch between Anthropic and local Ollama with a single env var:
     USE_LOCAL_LLM=true   →  ChatOllama    (local_llm_model at local_llm_base_url)
 """
 
+from typing import Any
+
 from langchain_core.language_models import BaseChatModel
+from pydantic import SecretStr
 
 from app.config import settings
 
@@ -25,7 +28,7 @@ def get_model_name(role: str = "worker") -> str:
     return settings.supervisor_model if role == "supervisor" else settings.worker_model
 
 
-def get_llm(role: str = "worker", **kwargs: object) -> BaseChatModel:
+def get_llm(role: str = "worker", **kwargs: Any) -> BaseChatModel:
     """
     Instantiate the correct LLM for the given role.
 
@@ -40,7 +43,7 @@ def get_llm(role: str = "worker", **kwargs: object) -> BaseChatModel:
             ChatOllama,  # optional dep — only imported when needed
         )
 
-        return ChatOllama(
+        return ChatOllama(  # type: ignore[call-arg]
             model=settings.local_llm_model,
             base_url=settings.local_llm_base_url,
             **kwargs,
@@ -49,8 +52,8 @@ def get_llm(role: str = "worker", **kwargs: object) -> BaseChatModel:
     from langchain_anthropic import ChatAnthropic
 
     model = settings.supervisor_model if role == "supervisor" else settings.worker_model
-    return ChatAnthropic(
+    return ChatAnthropic(  # type: ignore[call-arg]
         model=model,
-        api_key=settings.anthropic_api_key,
+        api_key=SecretStr(settings.anthropic_api_key),
         **kwargs,
     )
