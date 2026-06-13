@@ -1,18 +1,20 @@
+from typing import Any
+
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from app.config import settings
 
-_client: AsyncIOMotorClient | None = None
+_client: AsyncIOMotorClient[Any] | None = None
 
 
-def get_client() -> AsyncIOMotorClient:
+def get_client() -> AsyncIOMotorClient[Any]:
     global _client
     if _client is None:
         _client = AsyncIOMotorClient(settings.mongodb_uri)
     return _client
 
 
-def get_db() -> AsyncIOMotorDatabase:
+def get_db() -> AsyncIOMotorDatabase[Any]:
     return get_client()[settings.mongodb_database]
 
 

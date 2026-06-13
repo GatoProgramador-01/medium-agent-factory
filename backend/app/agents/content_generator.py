@@ -99,7 +99,7 @@ async def revise_post(
     content: str,
     score: float,
     revision_prompt: str,
-    issues: list[dict],
+    issues: list[dict[str, Any]],
     revision_number: int = 1,
 ) -> GeneratedPost:
     role = _pick_role(revision_number)
@@ -131,7 +131,7 @@ async def _call_generator(
     run_id: str,
     agent_label: str,
     role: str,
-    messages: list,
+    messages: list[Any],
 ) -> GeneratedPost:
     model_name = get_model_name(role)
     tracker = AgentTokenTracker(

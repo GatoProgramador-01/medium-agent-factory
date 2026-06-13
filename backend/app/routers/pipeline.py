@@ -1,7 +1,9 @@
 import asyncio
 import json
 import uuid
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -21,7 +23,7 @@ class PipelineRequest(BaseModel):
 async def trigger_pipeline(
     req: PipelineRequest,
     background_tasks: BackgroundTasks,
-) -> dict:
+) -> dict[str, Any]:
     """Trigger pipeline asynchronously. Poll /runs/{run_id} for status."""
     run_id = str(uuid.uuid4())
     db = get_db()
@@ -40,42 +42,42 @@ async def trigger_pipeline(
 
 
 @router.post("/run/sync")
-async def trigger_pipeline_sync(req: PipelineRequest) -> dict:
+async def trigger_pipeline_sync(req: PipelineRequest) -> dict[str, Any]:
     """Run pipeline synchronously — blocks until complete."""
     return await run_pipeline(custom_topic=req.custom_topic)
 
 
 @router.get("/runs")
-async def list_runs(limit: int = 20, offset: int = 0) -> list[dict]:
+async def list_runs(limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
     db = get_db()
     cursor = db.pipeline_runs.find(
         {}, {"_id": 0}, sort=[("created_at", -1)], skip=offset, limit=limit
     )
-    return await cursor.to_list(length=limit)
+    return cast(list[dict[str, Any]], await cursor.to_list(length=limit))
 
 
 @router.get("/runs/{run_id}")
-async def get_run(run_id: str) -> dict:
+async def get_run(run_id: str) -> dict[str, Any]:
     db = get_db()
     run = await db.pipeline_runs.find_one({"run_id": run_id}, {"_id": 0})
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    return run
+    return cast(dict[str, Any], run)
 
 
 @router.get("/runs/{run_id}/logs")
-async def get_logs(run_id: str) -> list[dict]:
+async def get_logs(run_id: str) -> list[dict[str, Any]]:
     """All log entries for a run, ordered by timestamp."""
     db = get_db()
     cursor = db.agent_logs.find({"run_id": run_id}, {"_id": 0}, sort=[("timestamp", 1)])
-    return await cursor.to_list(length=500)
+    return cast(list[dict[str, Any]], await cursor.to_list(length=500))
 
 
 @router.get("/runs/{run_id}/stream")
 async def stream_logs(run_id: str, request: Request) -> StreamingResponse:
     """SSE stream of agent logs for a run. Closes when pipeline finishes."""
 
-    async def event_generator():
+    async def event_generator() -> AsyncGenerator[str, None]:
         db = get_db()
         seen_count = 0
         terminal = {"completed", "failed"}

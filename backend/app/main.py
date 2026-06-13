@@ -42,5 +42,5 @@ async def shutdown() -> None:
 
 
 @app.get("/health")
-async def health() -> dict:
+async def health() -> dict[str, str]:
     return {"status": "ok", "environment": settings.environment}

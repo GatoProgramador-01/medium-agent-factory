@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 from fastapi import APIRouter
 
 from app.database import get_db
@@ -6,11 +8,11 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 @router.get("/token-usage")
-async def token_usage(run_id: str | None = None) -> list[dict]:
+async def token_usage(run_id: str | None = None) -> list[dict[str, Any]]:
     """Per-agent token usage. Filter by run_id or get all."""
     db = get_db()
-    query = {"run_id": run_id} if run_id else {}
-    pipeline = [
+    query: dict[str, Any] = {"run_id": run_id} if run_id else {}
+    pipeline: list[dict[str, Any]] = [
         {"$match": query},
         {
             "$group": {
@@ -24,7 +26,10 @@ async def token_usage(run_id: str | None = None) -> list[dict]:
         },
         {"$sort": {"total_cost_usd": -1}},
     ]
-    result = await db.agent_runs.aggregate(pipeline).to_list(length=50)
+    result = cast(
+        list[dict[str, Any]],
+        await db.agent_runs.aggregate(pipeline).to_list(length=50),
+    )
     for r in result:
         r["agent_name"] = r.pop("_id")
         r["total_cost_usd"] = round(r["total_cost_usd"], 6)
@@ -33,10 +38,10 @@ async def token_usage(run_id: str | None = None) -> list[dict]:
 
 
 @router.get("/token-usage/by-run")
-async def token_usage_by_run(limit: int = 20) -> list[dict]:
+async def token_usage_by_run(limit: int = 20) -> list[dict[str, Any]]:
     """Total cost and tokens per pipeline run."""
     db = get_db()
-    pipeline = [
+    pipeline: list[dict[str, Any]] = [
         {
             "$group": {
                 "_id": "$run_id",
@@ -51,7 +56,10 @@ async def token_usage_by_run(limit: int = 20) -> list[dict]:
         {"$sort": {"first_call": -1}},
         {"$limit": limit},
     ]
-    result = await db.agent_runs.aggregate(pipeline).to_list(length=limit)
+    result = cast(
+        list[dict[str, Any]],
+        await db.agent_runs.aggregate(pipeline).to_list(length=limit),
+    )
     for r in result:
         r["run_id"] = r.pop("_id")
         r["total_cost_usd"] = round(r["total_cost_usd"], 6)
@@ -59,7 +67,7 @@ async def token_usage_by_run(limit: int = 20) -> list[dict]:
 
 
 @router.get("/summary")
-async def summary() -> dict:
+async def summary() -> dict[str, Any]:
     """Overall system stats."""
     db = get_db()
 
@@ -68,7 +76,7 @@ async def summary() -> dict:
     total_posts = await db.posts.count_documents({})
     published = await db.posts.count_documents({"status": "published"})
 
-    cost_pipeline = [
+    cost_pipeline: list[dict[str, Any]] = [
         {
             "$group": {
                 "_id": None,
@@ -77,8 +85,13 @@ async def summary() -> dict:
             }
         }
     ]
-    cost_result = await db.agent_runs.aggregate(cost_pipeline).to_list(length=1)
-    cost_data = cost_result[0] if cost_result else {"total_cost": 0, "total_tokens": 0}
+    cost_result = cast(
+        list[dict[str, Any]],
+        await db.agent_runs.aggregate(cost_pipeline).to_list(length=1),
+    )
+    cost_data: dict[str, Any] = (
+        cost_result[0] if cost_result else {"total_cost": 0, "total_tokens": 0}
+    )
 
     return {
         "pipeline_runs": total_runs,

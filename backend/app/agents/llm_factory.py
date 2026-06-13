@@ -43,7 +43,7 @@ def get_llm(role: str = "worker", **kwargs: Any) -> BaseChatModel:
             ChatOllama,  # optional dep — only imported when needed
         )
 
-        return ChatOllama(  # type: ignore[call-arg]
+        return ChatOllama(
             model=settings.local_llm_model,
             base_url=settings.local_llm_base_url,
             **kwargs,
