@@ -24,6 +24,7 @@ class QualityIssue:
 class QualityReport:
     score: float  # 0.0 – 1.0
     read_ratio_prediction: float  # estimated % of viewers who finish
+    medium_boost_eligible: bool  # meets all 6 Medium Boost criteria
     issues: list[QualityIssue]
     strengths: list[str]
     revision_prompt: str  # injected into next content-gen pass

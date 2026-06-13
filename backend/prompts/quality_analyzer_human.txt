@@ -1,4 +1,4 @@
-Analyze this Medium draft:
+Analyze this Medium draft for Partner Program earnings potential and curation eligibility.
 
 TITLE: {title}
 
@@ -6,5 +6,16 @@ CONTENT:
 {content}
 
 ---
-Provide a detailed quality analysis with a score, specific issues, and a revision prompt
-that the content generator can use to fix this post.
+Run the full evaluation in this order:
+1. Platform compliance checks (language, word count, paragraph length, heading cadence, image placeholders)
+2. AI pattern checks (forbidden phrases, structural patterns, rhythm issues)
+3. Missing human element checks (anecdote, surprise, aside, pattern interrupt, close)
+4. Medium Boost eligibility verdict
+
+Return:
+- score (0.0–1.0) reflecting earnings potential, not just writing quality
+- read_ratio_prediction (estimated % of loaders who will read 30+ seconds)
+- medium_boost_eligible (true only if all six Boost criteria are met)
+- issues ordered by earnings impact (platform violations first, then AI patterns, then human elements)
+- strengths (what must be preserved in revision)
+- revision_prompt (precise, actionable rewrite instructions for the content generator)

@@ -33,21 +33,27 @@ class _Issue(BaseModel):
 
 
 class _AnalysisOutput(BaseModel):
-    score: float = Field(ge=0.0, le=1.0, description="Overall human-likeness score")
+    score: float = Field(ge=0.0, le=1.0, description="Overall earnings potential score")
     read_ratio_prediction: float = Field(
         ge=0.0,
         le=1.0,
-        description="Estimated fraction of viewers who will finish reading",
+        description="Estimated fraction of viewers who will read 30+ seconds",
+    )
+    medium_boost_eligible: bool = Field(
+        description=(
+            "True only if ALL six Medium Boost criteria are met: "
+            "English language, original insight, non-clickbait title, "
+            "at least one image with alt text, no self-promotion, no AI patterns."
+        )
     )
     issues: list[_Issue] = Field(
-        description="Specific problems found, ordered by impact"
+        description="Specific problems ordered by earnings impact (platform violations first)"
     )
-    strengths: list[str] = Field(description="What the post does well")
+    strengths: list[str] = Field(description="What the post does well — preserve in revision")
     revision_prompt: str = Field(
         description=(
-            "A precise rewrite instruction for the content generator. "
-            "Include the specific patterns to remove and the "
-            "specific voice/style to add."
+            "Precise rewrite instructions for the content generator. "
+            "Name the exact patterns to remove and the specific fixes to apply."
         )
     )
 
@@ -117,6 +123,7 @@ async def run_quality_analysis(
     return QualityReport(
         score=output.score,
         read_ratio_prediction=output.read_ratio_prediction,
+        medium_boost_eligible=output.medium_boost_eligible,
         issues=issues,
         strengths=output.strengths,
         revision_prompt=output.revision_prompt,

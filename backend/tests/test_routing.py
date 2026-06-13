@@ -12,6 +12,7 @@ def _make_report(score: float) -> QualityReport:
     return QualityReport(
         score=score,
         read_ratio_prediction=0.6,
+        medium_boost_eligible=score >= 0.9,
         issues=[],
         strengths=[],
         revision_prompt="",

@@ -2,10 +2,19 @@ Write a complete Medium post on this topic.
 
 TOPIC: {topic}
 
-TREND CONTEXT (use this to make the content timely and relevant):
+TREND CONTEXT (use this to make the content timely and specific):
 {trend_context}
 
 RECOMMENDED TAGS: {tags}
 TARGET AUDIENCE: {audience}
 
-Write the full post now. Remember: open with a hook, not an introduction.
+MANDATORY CHECKS — verify every box before submitting:
+□ Written in English (non-English = no earnings)
+□ 1,500–2,000 words (6–8 min read)
+□ No paragraph longer than 4 sentences
+□ H2 heading every 300–500 words
+□ At least 2 [IMAGE: description | alt: alt text] placeholders, first within 600 words
+□ First 150 words: strong hook (NOT "In this article" or "Have you ever wondered")
+□ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion
+
+Write the full post now. Start with the hook — not a title, not an intro.

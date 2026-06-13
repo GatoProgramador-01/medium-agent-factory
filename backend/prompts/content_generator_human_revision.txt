@@ -12,4 +12,15 @@ REVISION BRIEF (apply ALL of these):
 SPECIFIC ISSUES TO FIX:
 {issues_list}
 
-Rewrite the full post incorporating every correction. Keep what's strong.
+MANDATORY FORMAT COMPLIANCE — fix every violation before submitting:
+□ Written in English (non-English = no earnings)
+□ 1,500–2,000 words — expand if too short, cut filler if too long
+□ No paragraph over 4 sentences — break any that are longer
+□ H2 heading every 300–500 words — add headings where gaps are too wide
+□ At least 2 [IMAGE: description | alt: alt text] placeholders — first within 600 words
+□ Hook in first 150 words — remove any generic opener and replace with a scene, failure, or stat
+□ Pattern interrupt at the midpoint (bold one-liner, rhetorical question, or reveal)
+□ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion / It's worth noting
+
+Rewrite the full post. Keep every strong element. Fix every issue. Do not acknowledge
+that this is a revision — write as if it is the finished, polished version.

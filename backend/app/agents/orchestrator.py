@@ -111,12 +111,13 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
 
         passed = report.score >= settings.min_quality_score
         level = "success" if passed else "warning"
+        boost_label = "Boost-eligible" if report.medium_boost_eligible else "NOT Boost-eligible"
         verdict = (
-            f"Passed threshold ({settings.min_quality_score}). Predicted read ratio: "
-            f"{report.read_ratio_prediction * 100:.0f}%"
+            f"Passed threshold ({settings.min_quality_score}). "
+            f"Predicted read ratio: {report.read_ratio_prediction * 100:.0f}%. {boost_label}."
             if passed
             else f"Below threshold ({settings.min_quality_score}). "
-            f"Found {len(report.issues)} issues. Queuing revision."
+            f"Found {len(report.issues)} issues. {boost_label}. Queuing revision."
         )
         await log_step(
             run_id,
@@ -126,6 +127,7 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
             data={
                 "score": report.score,
                 "read_ratio_prediction": report.read_ratio_prediction,
+                "medium_boost_eligible": report.medium_boost_eligible,
                 "passed": passed,
                 "issue_count": len(report.issues),
                 "top_issues": [
@@ -148,6 +150,7 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
                     "quality_report": {
                         "score": report.score,
                         "read_ratio_prediction": report.read_ratio_prediction,
+                        "medium_boost_eligible": report.medium_boost_eligible,
                         "issues": [
                             {
                                 "category": i.category,
@@ -363,6 +366,7 @@ async def run_pipeline(
         "title": post.title if post else None,
         "quality_score": qr.score if qr else None,
         "read_ratio_prediction": qr.read_ratio_prediction if qr else None,
+        "medium_boost_eligible": qr.medium_boost_eligible if qr else None,
         "revision_count": final_state.get("revision_count", 0),
         "errors": final_state.get("errors", []),
         "steps": final_state.get("completed_steps", []),
