@@ -476,17 +476,19 @@ async def run_series(
         },
     )
 
-    await db.series.insert_one(
+    await db.series.update_one(
+        {"series_id": series_id},
         {
-            "series_id": series_id,
-            "theme": theme,
-            "series_title": plan.series_title,
-            "series_description": plan.series_description,
-            "post_count": len(plan.posts),
-            "status": "running",
-            "run_ids": [],
-            "created_at": datetime.now(UTC),
-        }
+            "$set": {
+                "theme": theme,
+                "series_title": plan.series_title,
+                "series_description": plan.series_description,
+                "post_count": len(plan.posts),
+                "status": "running",
+            },
+            "$setOnInsert": {"run_ids": [], "created_at": datetime.now(UTC)},
+        },
+        upsert=True,
     )
 
     # ── Step 2: generate each post sequentially ───────────────────────────────
