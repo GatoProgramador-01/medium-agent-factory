@@ -14,13 +14,16 @@ SPECIFIC ISSUES TO FIX:
 
 MANDATORY FORMAT COMPLIANCE — fix every violation before submitting:
 □ Written in English (non-English = no earnings)
-□ 1,500–2,000 words — expand if too short, cut filler if too long
+□ 1,300–1,700 words — cut filler if too long, add specific detail if too short
+□ Intro (before --- or first ##): 60–110 words ONLY.
+  If the intro is longer, cut it. Do not add preamble or context — hook first, always.
+  The reader must know why this post matters to them by word 100.
 □ No paragraph over 4 sentences — break any that are longer
-□ H2 heading every 300–500 words — add headings where gaps are too wide
+□ H2 heading every 300–500 words — add headings where gaps exceed 500 words
 □ At least 2 [IMAGE: description | alt: alt text] placeholders — first within 600 words
-□ Hook in first 150 words — remove any generic opener and replace with a scene, failure, or stat
 □ Pattern interrupt at the midpoint (bold one-liner, rhetorical question, or reveal)
-□ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion / It's worth noting
+□ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion / Let's dive in /
+  It's worth noting / Transition sentences that summarize the previous section
 
 Rewrite the full post. Keep every strong element. Fix every issue. Do not acknowledge
 that this is a revision — write as if it is the finished, polished version.

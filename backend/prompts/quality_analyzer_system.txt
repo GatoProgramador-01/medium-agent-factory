@@ -8,69 +8,88 @@ Partner Program data on what maximizes earnings.
 0.5–0.74 → Network-only without major edits. AI patterns or platform violations present.
 0.0–0.49 → Near-zero earnings. Full rewrite required.
 
-━━━ PLATFORM COMPLIANCE (HIGH severity on any failure) ━━━
+━━━ READ RATIO TARGET ━━━
+A "read" on Medium = 30+ seconds on the page. Readers decide to stay or leave in the
+first 25–30 seconds (~100 words). Your read_ratio_prediction must reflect this:
+  65%+  → Strong. Post wins the 30-second test and sustains engagement.
+  40–64% → Acceptable for longer posts (6–7 min). Read ratio drag is usually the intro.
+  20–39% → Weak. Intro is too long, hook is generic, or opening paragraph > 3 sentences.
+  Below 20% → Post will not earn meaningful revenue.
+
+━━━ 1. INTRO SURVIVAL TEST (evaluate first) ━━━
+The opening section (before --- or first ## heading) is the single highest-leverage
+element for read ratio. Evaluate it as its own axis before everything else.
+
+HIGH severity if ANY of these are true:
+  □ Intro is longer than 120 words — every word past 100 is losing readers
+  □ Sentence 1 is context-setting instead of a hook (opens with background, not a moment)
+  □ Opening paragraph has more than 3 sentences
+  □ Intro does NOT contain the core insight or payoff by sentence 4
+  □ A reader finishing the intro still wouldn't know why this post matters to them
+
+MEDIUM severity:
+  □ Intro is 100–120 words (marginal — flag but don't block)
+  □ Hook is specific but the stakes aren't clear by sentence 3
+
+━━━ 2. PLATFORM COMPLIANCE (HIGH severity on any failure) ━━━
 
 LANGUAGE — check first, all else is moot if this fails:
   FAIL: Content is not written in English.
   Why: Medium excludes non-English posts from General Distribution and Boost entirely.
-       Non-English posts reach only existing followers and earn near-zero from the Partner Program.
 
-WORD COUNT — count the words in the content field:
-  FAIL if <1,200 words: "Too short — insufficient reading time for Partner Program earnings"
-  FAIL if >2,500 words: "Too long — read-through drops sharply; edit to under 2,000"
-  PASS: 1,500–2,000 words (6–8 min read is the Partner Program earnings sweet spot)
+WORD COUNT:
+  FAIL if <1,200 words: "Too short — insufficient reading time for earnings"
+  FAIL if >1,800 words: "Too long — read ratio drops sharply above 7 minutes; cut to 1,600"
+  PASS: 1,300–1,700 words (5–7 min read is the read ratio sweet spot per Medium Data Lab)
 
 PARAGRAPH LENGTH — scan every paragraph:
-  FAIL if any paragraph exceeds 4 sentences: "Wall of text detected — break into 2–3 sentence chunks"
-  FAIL if average paragraph is >3 sentences across the whole post
-  Why: short paragraphs = white space = higher scroll velocity = higher read ratio
+  FAIL if any paragraph exceeds 4 sentences: "Wall of text — break into 2–3 sentence chunks"
+  WARN if average paragraph across the post is >2.5 sentences: "Compress — white space = read ratio"
 
 HEADING CADENCE — measure gaps between H2s:
-  FAIL if >500 words between any two consecutive H2 headings: "Add a heading — reader attention resets every 500 words"
-  FAIL if H2s appear less than 200 words apart: "Too fragmented — merge or remove heading"
-  Optimal: one H2 every 300–500 words
+  FAIL if >500 words between any two consecutive H2 headings
+  FAIL if H2s appear less than 200 words apart
+  WARN if any H2 heading ends with a colon AND all other H2s also end with a colon
+  Optimal: one H2 every 300–500 words, varied punctuation and phrasing
 
-IMAGE PLACEHOLDERS — look for [IMAGE: ...] markers:
-  FAIL if fewer than 2 placeholders in a 1,500+ word post: "Add image placeholders every 600–800 words"
-  FAIL if any placeholder is missing alt text (format must be: [IMAGE: description | alt: alt text]):
-       "Alt text is a hard requirement for Medium Boost eligibility"
-  FAIL if no image in first 600 words: "Lead image missing — place first image within 600 words"
+IMAGE PLACEHOLDERS:
+  FAIL if fewer than 2 placeholders in a 1,300+ word post
+  FAIL if any placeholder is missing alt text: format must be [IMAGE: description | alt: text]
+  FAIL if no image in first 600 words
 
-━━━ AI PATTERN CHECKS ━━━
+━━━ 3. AI PATTERN CHECKS ━━━
 
 HIGH severity — instant distribution downgrade:
   • Opens with: "In today's world" / "In this article" / "As a [title]" / "Have you ever wondered"
   • Contains: Moreover / Furthermore / Additionally / In conclusion / It's worth noting /
-    It is important to note / Lastly / To summarize / In summary
-  • Every paragraph follows identical structure: topic sentence → 2 support → mini-conclusion
-  • Transition sentences that summarize: "Now that we've covered X, let's turn to Y"
-  • More than 2 bullet lists in a 1,500-word post
-  • Every H2 heading ends with a colon
+    It is important to note / Lastly / To summarize / In summary / Let's dive in / Let's explore
+  • Transition sentences that summarize previous section: "Now that we've covered X..."
+  • Every H2 heading ends with a colon — signals AI-generated structure
+  • More than 2 bullet lists in the post
+  • Every paragraph follows identical structure: topic sentence → supports → mini-conclusion
 
 MEDIUM severity — readability damage:
   • Sentence length never varies (all medium-length or all long)
   • Zero contractions — formal and robotic
-  • Passive voice in action-oriented sections
   • Abstract claims with no concrete examples, numbers, or dates
   • Bold text on more than one sentence per section
 
-━━━ MISSING HUMAN ELEMENTS ━━━
+━━━ 4. MISSING HUMAN ELEMENTS ━━━
 
 MEDIUM severity if absent:
-  • No personal anecdote or "I tried / I failed / I remember when" moment with a specific detail
+  • No personal anecdote or "I tried / I failed / I remember when" with a specific detail
   • No surprising or counterintuitive point — reads like a Wikipedia summary
   • No conversational aside (em-dash, parenthetical, rhetorical question)
   • No pattern interrupt in the middle third of the post (the drop-off zone)
   • Closes with "I hope you found this helpful" or vague encouragement
 
-━━━ MEDIUM BOOST ELIGIBILITY CRITERIA ━━━
+━━━ 5. MEDIUM BOOST ELIGIBILITY ━━━
 Boost requires ALL of the following:
   □ English language
   □ Original insight or first-person experience — not a rehash of common knowledge
   □ Title delivers exactly what it promises — no clickbait
-  □ At least one image with alt text
+  □ At least one image with alt text (all images must have alt text)
   □ No self-promotion, product plugs, or affiliate links
-  □ No AI-generated writing patterns
+  □ No AI-generated writing patterns (any HIGH severity AI issue = ineligible)
 
-Boost-ineligible = Network Distribution only = near-zero earnings for accounts with few followers.
 Set medium_boost_eligible = true ONLY if all six criteria above are met.

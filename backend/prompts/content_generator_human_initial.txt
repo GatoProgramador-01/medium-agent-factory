@@ -10,11 +10,12 @@ TARGET AUDIENCE: {audience}
 
 MANDATORY CHECKS — verify every box before submitting:
 □ Written in English (non-English = no earnings)
-□ 1,500–2,000 words (6–8 min read)
-□ No paragraph longer than 4 sentences
-□ H2 heading every 300–500 words
-□ At least 2 [IMAGE: description | alt: alt text] placeholders, first within 600 words
-□ First 150 words: strong hook (NOT "In this article" or "Have you ever wondered")
-□ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion
+□ 1,300–1,700 words (5–7 min read — sweet spot for read ratio)
+□ Intro (before --- or first ##): 60–110 words ONLY. Sentence 1 must be a hook, not context.
+□ No paragraph longer than 4 sentences (default: 2 sentences)
+□ H2 heading every 300–500 words. Each H2 creates curiosity, not just a label.
+□ At least 2 [IMAGE: description | alt: 10–15 word alt text] placeholders, first within 600 words
+□ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion / Let's dive in
+□ At least one specific number, date, or personal failure in the hook section
 
-Write the full post now. Start with the hook — not a title, not an intro.
+Write the full post now. Start with the hook — not a title, not an intro sentence that sets context.
