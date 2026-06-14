@@ -8,13 +8,20 @@ Graph:
   content_generation      (ContentGeneratorAgent — Haiku initial)
     │
     ▼
-  quality_analysis        (QualityAnalyzerAgent — Haiku)
+  format                  (FormatterAgent — Haiku, structural fixes + pull quote)
     │
-    ├─── score >= threshold ──→ finalize
+    ▼
+  quality_analysis        (QualityAnalyzerAgent — Haiku, scores formatted content)
     │
-    └─── score < threshold AND revisions < max
+    ├─── score >= 0.90 ──→ finalize
+    │
+    └─── score < 0.90 AND revisions < max
               revision_count=1 → Haiku revision
-              revision_count=2 → Sonnet revision (last resort)
+              revision_count=2 → Sonnet revision
+              revision_count=3 → Sonnet final attempt
+                │
+                ▼
+              format (re-format revised content)
                 │
                 ▼
           quality_analysis (loop back)
@@ -335,9 +342,9 @@ def route_after_quality(state: PipelineState) -> str:
     report = state.get("quality_report")
     revisions = state.get("revision_count", 0)
     if not report or report.score >= settings.min_quality_score:
-        return "format"
+        return "finalize"
     if revisions >= settings.max_revision_cycles:
-        return "format"
+        return "finalize"
     return "revision"
 
 
@@ -353,14 +360,14 @@ def build_graph() -> Any:
     g.add_node("finalize", finalize_node)
 
     g.add_edge(START, "content_generation")
-    g.add_edge("content_generation", "quality_analysis")
+    g.add_edge("content_generation", "format")
+    g.add_edge("format", "quality_analysis")
     g.add_conditional_edges(
         "quality_analysis",
         route_after_quality,
-        {"format": "format", "revision": "revision"},
+        {"finalize": "finalize", "revision": "revision"},
     )
-    g.add_edge("revision", "quality_analysis")
-    g.add_edge("format", "finalize")
+    g.add_edge("revision", "format")
     g.add_edge("finalize", END)
     return g.compile()
 

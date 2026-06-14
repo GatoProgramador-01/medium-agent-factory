@@ -32,40 +32,39 @@ def _state(score: float | None = None, revisions: int = 0) -> dict:
 
 
 class TestRouteAfterQuality:
-    def test_no_report_goes_to_format(self) -> None:
-        assert route_after_quality(_state(score=None)) == "format"
+    def test_no_report_goes_to_finalize(self) -> None:
+        assert route_after_quality(_state(score=None)) == "finalize"
 
-    def test_score_above_threshold_goes_to_format(self) -> None:
-        # Default min_quality_score is 0.75
+    def test_score_above_threshold_goes_to_finalize(self) -> None:
         with patch("app.agents.orchestrator.settings") as s:
-            s.min_quality_score = 0.75
-            s.max_revision_cycles = 2
-            assert route_after_quality(_state(score=0.80)) == "format"
-            assert route_after_quality(_state(score=0.75)) == "format"
+            s.min_quality_score = 0.90
+            s.max_revision_cycles = 3
+            assert route_after_quality(_state(score=0.92)) == "finalize"
+            assert route_after_quality(_state(score=0.90)) == "finalize"
 
     def test_score_below_threshold_goes_to_revision(self) -> None:
         with patch("app.agents.orchestrator.settings") as s:
-            s.min_quality_score = 0.75
-            s.max_revision_cycles = 2
-            assert route_after_quality(_state(score=0.60, revisions=0)) == "revision"
-            assert route_after_quality(_state(score=0.74, revisions=1)) == "revision"
+            s.min_quality_score = 0.90
+            s.max_revision_cycles = 3
+            assert route_after_quality(_state(score=0.80, revisions=0)) == "revision"
+            assert route_after_quality(_state(score=0.89, revisions=2)) == "revision"
 
-    def test_max_revisions_reached_forces_format(self) -> None:
+    def test_max_revisions_reached_forces_finalize(self) -> None:
         with patch("app.agents.orchestrator.settings") as s:
-            s.min_quality_score = 0.75
-            s.max_revision_cycles = 2
-            # Even with a low score, if revisions >= max, format
-            assert route_after_quality(_state(score=0.40, revisions=2)) == "format"
-            assert route_after_quality(_state(score=0.40, revisions=3)) == "format"
+            s.min_quality_score = 0.90
+            s.max_revision_cycles = 3
+            # Even with a low score, if revisions >= max, finalize
+            assert route_after_quality(_state(score=0.70, revisions=3)) == "finalize"
+            assert route_after_quality(_state(score=0.70, revisions=4)) == "finalize"
 
-    def test_exactly_at_max_revisions_forces_format(self) -> None:
+    def test_exactly_at_max_revisions_forces_finalize(self) -> None:
         with patch("app.agents.orchestrator.settings") as s:
-            s.min_quality_score = 0.75
-            s.max_revision_cycles = 2
-            assert route_after_quality(_state(score=0.50, revisions=2)) == "format"
+            s.min_quality_score = 0.90
+            s.max_revision_cycles = 3
+            assert route_after_quality(_state(score=0.75, revisions=3)) == "finalize"
 
     def test_one_below_max_still_revises(self) -> None:
         with patch("app.agents.orchestrator.settings") as s:
-            s.min_quality_score = 0.75
-            s.max_revision_cycles = 2
-            assert route_after_quality(_state(score=0.50, revisions=1)) == "revision"
+            s.min_quality_score = 0.90
+            s.max_revision_cycles = 3
+            assert route_after_quality(_state(score=0.75, revisions=2)) == "revision"
