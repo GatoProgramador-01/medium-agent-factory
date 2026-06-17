@@ -51,12 +51,33 @@ def get_llm(role: str = "worker", **kwargs: Any) -> BaseChatModel:
         )
 
     if settings.use_deepseek:
+        from langchain_core.exceptions import OutputParserException
+        from langchain_core.messages import SystemMessage
+        from langchain_core.runnables import RunnableLambda
         from langchain_openai import ChatOpenAI  # only imported when needed
 
-        # Remove max_tokens — DeepSeek uses max_tokens but some callers pass it fine;
-        # remove callbacks which OpenAI provider handles differently from Anthropic.
-        # Forward everything except unsupported keys.
-        return ChatOpenAI(  # type: ignore[call-arg]
+        # DeepSeek V3 compatibility:
+        # - json_schema (OpenAI structured outputs) → not supported
+        # - function_calling → supported, but model occasionally returns text instead of a
+        #   tool call. We prepend a system message ensuring the word "json" appears so
+        #   json_mode also works as a fallback, and guard the output to raise a retryable
+        #   OutputParserException when None is returned.
+        class _DeepSeekChatOpenAI(ChatOpenAI):  # type: ignore[misc]
+            def with_structured_output(  # type: ignore[override]
+                self, schema: Any, *, method: str = "function_calling", **kw: Any
+            ) -> Any:
+                inner = super().with_structured_output(schema, method=method, **kw)
+
+                def _guard(output: Any) -> Any:
+                    if output is None:
+                        raise OutputParserException(
+                            "DeepSeek did not invoke the tool — will retry"
+                        )
+                    return output
+
+                return inner | RunnableLambda(_guard)
+
+        return _DeepSeekChatOpenAI(  # type: ignore[call-arg]
             model=settings.deepseek_model,
             api_key=SecretStr(settings.deepseek_api_key),
             base_url="https://api.deepseek.com/v1",

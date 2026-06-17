@@ -31,7 +31,11 @@ jobs:
       - name: Run eval gate (Layer 1 + 2 only — no deep LLM-judge tests)
         run: pytest evals/ -v --tb=short -m "not eval_deep" --timeout=120
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          USE_DEEPSEEK: "true"
+          USE_LOCAL_LLM: "false"
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_MODEL: deepseek-chat
+          ANTHROPIC_API_KEY: ""    # not used when USE_DEEPSEEK=true
           # LangSmith tracing on CI — every eval run is visible in the dashboard
           LANGCHAIN_TRACING_V2: "true"
           LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}

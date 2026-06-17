@@ -117,7 +117,9 @@ async def run_quality_analysis(
         ),
     ]
 
-    output: _AnalysisOutput = await llm.ainvoke(messages)
+    output: _AnalysisOutput | None = await llm.ainvoke(messages)
+    if output is None:
+        raise ValueError("quality_analyzer: LLM returned None — structured output failed")
 
     issues = [
         QualityIssue(

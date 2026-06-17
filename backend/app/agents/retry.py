@@ -40,7 +40,15 @@ logger = logging.getLogger(__name__)
 
 # Build the retryable exception tuple at import time.
 # anthropic exceptions are optional — not imported if USE_LOCAL_LLM=true.
-_RETRYABLE: tuple[type[BaseException], ...] = (ConnectionError, TimeoutError, OSError)
+# OutputParserException covers DeepSeek skipping a tool call (returns None → guard raises).
+from langchain_core.exceptions import OutputParserException
+
+_RETRYABLE: tuple[type[BaseException], ...] = (
+    ConnectionError,
+    TimeoutError,
+    OSError,
+    OutputParserException,
+)
 
 try:
     from anthropic import APIConnectionError, InternalServerError, RateLimitError
