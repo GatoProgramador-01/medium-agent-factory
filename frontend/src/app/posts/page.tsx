@@ -6,127 +6,125 @@ import { api, type Post } from "@/lib/api";
 
 const STATUSES = ["", "draft", "revised", "approved"];
 
-const STATUS_COLOR: Record<string, string> = {
-  approved: "text-[var(--accent)]",
-  revised:  "text-[var(--yellow)]",
-  draft:    "text-[var(--muted)]",
-  failed:   "text-[var(--red)]",
-};
+function scoreColor(score: number) {
+  if (score >= 0.90) return "badge-green";
+  if (score >= 0.75) return "badge-amber";
+  return "badge-red";
+}
 
-function ScoreBar({ score }: { score: number }) {
-  const pct  = Math.round(score * 100);
-  const fill = pct >= 75 ? "bg-[var(--accent)]" : pct >= 50 ? "bg-[var(--yellow)]" : "bg-[var(--red)]";
-  const text = pct >= 75 ? "text-[var(--accent)]" : pct >= 50 ? "text-[var(--yellow)]" : "text-[var(--red)]";
+function ScoreBadge({ score }: { score: number }) {
+  const pct = Math.round(score * 100);
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className={`tabular-nums w-7 ${text}`}>{pct}</span>
-      <div className="flex-1 h-1 bg-[var(--border)] rounded-full overflow-hidden">
-        <div className={`h-full ${fill} rounded-full`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
+    <span className={`badge ${scoreColor(score)}`}>{pct}</span>
   );
 }
 
 function PostCard({ post }: { post: Post }) {
-  const [expanded, setExpanded] = useState(false);
-  const [copied, setCopied]     = useState(false);
-  const statusColor = STATUS_COLOR[post.status] ?? "text-[var(--muted)]";
-
-  async function handleCopy() {
-    const text = `# ${post.title}\n\n${post.subtitle ? `*${post.subtitle}*\n\n` : ""}${post.content}`;
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
+  const qr = post.quality_report;
+  const wordCount = post.content ? post.content.split(/\s+/).length : 0;
+  const readMin = Math.ceil(wordCount / 220);
 
   return (
-    <div
-      className="border-b border-[var(--border)] last:border-0 py-3 px-4 hover:bg-[var(--surface2)] transition-colors"
+    <Link
+      href={`/posts/${post.run_id}`}
       data-testid="post-card"
+      className="block card p-5 hover:border-[var(--border-light)] transition-colors group"
+      style={{ textDecoration: "none" }}
     >
-      {/* Header row */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs shrink-0 ${statusColor}`}>[{post.status}]</span>
-            <p className="text-sm font-medium truncate text-[var(--text)]">{post.title}</p>
+          {/* Status + position */}
+          <div className="flex items-center gap-2 mb-2">
+            <span
+              className="badge"
+              style={{
+                background: post.status === "approved" ? "rgba(16,185,129,0.12)" : "rgba(124,133,162,0.12)",
+                color:      post.status === "approved" ? "var(--green)" : "var(--text-muted)",
+              }}
+            >
+              {post.status}
+            </span>
+            {post.series_position && (
+              <span className="badge badge-purple">Part {post.series_position}</span>
+            )}
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
-            <span>{new Date(post.created_at).toISOString().slice(0, 10)}</span>
-            <span>{post.revision_count} rev</span>
-            {post.tags.map((t) => (
-              <span key={t} className="text-[var(--border2)]">#{t}</span>
-            ))}
-          </div>
-        </div>
-        <div className="shrink-0 w-32">
-          {post.quality_report
-            ? <ScoreBar score={post.quality_report.score} />
-            : <span className="text-[10px] text-[var(--muted)]">no score</span>
-          }
-        </div>
-      </div>
 
-      {/* Expanded content */}
-      {expanded && (
-        <div className="mt-3 space-y-2">
-          {post.subtitle && (
-            <p className="text-xs text-[var(--muted)] italic">{post.subtitle}</p>
+          {/* Title */}
+          <h2
+            className="font-semibold text-base mb-1 group-hover:text-white transition-colors"
+            style={{ color: "var(--text)", lineHeight: 1.4 }}
+          >
+            {post.title}
+          </h2>
+
+          {/* Pull quote */}
+          {post.pull_quote && (
+            <p className="text-sm italic mb-2" style={{ color: "var(--text-muted)" }}>
+              &ldquo;{post.pull_quote}&rdquo;
+            </p>
           )}
-          {post.quality_report && (
-            <div className="text-xs text-[var(--muted)] flex flex-wrap gap-4">
-              <span>
-                read_ratio:{" "}
-                <span className="text-[var(--accent)]">
-                  {Math.round(post.quality_report.read_ratio_prediction * 100)}%
+
+          {/* Meta row */}
+          <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: "var(--text-dim)" }}>
+            <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+            <span>·</span>
+            <span>{readMin} min read</span>
+            <span>·</span>
+            <span>{post.revision_count} revision{post.revision_count !== 1 ? "s" : ""}</span>
+            {qr?.medium_boost_eligible && (
+              <>
+                <span>·</span>
+                <span style={{ color: "var(--green)", fontWeight: 500 }}>Boost eligible</span>
+              </>
+            )}
+          </div>
+
+          {/* Tags */}
+          {post.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {post.tags.map((t) => (
+                <span
+                  key={t}
+                  className="text-xs px-2 py-0.5 rounded-full"
+                  style={{ background: "var(--surface-hover)", color: "var(--text-muted)" }}
+                >
+                  {t}
                 </span>
-              </span>
-              {post.quality_report.strengths.length > 0 && (
-                <span>
-                  strengths:{" "}
-                  <span className="text-[var(--text)]">
-                    {post.quality_report.strengths.slice(0, 2).join(", ")}
-                  </span>
-                </span>
-              )}
-              {post.quality_report.issues.length > 0 && (
-                <span>
-                  top issue:{" "}
-                  <span className="text-[var(--yellow)]">
-                    {post.quality_report.issues[0].category}
-                  </span>
-                </span>
-              )}
+              ))}
             </div>
           )}
-          <pre className="text-[11px] bg-[var(--bg)] p-3 overflow-auto max-h-64 text-[var(--muted)] leading-relaxed whitespace-pre-wrap">
-            {post.content.slice(0, 1200)}{post.content.length > 1200 ? "\n…" : ""}
-          </pre>
         </div>
-      )}
 
-      {/* Footer controls */}
-      <div className="flex gap-4 mt-2 items-center">
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-[10px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-        >
-          [{expanded ? "collapse" : "expand"}]
-        </button>
-        <button
-          onClick={handleCopy}
-          className="text-[10px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-        >
-          {copied ? "[✓ copied]" : "[copy_markdown]"}
-        </button>
+        {/* Score column */}
+        <div className="shrink-0 flex flex-col items-end gap-2">
+          {qr ? (
+            <>
+              <ScoreBadge score={qr.score} />
+              <div className="text-xs text-right" style={{ color: "var(--text-dim)" }}>
+                <div>{Math.round(qr.read_ratio_prediction * 100)}% ratio</div>
+              </div>
+              <div className="score-bar-track w-20">
+                <div
+                  className="score-bar-fill"
+                  style={{
+                    width: `${Math.round(qr.score * 100)}%`,
+                    background: qr.score >= 0.90 ? "var(--green)" : qr.score >= 0.75 ? "var(--amber)" : "var(--red)",
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            <span className="text-xs" style={{ color: "var(--text-dim)" }}>no score</span>
+          )}
+        </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
 export default function PostsPage() {
-  const [posts, setPosts]   = useState<Post[]>([]);
-  const [filter, setFilter] = useState("");
+  const [posts, setPosts]     = useState<Post[]>([]);
+  const [filter, setFilter]   = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -138,75 +136,69 @@ export default function PostsPage() {
   }, [filter]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* Header */}
       <div>
-        <p className="text-[var(--muted)] text-xs mb-1">user@factory:~/factory$</p>
-        <h1 className="text-[var(--accent)] text-xl font-bold" data-testid="page-heading">
+        <h1 className="text-2xl font-bold" data-testid="page-heading" style={{ color: "#fff" }}>
           Posts
         </h1>
-        <p className="text-[var(--muted)] text-xs mt-1">ls -la ./posts --filter=status</p>
+        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+          All generated articles — click any post to read the full version.
+        </p>
       </div>
 
-      {/* Status filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[var(--muted)] text-xs">--status:</span>
+      {/* Filter bar */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs" style={{ color: "var(--text-dim)" }}>Status:</span>
         {STATUSES.map((s) => (
           <button
             key={s}
             data-testid={`filter-${s || "all"}`}
             onClick={() => setFilter(s)}
-            className={`text-[10px] px-2.5 py-1 border transition-colors tracking-wider ${
-              filter === s
-                ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-dim)]"
-                : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--border2)] hover:text-[var(--text)]"
-            }`}
+            className="text-xs px-3 py-1.5 rounded-md transition-colors"
+            style={{
+              background: filter === s ? "var(--orange-dim)" : "transparent",
+              color:      filter === s ? "var(--orange)"     : "var(--text-muted)",
+              border:     `1px solid ${filter === s ? "var(--orange)" : "var(--border)"}`,
+              fontWeight: filter === s ? 500 : 400,
+            }}
           >
-            {s || "all"}
+            {s || "All"}
           </button>
         ))}
       </div>
 
       {/* Post list */}
-      <div className="term-box">
-        <div className="term-box-header">
-          <span>output</span>
-          {!loading && (
-            <span className="ml-auto text-[var(--accent)]">{posts.length} results</span>
-          )}
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="card p-5 space-y-3">
+              <div className="skeleton h-3 w-20" />
+              <div className="skeleton h-5 w-3/4" />
+              <div className="skeleton h-3 w-1/2" />
+            </div>
+          ))}
         </div>
-
-        {loading ? (
-          <div className="p-4 space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-4">
-                <div className="skeleton h-3 w-16" />
-                <div className="skeleton h-3 flex-1" />
-                <div className="skeleton h-3 w-24" />
-              </div>
-            ))}
-          </div>
-        ) : posts.length === 0 ? (
-          <div className="p-8 text-center space-y-4" data-testid="empty-state">
-            <p className="text-[var(--muted)] text-xs">no posts found</p>
-            <p className="text-[var(--border2)] text-[10px]">
-              {filter
-                ? `no posts with status "${filter}"`
-                : "run the pipeline to generate your first post"}
-            </p>
-            <Link
-              href="/pipeline"
-              data-testid="empty-cta"
-              className="inline-block term-btn term-btn-solid px-6 py-2 text-xs tracking-widest"
-            >
-              ❯ run_pipeline
-            </Link>
-          </div>
-        ) : (
-          <div>
-            {posts.map((p) => <PostCard key={p.run_id} post={p} />)}
-          </div>
-        )}
-      </div>
+      ) : posts.length === 0 ? (
+        <div className="card p-12 text-center space-y-4" data-testid="empty-state">
+          <p className="text-lg" style={{ color: "var(--text-muted)" }}>No posts yet</p>
+          <p className="text-sm" style={{ color: "var(--text-dim)" }}>
+            {filter ? `No posts with status "${filter}"` : "Run the pipeline to generate your first post."}
+          </p>
+          <Link
+            href="/pipeline"
+            data-testid="empty-cta"
+            className="btn btn-primary inline-block mt-2"
+            style={{ textDecoration: "none" }}
+          >
+            Run Pipeline
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {posts.map((p) => <PostCard key={p.run_id} post={p} />)}
+        </div>
+      )}
     </div>
   );
 }

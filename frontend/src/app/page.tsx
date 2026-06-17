@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, type Summary } from "@/lib/api";
 
-function Row({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
+function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="flex gap-4 py-0.5">
-      <span className="text-[var(--muted)] w-36 shrink-0">{label}</span>
-      <span className={accent ? "text-[var(--accent)] font-semibold" : "text-[var(--text)]"}>{value}</span>
+    <div className="card p-5">
+      <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>{label}</div>
+      <div className="text-2xl font-bold tabular-nums" style={{ color: "#fff" }}>{value}</div>
+      {sub && <div className="text-xs mt-0.5" style={{ color: "var(--text-dim)" }}>{sub}</div>}
     </div>
   );
 }
@@ -22,65 +23,60 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      {/* Prompt heading */}
+    <div className="space-y-8">
+      {/* Hero */}
       <div>
-        <p className="text-[var(--muted)] text-xs mb-1">user@factory:~$</p>
-        <h1 className="text-[var(--accent)] text-xl font-bold tracking-tight" data-testid="page-heading">
-          Dashboard<span className="cursor" />
+        <h1 className="text-3xl font-bold mb-2" data-testid="page-heading" style={{ color: "#fff", letterSpacing: "-0.02em" }}>
+          Agent Factory
         </h1>
-        <p className="text-[var(--muted)] text-xs mt-1">
-          Multi-agent Medium post pipeline · LangGraph · Claude · MongoDB
+        <p className="text-base" style={{ color: "var(--text-muted)" }}>
+          Multi-agent AI writing pipeline · LangGraph · Claude · MongoDB
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="term-box">
-        <div className="term-box-header">
-          <span className="text-[var(--accent)]">●</span>
-          <span>system status</span>
+      {/* Stats grid */}
+      {loading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {[1,2,3,4,5,6].map(i => (
+            <div key={i} className="card p-5 space-y-2">
+              <div className="skeleton h-3 w-20" />
+              <div className="skeleton h-7 w-12" />
+            </div>
+          ))}
         </div>
-        <div className="p-4 space-y-0.5 text-sm">
-          {loading ? (
-            <>
-              <div className="flex gap-4 py-0.5"><div className="skeleton h-3 w-28" /><div className="skeleton h-3 w-8" /></div>
-              <div className="flex gap-4 py-0.5"><div className="skeleton h-3 w-28" /><div className="skeleton h-3 w-8" /></div>
-              <div className="flex gap-4 py-0.5"><div className="skeleton h-3 w-28" /><div className="skeleton h-3 w-16" /></div>
-            </>
-          ) : summary ? (
-            <>
-              <Row label="pipeline_runs" value={summary.pipeline_runs} />
-              <Row label="completed_runs" value={summary.completed_runs} accent />
-              <Row label="total_posts" value={summary.total_posts} />
-              <Row label="published_posts" value={summary.published_posts} accent />
-              <Row label="total_tokens" value={summary.total_tokens.toLocaleString()} />
-              <Row label="total_cost_usd" value={`$${summary.total_cost_usd.toFixed(6)}`} accent />
-            </>
-          ) : (
-            <p className="text-[var(--muted)]">no data — run a pipeline first</p>
-          )}
+      ) : summary ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <StatCard label="Pipeline runs"    value={summary.pipeline_runs} />
+          <StatCard label="Completed"        value={summary.completed_runs} />
+          <StatCard label="Posts generated"  value={summary.total_posts} />
+          <StatCard label="Published"        value={summary.published_posts} />
+          <StatCard label="Total tokens"     value={summary.total_tokens.toLocaleString()} />
+          <StatCard label="Total cost"       value={`$${summary.total_cost_usd.toFixed(4)}`} sub="USD" />
         </div>
-      </div>
+      ) : (
+        <div className="card p-8 text-center" style={{ color: "var(--text-muted)" }}>
+          No data yet — run the pipeline to get started.
+        </div>
+      )}
 
       {/* Actions */}
-      <div className="space-y-2">
-        <p className="text-[var(--muted)] text-xs">available commands:</p>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Link
-            href="/pipeline"
-            data-testid="cta-run-pipeline"
-            className="term-btn term-btn-solid flex-1 text-center py-3 text-sm tracking-widest"
-          >
-            ❯ run_pipeline
-          </Link>
-          <Link
-            href="/posts"
-            data-testid="cta-view-posts"
-            className="term-btn flex-1 text-center py-3 text-sm tracking-widest"
-          >
-            ❯ list_posts
-          </Link>
-        </div>
+      <div className="flex gap-3">
+        <Link
+          href="/pipeline"
+          data-testid="cta-run-pipeline"
+          className="btn btn-primary"
+          style={{ textDecoration: "none" }}
+        >
+          Run Pipeline
+        </Link>
+        <Link
+          href="/posts"
+          data-testid="cta-view-posts"
+          className="btn"
+          style={{ textDecoration: "none" }}
+        >
+          View Posts
+        </Link>
       </div>
     </div>
   );

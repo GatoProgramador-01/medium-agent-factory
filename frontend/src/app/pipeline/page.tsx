@@ -10,37 +10,39 @@ const STEP_ICON: Record<string, string> = {
   orchestrator:      "◈",
   content_generator: "✎",
   quality_analyzer:  "⊛",
+  formatter:         "⌥",
 };
 
 const LEVEL_COLOR: Record<string, string> = {
-  info:    "text-[var(--muted)]",
-  success: "text-[var(--accent)]",
-  warning: "text-[var(--yellow)]",
-  error:   "text-[var(--red)]",
+  info:    "var(--text-muted)",
+  success: "var(--green)",
+  warning: "var(--amber)",
+  error:   "var(--red)",
 };
 
 function LogLine({ log, index }: { log: AgentLog; index: number }) {
-  const [expanded, setExpanded] = useState(false);
   const hasData = log.data && Object.keys(log.data).length > 0;
-  const icon = STEP_ICON[log.step] ?? "·";
-  const time = new Date(log.timestamp).toLocaleTimeString([], {
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-  });
-  const color = LEVEL_COLOR[log.level] ?? "text-[var(--muted)]";
+  const [expanded, setExpanded] = useState(false);
+  const icon  = STEP_ICON[log.step] ?? "·";
+  const time  = new Date(log.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const color = LEVEL_COLOR[log.level] ?? "var(--text-muted)";
 
   return (
     <div
-      className="flex gap-2 py-0.5 text-xs leading-relaxed"
-      style={{ animationDelay: `${Math.min(index * 15, 200)}ms` }}
+      className="flex gap-2 py-0.5 leading-relaxed"
+      style={{ animationDelay: `${Math.min(index * 15, 200)}ms`, fontSize: 12 }}
     >
-      <span className="text-[var(--muted)] shrink-0 tabular-nums w-20">{time}</span>
-      <span className="text-[var(--accent)] shrink-0 w-32 truncate">{icon} {log.step}</span>
-      <span className={`flex-1 min-w-0 ${color}`}>
+      <span className="shrink-0 tabular-nums w-20" style={{ color: "var(--text-dim)" }}>{time}</span>
+      <span className="shrink-0 w-36 truncate" style={{ color: "var(--orange)", fontFamily: "var(--mono)" }}>
+        {icon} {log.step}
+      </span>
+      <span className="flex-1 min-w-0" style={{ color, fontFamily: "var(--mono)" }}>
         {log.message}
         {hasData && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="ml-2 text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+            className="ml-2 text-xs"
+            style={{ color: "var(--text-dim)" }}
           >
             [{expanded ? "−" : "+"}]
           </button>
@@ -53,65 +55,69 @@ function LogLine({ log, index }: { log: AgentLog; index: number }) {
 function ResultCard({ post }: { post: Post }) {
   const score    = post.quality_report?.score ?? 0;
   const ratio    = post.quality_report?.read_ratio_prediction ?? 0;
+  const boost    = post.quality_report?.medium_boost_eligible ?? false;
   const scorePct = Math.round(score * 100);
+  const scoreColor = scorePct >= 90 ? "var(--green)" : scorePct >= 75 ? "var(--amber)" : "var(--red)";
 
   return (
-    <div className="term-box" data-testid="result-card">
-      <div className="term-box-header">
-        <span className="text-[var(--accent)]">✓</span>
-        <span className="text-[var(--accent)]">pipeline completed</span>
+    <div className="card p-6 space-y-4" data-testid="result-card">
+      <div className="flex items-center gap-2">
+        <span style={{ color: "var(--orange)", fontSize: 18 }}>✓</span>
+        <span className="font-semibold" style={{ color: "var(--orange)" }}>Pipeline complete</span>
       </div>
-      <div className="p-4 space-y-3 text-sm">
+
+      <h2 className="font-semibold text-lg leading-snug" style={{ color: "#fff" }}>{post.title}</h2>
+
+      {post.pull_quote && (
+        <p className="text-sm italic" style={{ color: "var(--text-muted)", fontFamily: "Georgia, serif" }}>
+          &ldquo;{post.pull_quote}&rdquo;
+        </p>
+      )}
+
+      <div className="grid grid-cols-3 gap-4">
         <div>
-          <p className="text-[var(--muted)] text-xs mb-1">title</p>
-          <p className="text-[var(--text)] font-semibold">{post.title}</p>
+          <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Quality</div>
+          <div className="text-2xl font-bold tabular-nums" style={{ color: scoreColor }}>{scorePct}</div>
         </div>
-        <div className="grid grid-cols-3 gap-4 text-xs">
-          <div>
-            <p className="text-[var(--muted)]">quality_score</p>
-            <p className={`text-lg font-bold tabular-nums mt-0.5 ${
-              scorePct >= 75
-                ? "text-[var(--accent)]"
-                : scorePct >= 50
-                  ? "text-[var(--yellow)]"
-                  : "text-[var(--red)]"
-            }`}>
-              {scorePct}/100
-            </p>
-          </div>
-          <div>
-            <p className="text-[var(--muted)]">read_ratio</p>
-            <p className="text-lg font-bold tabular-nums mt-0.5 text-[var(--accent)]">
-              {Math.round(ratio * 100)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-[var(--muted)]">revisions</p>
-            <p className="text-lg font-bold tabular-nums mt-0.5">{post.revision_count}</p>
+        <div>
+          <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Read ratio</div>
+          <div className="text-2xl font-bold tabular-nums" style={{ color: "var(--green)" }}>
+            {Math.round(ratio * 100)}%
           </div>
         </div>
-        {post.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {post.tags.map((t) => (
-              <span
-                key={t}
-                className="text-[10px] border border-[var(--border2)] px-2 py-0.5 text-[var(--muted)]"
-              >
-                #{t}
-              </span>
-            ))}
+        <div>
+          <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Boost</div>
+          <div className="mt-1">
+            {boost
+              ? <span className="badge badge-green">Eligible</span>
+              : <span className="badge badge-muted">No</span>
+            }
           </div>
-        )}
-        <div className="pt-1">
-          <Link
-            href="/posts"
-            className="text-xs text-[var(--accent)] hover:underline"
-            data-testid="view-post-link"
-          >
-            ❯ view_post
-          </Link>
         </div>
       </div>
+
+      {post.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {post.tags.map((t) => (
+            <span
+              key={t}
+              className="text-xs px-2.5 py-1 rounded-full"
+              style={{ background: "var(--surface-hover)", color: "var(--text-muted)" }}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <Link
+        href={`/posts/${post.run_id}`}
+        className="inline-block btn btn-primary text-sm"
+        data-testid="view-post-link"
+        style={{ textDecoration: "none" }}
+      >
+        Read Full Post
+      </Link>
     </div>
   );
 }
@@ -126,45 +132,23 @@ export default function PipelinePage() {
   const logEndRef = useRef<HTMLDivElement>(null);
   const esRef     = useRef<EventSource | null>(null);
 
-  // Auto-scroll terminal as new log lines arrive
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  // Open SSE stream once we have a run_id and the pipeline is running
   useEffect(() => {
     if (phase !== "running" || !runId) return;
-
     const es = api.streamLogs(runId);
     esRef.current = es;
-
     es.onmessage = (event: MessageEvent<string>) => {
       const data = JSON.parse(event.data) as Record<string, unknown>;
-
-      if (data.__done__) {
-        es.close();
-        esRef.current = null;
-        setPhase("done");
-        return;
-      }
-
+      if (data.__done__) { es.close(); esRef.current = null; setPhase("done"); return; }
       setLogs((prev) => [...prev, data as unknown as AgentLog]);
     };
-
-    es.onerror = () => {
-      // Connection dropped or pipeline errored — stop gracefully
-      es.close();
-      esRef.current = null;
-      setPhase("done");
-    };
-
-    return () => {
-      es.close();
-      esRef.current = null;
-    };
+    es.onerror = () => { es.close(); esRef.current = null; setPhase("done"); };
+    return () => { es.close(); esRef.current = null; };
   }, [phase, runId]);
 
-  // Fetch the final post once the pipeline is done
   useEffect(() => {
     if (phase !== "done" || !runId) return;
     api.getPost(runId).then(setPost).catch(() => {});
@@ -172,126 +156,110 @@ export default function PipelinePage() {
 
   async function handleRun() {
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
-    setPhase("running");
-    setLogs([]);
-    setPost(null);
-    setError(null);
+    setPhase("running"); setLogs([]); setPost(null); setError(null);
     try {
       const { run_id } = await api.triggerPipeline(topic.trim() || "trending topic");
       setRunId(run_id);
     } catch (e) {
-      setError(String(e));
-      setPhase("idle");
+      setError(String(e)); setPhase("idle");
     }
   }
 
   function handleReset() {
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
-    setPhase("idle");
-    setLogs([]);
-    setPost(null);
-    setError(null);
-    setRunId(null);
+    setPhase("idle"); setLogs([]); setPost(null); setError(null); setRunId(null);
   }
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="space-y-6 max-w-3xl">
       <div>
-        <p className="text-[var(--muted)] text-xs mb-1">user@factory:~/factory$</p>
-        <h1
-          className="text-[var(--accent)] text-xl font-bold"
-          data-testid="page-heading"
-        >
+        <h1 className="text-2xl font-bold mb-1" data-testid="page-heading" style={{ color: "#fff", letterSpacing: "-0.01em" }}>
           Run Pipeline
         </h1>
-        <p className="text-[var(--muted)] text-xs mt-1">
-          strategy: haiku → haiku-revision → sonnet (last resort) · live via SSE
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Format → Quality → Revision loop (up to 3 cycles) · Live log via SSE
         </p>
       </div>
 
-      {/* Input */}
-      <div className="term-box">
-        <div className="term-box-header">
-          <span className="text-[var(--accent)]">$</span>
-          <span>pipeline.run --topic &lt;query&gt;</span>
-        </div>
-        <div className="p-4 space-y-4">
-          <div>
-            <label className="text-[var(--muted)] text-xs block mb-1.5">
-              --topic
-            </label>
-            <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg)] px-3 py-2 focus-within:border-[var(--accent)] transition-colors">
-              <span className="text-[var(--accent)] shrink-0">❯</span>
-              <input
-                data-testid="topic-input"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && phase === "idle" && handleRun()}
-                disabled={phase === "running"}
-                placeholder="e.g. how to make $500/month on Ko-fi in 2025"
-                className="flex-1 bg-transparent text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none disabled:opacity-40"
-              />
-            </div>
-          </div>
+      {/* Input card */}
+      <div className="card p-5 space-y-4">
+        <label className="block">
+          <span className="text-xs font-medium block mb-2" style={{ color: "var(--text-muted)" }}>Topic</span>
+          <input
+            data-testid="topic-input"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && phase === "idle" && handleRun()}
+            disabled={phase === "running"}
+            placeholder="e.g. I spent 90 days tracking every dollar my AI pipeline made on Medium"
+            className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
+            style={{
+              background: "var(--bg)",
+              border: "1px solid var(--border)",
+              color: "var(--text)",
+              fontFamily: "inherit",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--orange)")}
+            onBlur={(e)  => (e.target.style.borderColor = "var(--border)")}
+          />
+        </label>
 
-          {phase === "done" ? (
-            <button
-              data-testid="run-again-button"
-              onClick={handleReset}
-              className="term-btn w-full py-2.5 text-xs tracking-widest"
-            >
-              ❯ run --again
-            </button>
-          ) : (
-            <button
-              data-testid="run-button"
-              onClick={handleRun}
-              disabled={phase === "running"}
-              className="term-btn term-btn-solid w-full py-2.5 text-xs tracking-widest flex items-center justify-center gap-2"
-            >
-              {phase === "running" ? (
-                <>
-                  <span className="w-2.5 h-2.5 border border-[#0b0b0b]/40 border-t-[#0b0b0b] rounded-full animate-spin" />
-                  running…
-                </>
-              ) : "❯ run_pipeline"}
-            </button>
-          )}
-        </div>
+        {phase === "done" ? (
+          <button data-testid="run-again-button" onClick={handleReset} className="btn w-full">
+            Run Again
+          </button>
+        ) : (
+          <button
+            data-testid="run-button"
+            onClick={handleRun}
+            disabled={phase === "running"}
+            className="btn btn-primary w-full flex items-center justify-center gap-2"
+          >
+            {phase === "running" ? (
+              <>
+                <span
+                  className="inline-block w-3.5 h-3.5 rounded-full border-2 animate-spin"
+                  style={{ borderColor: "rgba(15,17,23,0.3)", borderTopColor: "#0f1117" }}
+                />
+                Generating…
+              </>
+            ) : "Generate Post"}
+          </button>
+        )}
       </div>
 
-      {/* Live log terminal */}
+      {/* Live log */}
       {(logs.length > 0 || phase === "running") && (
-        <div className="term-box" data-testid="log-terminal">
-          <div className="term-box-header">
-            <span className={`w-2 h-2 rounded-full ${
-              phase === "running" ? "bg-[var(--yellow)] animate-pulse" : "bg-[var(--accent)]"
-            }`} />
-            <span className="font-mono">agent-logs</span>
-            {runId && (
-              <span className="text-[var(--border2)]">· {runId.slice(0, 8)}…</span>
-            )}
+        <div className="log-panel" data-testid="log-terminal">
+          <div className="log-panel-header">
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ background: phase === "running" ? "var(--amber)" : "var(--green)", flexShrink: 0 }}
+            />
+            <span>Agent Logs</span>
+            {runId && <span style={{ color: "var(--text-dim)" }}>· {runId.slice(0, 8)}…</span>}
             <span className="ml-auto text-xs">
               {phase === "running" ? "● live" : `✓ done · ${logs.length} lines`}
             </span>
           </div>
-          <div className="p-3 max-h-[420px] overflow-y-auto font-mono">
+          <div className="p-3 max-h-96 overflow-y-auto">
             {logs.length === 0 && phase === "running" && (
-              <p className="text-[var(--muted)] text-xs animate-pulse">
-                waiting for first log entry…
+              <p className="text-xs animate-pulse" style={{ color: "var(--text-dim)", fontFamily: "var(--mono)" }}>
+                Waiting for first log entry…
               </p>
             )}
-            {logs.map((log, i) => (
-              <LogLine key={`${log.timestamp}-${i}`} log={log} index={i} />
-            ))}
+            {logs.map((log, i) => <LogLine key={`${log.timestamp}-${i}`} log={log} index={i} />)}
             <div ref={logEndRef} />
           </div>
         </div>
       )}
 
       {error && (
-        <div className="border border-[var(--red)] bg-[var(--red)]/5 p-3 text-xs text-[var(--red)]">
-          error: {error}
+        <div
+          className="rounded-lg p-4 text-sm"
+          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid var(--red)", color: "var(--red)" }}
+        >
+          {error}
         </div>
       )}
 

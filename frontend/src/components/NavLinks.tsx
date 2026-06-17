@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/",          label: "dashboard",  cmd: "~" },
-  { href: "/pipeline",  label: "pipeline",   cmd: "run" },
-  { href: "/posts",     label: "posts",      cmd: "ls"  },
-  { href: "/analytics", label: "analytics",  cmd: "top" },
+  { href: "/",          label: "Dashboard" },
+  { href: "/pipeline",  label: "Pipeline"  },
+  { href: "/posts",     label: "Posts"     },
+  { href: "/analytics", label: "Analytics" },
 ];
 
 export function NavLinks() {
@@ -15,22 +15,22 @@ export function NavLinks() {
 
   return (
     <nav className="flex items-center gap-1">
-      {NAV.map(({ href, label, cmd }) => {
+      {NAV.map(({ href, label }) => {
         const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+        const testId = `nav-${label.toLowerCase()}`;
         return (
           <Link
             key={href}
             href={href}
-            data-testid={`nav-${label}`}
-            className={`
-              px-3 py-1 text-xs transition-colors border
-              ${active
-                ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-dim)]"
-                : "border-transparent text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border2)]"
-              }
-            `}
+            data-testid={testId}
+            className="px-3 py-1.5 rounded-md text-sm transition-colors"
+            style={{
+              color:      active ? "var(--orange)"    : "var(--text-muted)",
+              background: active ? "var(--orange-dim)": "transparent",
+              fontWeight: active ? 500 : 400,
+            }}
           >
-            <span className="opacity-40">{cmd}/</span>{label}
+            {label}
           </Link>
         );
       })}
