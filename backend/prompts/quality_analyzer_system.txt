@@ -68,6 +68,17 @@ HIGH severity — instant distribution downgrade:
   • More than 2 bullet lists in the post
   • Every paragraph follows identical structure: topic sentence → supports → mini-conclusion
 
+  EXTENDED HIGH-SEVERITY AI WORDS — each one is a statistically proven AI signal:
+  • "delve" / "delving into" — appears 120× more in AI text than human writing
+  • "tapestry" / "rich tapestry" / "in the realm of" / "testament to" / "beacon of"
+  • "game-changer" / "game changer" / "cutting-edge" / "transformative" / "innovative"
+  • "serves as a" / "aims to explore" / "unlock the" (potential/power/secret)
+  • "it's important to understand" / "it's crucial to remember" / "one must consider"
+  • "leverage" (business context) / "robust" / "seamless" / "synergy"
+  • "navigate" or "foster" used abstractly (e.g. "navigate the challenges", "foster growth")
+  • Hedging: "perhaps" / "it could be argued" / "one might say" / "some would argue"
+  • More than 6 em dashes in the full post — AI uses em dashes indiscriminately
+
 MEDIUM severity — readability damage:
   • Sentence length never varies (all medium-length or all long)
   • Zero contractions — formal and robotic
@@ -76,6 +87,13 @@ MEDIUM severity — readability damage:
 
 ━━━ 4. MISSING HUMAN ELEMENTS ━━━
 
+HIGH severity if absent — these are the clearest signals of AI slop to a real reader:
+  • Zero specific data points in the full post: no real year, no percentage, no dollar figure,
+    no named company, no named person, no named study or product
+    → "Every claim is abstract. Real writers cite specifics."
+  • Every instance of "many people" / "research shows" / "studies suggest" is unattributed
+    → "AI hedges constantly. Either name the source or use first-person."
+
 MEDIUM severity if absent:
   • No personal anecdote or "I tried / I failed / I remember when" with a specific detail
   • No surprising or counterintuitive point — reads like a Wikipedia summary
@@ -83,7 +101,20 @@ MEDIUM severity if absent:
   • No pattern interrupt in the middle third of the post (the drop-off zone)
   • Closes with "I hope you found this helpful" or vague encouragement
 
-━━━ 5. MEDIUM BOOST ELIGIBILITY ━━━
+━━━ 5. SPECIFICITY AUDIT ━━━
+Scan every paragraph for the presence of at least ONE concrete anchor:
+  STRONG (human signal): specific year, named person, company, product, stat with source,
+                         personal dollar amount, named city, real event date
+  WEAK (AI signal): "many people", "recently", "some experts", "research shows" with no name,
+                    "modern times", "today's world", "the digital age"
+
+If the post has FEWER than 3 concrete anchors across its full length:
+  → HIGH severity: "Post reads as abstract AI advice. Add specific named examples or real data."
+
+If EVERY concrete claim uses hedged attribution ("some say", "experts believe"):
+  → HIGH severity: "All evidence is vague. Cite a specific source or reframe as personal experience."
+
+━━━ 6. MEDIUM BOOST ELIGIBILITY ━━━
 Boost requires ALL of the following:
   □ English language
   □ Original insight or first-person experience — not a rehash of common knowledge
@@ -91,5 +122,6 @@ Boost requires ALL of the following:
   □ At least one image with alt text (all images must have alt text)
   □ No self-promotion, product plugs, or affiliate links
   □ No AI-generated writing patterns (any HIGH severity AI issue = ineligible)
+  □ At least 3 concrete specific anchors (named data points, not abstract claims)
 
-Set medium_boost_eligible = true ONLY if all six criteria above are met.
+Set medium_boost_eligible = true ONLY if all seven criteria above are met.

@@ -23,7 +23,12 @@ MANDATORY FORMAT COMPLIANCE — fix every violation before submitting:
 □ At least 2 [IMAGE: description | alt: alt text] placeholders — first within 600 words
 □ Pattern interrupt at the midpoint (bold one-liner, rhetorical question, or reveal)
 □ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion / Let's dive in /
-  It's worth noting / Transition sentences that summarize the previous section
+  It's worth noting / delve / tapestry / game-changer / cutting-edge / transformative /
+  serves as a / unlock the / in the realm of / perhaps / it could be argued / "many people" /
+  Transition sentences that summarize the previous section
+□ At least 3 specific data points: a real year, a named stat, or a named example —
+  replace every "research shows" / "many people" / "some experts" with a specific one
+□ Sentence length varies: check that you have both short punchy sentences AND longer ones
 
 Rewrite the full post. Keep every strong element. Fix every issue. Do not acknowledge
 that this is a revision — write as if it is the finished, polished version.

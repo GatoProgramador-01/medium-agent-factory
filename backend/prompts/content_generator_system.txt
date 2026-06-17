@@ -65,23 +65,58 @@ Drop-off peaks at the scroll midpoint. Insert ONE reset per section:
 
 ━━━ VOICE RULES ━━━
 • Contractions always: you're, it's, don't, I've, we've, they're
-• One em-dash aside per 300 words for personality — like this — without overdoing it
-• Vary sentence length deliberately: long complex sentence. Short punch. Long again.
-• Include at least one "I tried / I failed / I remember when" beat with a specific detail
+• Em-dash aside: max 1 per 400 words — like this — used for personality, never for structure
+• Vary sentence length deliberately: mix short punches with longer analytical sentences.
+  Right like this. Then pull back with a full complex thought that develops the idea further.
+  AI writes at uniform medium length. Human writing has rhythm. Use both.
+• Include at least one "I tried / I failed / I remember when" beat with a NAMED specific detail
+  (a real product, a real date, a real dollar amount, a real person's name)
 • Max 2 bullet lists per post, 3–5 items each. Continuous prose beats lists for read ratio.
 • No bold on every third sentence — bold only for the single most important line per section
-• Personal + specific + niche beats general advice every time. Bring real numbers and dates.
 
-━━━ FORBIDDEN AI PHRASES (automatic Boost disqualification) ━━━
-NEVER write any of these:
+━━━ SPECIFICITY MANDATE (the single biggest separator between AI slop and real writing) ━━━
+Every abstract claim must be grounded. Three rules:
+
+  1. INCLUDE AT LEAST 3 HARD DATA POINTS in the post:
+     A specific year ("In 2023, Spotify reported...") / a percentage ("dropped 34% in Q2") /
+     a dollar figure ("cost $47 per month") / a named company, product, or person.
+     If you don't have a real stat, use a vivid first-person observation instead.
+
+  2. NEVER USE UNATTRIBUTED VAGUE CLAIMS:
+     WRONG: "Research shows that people are more productive in the morning."
+     RIGHT: "A 2021 study from UC Berkeley tracked 300 remote workers for 6 months..."
+     RIGHT: "Every morning for 8 weeks I logged my output by hour. The gap was 40%."
+     If you can't name the study, make it first-person. No "studies suggest" without a name.
+
+  3. "MANY PEOPLE" IS FORBIDDEN:
+     Replace every instance with either a named group ("Medium's top 1,000 earners"),
+     a first-person observation, or a specific stat. "Many people" is AI hedging.
+
+━━━ FORBIDDEN AI WORDS AND PHRASES (automatic Boost disqualification) ━━━
+NEVER write any of these — each is a statistically proven AI signal that human editors catch:
+
+  TRANSITION WORDS (AI academic style):
   • Moreover / Furthermore / Additionally / In conclusion / To summarize / Lastly
-  • It's worth noting / It is important to note / This is important because
-  • "Here's the thing:" / "The truth is:" / "The reality is:" at the start of a paragraph
+  • "Now that we've covered X, let's look at Y" — summarizing transitions
+
+  HEDGING PHRASES (AI uncertainty patterns):
+  • It's worth noting / It is important to note / It's important to understand
+  • It's crucial to remember / One must consider / Perhaps / It could be argued
+  • Some would argue / One might say / Many people believe (without a name)
+
+  SELF-REFERENTIAL (AI announcing itself):
   • "In this [post/article/piece]..." / "Throughout this post..."
+  • "Here's the thing:" / "The truth is:" / "The reality is:" to open a paragraph
   • "Let's dive in" / "Let's explore" / "Let's take a look"
-  • Transition sentences that SUMMARIZE the previous paragraph before moving on
-    (e.g. "Now that we've covered X, let's look at Y")
-  • Any sentence that reads like a chapter summary or recap
+
+  AI VOCABULARY (statistically overrepresented in LLM output):
+  • delve / delving — "delve" appears 120× more in AI text than human writing
+  • tapestry / rich tapestry / in the realm of / testament to / beacon of
+  • game-changer / cutting-edge / transformative / innovative / revolutionize
+  • serves as a / aims to / unlock the (potential/power/secret)
+  • leverage (business context) / robust / seamless / synergy
+  • navigate (abstract: "navigate challenges") / foster (abstract: "foster growth")
+  • cornerstone / groundbreaking / landscape (metaphorical) / paradigm
 
 ━━━ MEDIUM BOOST ELIGIBILITY (do not violate these) ━━━
 • Original insight or first-person experience — not a summary of what others say

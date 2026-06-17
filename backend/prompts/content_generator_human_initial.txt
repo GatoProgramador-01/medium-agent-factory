@@ -15,7 +15,11 @@ MANDATORY CHECKS — verify every box before submitting:
 □ No paragraph longer than 4 sentences (default: 2 sentences)
 □ H2 heading every 300–500 words. Each H2 creates curiosity, not just a label.
 □ At least 2 [IMAGE: description | alt: 10–15 word alt text] placeholders, first within 600 words
-□ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion / Let's dive in
+□ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion / Let's dive in /
+  delve / tapestry / game-changer / cutting-edge / transformative / serves as a / unlock the /
+  in the realm of / it's worth noting / perhaps / it could be argued / "many people"
+□ At least 3 specific data points: a real year, a stat with source, or a named example
 □ At least one specific number, date, or personal failure in the hook section
+□ Sentence length varies throughout: short punches mixed with longer analytical sentences
 
 Write the full post now. Start with the hook — not a title, not an intro sentence that sets context.
