@@ -8,6 +8,7 @@ type RunPhase = "idle" | "running" | "done";
 
 const STEP_ICON: Record<string, string> = {
   orchestrator:      "◈",
+  web_researcher:    "⌕",
   content_generator: "✎",
   quality_analyzer:  "⊛",
   formatter:         "⌥",

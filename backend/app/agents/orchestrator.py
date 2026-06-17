@@ -45,6 +45,7 @@ from app.agents.formatter import format_post
 from app.agents.logger import log_step
 from app.agents.quality_analyzer import run_quality_analysis
 from app.agents.series_planner import plan_series
+from app.agents.web_researcher import research_topic
 from app.config import settings
 from app.database import get_db
 from app.models.post import PostStatus, QualityReport
@@ -55,6 +56,7 @@ class PipelineState(TypedDict):
     custom_topic: str
     series_id: str | None
     series_position: int | None
+    trend_context: str  # populated by research_node; "" when Tavily unavailable
 
     post: GeneratedPost | None
     quality_report: QualityReport | None
@@ -66,6 +68,40 @@ class PipelineState(TypedDict):
 
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
+
+
+async def research_node(state: PipelineState) -> dict[str, Any]:
+    run_id = state["run_id"]
+    topic = state["custom_topic"]
+
+    await log_step(
+        run_id,
+        "web_researcher",
+        f'Searching web for grounded data on: "{topic}"...',
+        data={"topic": topic},
+    )
+    try:
+        trend_context = await research_topic(run_id=run_id, topic=topic)
+        if trend_context:
+            fact_count = trend_context.count("•")
+            await log_step(
+                run_id,
+                "web_researcher",
+                f"Research complete — {fact_count} data points ready for the writer",
+                level="success",
+                data={"preview": trend_context[:300]},
+            )
+        else:
+            await log_step(
+                run_id,
+                "web_researcher",
+                "No web context available (Tavily key missing or no results) — continuing",
+                level="warning",
+            )
+        return {"trend_context": trend_context, "completed_steps": ["research"]}
+    except Exception as e:
+        await log_step(run_id, "web_researcher", f"Research skipped: {e}", level="warning")
+        return {"trend_context": "", "completed_steps": ["research"]}
 
 
 async def content_generation_node(state: PipelineState) -> dict[str, Any]:
@@ -82,7 +118,7 @@ async def content_generation_node(state: PipelineState) -> dict[str, Any]:
         post = await generate_initial_post(
             run_id=run_id,
             topic=topic,
-            trend_context="",
+            trend_context=state.get("trend_context", ""),
             tags=[],
             audience="content creators and professionals",
         )
@@ -353,13 +389,15 @@ def route_after_quality(state: PipelineState) -> str:
 
 def build_graph() -> Any:
     g = StateGraph(PipelineState)
+    g.add_node("research", research_node)
     g.add_node("content_generation", content_generation_node)
     g.add_node("quality_analysis", quality_analysis_node)
     g.add_node("revision", content_revision_node)
     g.add_node("format", format_node)
     g.add_node("finalize", finalize_node)
 
-    g.add_edge(START, "content_generation")
+    g.add_edge(START, "research")
+    g.add_edge("research", "content_generation")
     g.add_edge("content_generation", "format")
     g.add_edge("format", "quality_analysis")
     g.add_conditional_edges(
@@ -408,6 +446,7 @@ async def run_pipeline(
         "custom_topic": custom_topic,
         "series_id": series_id,
         "series_position": series_position,
+        "trend_context": "",
         "post": None,
         "quality_report": None,
         "pull_quote": None,
