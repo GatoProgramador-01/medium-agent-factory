@@ -8,7 +8,6 @@ TREND CONTEXT (use this to make the content timely and specific):
 RECOMMENDED TAGS: {tags}
 TARGET AUDIENCE: {audience}
 
-{exemplar_section}
 MANDATORY CHECKS — verify every box before submitting:
 □ Written in English (non-English = no earnings)
 □ 1,300–1,700 words (5–7 min read — sweet spot for read ratio)
@@ -23,4 +22,5 @@ MANDATORY CHECKS — verify every box before submitting:
 □ At least one specific number, date, or personal failure in the hook section
 □ Sentence length varies throughout: short punches mixed with longer analytical sentences
 
+{exemplar_section}
 Write the full post now. Start with the hook — not a title, not an intro sentence that sets context.

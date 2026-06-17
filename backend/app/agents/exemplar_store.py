@@ -162,29 +162,40 @@ def format_exemplar_injection(ex: dict[str, Any]) -> str:
     Shows structure and quality bar — not a template to copy word-for-word.
     """
     parts = [
-        "━━━ REFERENCE EXEMPLAR — study this quality bar, write something new ━━━",
+        "━━━ QUALITY REFERENCE — this is your hook and structure target ━━━━━━━━━",
         f'Related post: "{ex["title"]}"',
         f'Achieved: score {ex["score"]:.2f} | read ratio {ex["read_ratio"]:.0%} | {ex["word_count"]} words',
         "",
-        "HOOK (sentence 1 — the element that most determines whether readers stay):",
-        f'  "{ex["hook"]}"',
-        f"  ↳ What made it work: opens with a specific number/failure, not context-setting.",
+        "HOOK — sentence 1 of that post (the single line that locked in the read ratio):",
+        f'  ✓ GOOD: "{ex["hook"]}"',
+        f"     ↳ Why it works: leads with a specific number/result/failure — reader knows the",
+        f"       payoff before reading word 10. No topic-setting. No 'X is changing everything.'",
         "",
-        f"INTRO ({ex['intro_word_count']} words — core insight is clear before word 80):",
+        "  ✗ BAD hooks (do NOT write anything like these):",
+        '     "Artificial intelligence is transforming the way we work."',
+        '     "In this post, I\'ll show you how to improve your workflow."',
+        '     "Have you ever wondered why some developers are more productive?"',
+        '     "Today I want to talk about a technique that changed my career."',
+        "",
+        "CONSTRAINT: Your first sentence MUST follow the GOOD hook pattern above.",
+        "Lead with a specific number, dollar amount, failure, or surprising result.",
+        "The topic name belongs in sentence 2 — never sentence 1.",
+        "",
+        f"INTRO ({ex['intro_word_count']} words — core insight lands before word 80):",
         ex["intro"],
     ]
 
     if ex.get("code_block"):
         parts += [
             "",
-            "CODE INTEGRATION (this post included runnable examples — match this level):",
+            "CODE INTEGRATION (this post had runnable examples — match this depth):",
             ex["code_block"],
         ]
 
     parts += [
         "",
-        "Write your post at this level of specificity, hook strength, and depth.",
-        "Your topic is different — the structure and quality bar are the reference.",
+        "Match this level of specificity, hook strength, and structural depth.",
+        "Different topic — same quality bar. The hook constraint above is mandatory.",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]
     return "\n".join(parts)
