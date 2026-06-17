@@ -7,12 +7,16 @@ import {
 import type { AgentUsage } from "@/lib/api";
 
 const TOOLTIP_STYLE = {
-  background: "#111111",
-  border: "1px solid #1f1f1f",
-  borderRadius: 0,
+  background: "#0d0a07",
+  border: "1px solid #302821",
+  borderRadius: 4,
   fontSize: 11,
-  fontFamily: "inherit",
+  fontFamily: "var(--mono, monospace)",
 };
+
+const TICK_COLOR  = "#574940";   // --text-dim
+const GRID_COLOR  = "#302821";   // --border
+const LABEL_COLOR = "#ede0cf";   // --text
 
 export default function AgentCharts({ usage }: { usage: AgentUsage[] }) {
   return (
@@ -24,11 +28,22 @@ export default function AgentCharts({ usage }: { usage: AgentUsage[] }) {
         <div className="p-4">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={usage} margin={{ top: 4, right: 4, left: -20, bottom: 50 }}>
-              <CartesianGrid strokeDasharray="2 2" stroke="#1f1f1f" vertical={false} />
-              <XAxis dataKey="agent_name" tick={{ fill: "#4a5a4a", fontSize: 10 }} angle={-30} textAnchor="end" axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "#4a5a4a", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "#d4f0d4" }} formatter={(v: number) => [`$${v.toFixed(6)}`, "cost"]} />
-              <Bar dataKey="total_cost_usd" fill="#4ade80" radius={[2, 2, 0, 0]} maxBarSize={40} />
+              <CartesianGrid strokeDasharray="2 2" stroke={GRID_COLOR} vertical={false} />
+              <XAxis
+                dataKey="agent_name"
+                tick={{ fill: TICK_COLOR, fontSize: 10 }}
+                angle={-30}
+                textAnchor="end"
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis tick={{ fill: TICK_COLOR, fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                labelStyle={{ color: LABEL_COLOR }}
+                formatter={(v: number) => [`$${v.toFixed(6)}`, "cost"]}
+              />
+              <Bar dataKey="total_cost_usd" fill="#f97316" radius={[2, 2, 0, 0]} maxBarSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -41,11 +56,22 @@ export default function AgentCharts({ usage }: { usage: AgentUsage[] }) {
         <div className="p-4">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={usage} margin={{ top: 4, right: 4, left: -20, bottom: 50 }}>
-              <CartesianGrid strokeDasharray="2 2" stroke="#1f1f1f" vertical={false} />
-              <XAxis dataKey="agent_name" tick={{ fill: "#4a5a4a", fontSize: 10 }} angle={-30} textAnchor="end" axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "#4a5a4a", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: "#d4f0d4" }} formatter={(v: number) => [`${v}ms`, "avg_ms"]} />
-              <Bar dataKey="avg_duration_ms" fill="#60a5fa" radius={[2, 2, 0, 0]} maxBarSize={40} />
+              <CartesianGrid strokeDasharray="2 2" stroke={GRID_COLOR} vertical={false} />
+              <XAxis
+                dataKey="agent_name"
+                tick={{ fill: TICK_COLOR, fontSize: 10 }}
+                angle={-30}
+                textAnchor="end"
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis tick={{ fill: TICK_COLOR, fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                labelStyle={{ color: LABEL_COLOR }}
+                formatter={(v: number) => [`${v}ms`, "avg_ms"]}
+              />
+              <Bar dataKey="avg_duration_ms" fill="#f59e0b" radius={[2, 2, 0, 0]} maxBarSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </div>

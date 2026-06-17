@@ -22,9 +22,9 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-[var(--muted)] text-xs mb-1">user@factory:~/factory$</p>
-        <h1 className="text-[var(--accent)] text-xl font-bold" data-testid="page-heading">Analytics</h1>
-        <p className="text-[var(--muted)] text-xs mt-1">top -n 1 --agents --sort=cost</p>
+        <p className="text-[var(--text-muted)] text-xs mb-1">user@factory:~/factory$</p>
+        <h1 className="text-[var(--orange)] text-xl font-bold" data-testid="page-heading">Analytics</h1>
+        <p className="text-[var(--text-muted)] text-xs mt-1">top -n 1 --agents --sort=cost</p>
       </div>
 
       {/* Summary row */}
@@ -53,7 +53,7 @@ export default function AnalyticsPage() {
       <div className="term-box overflow-hidden">
         <div className="term-box-header">
           <span>agent breakdown</span>
-          {!loading && <span className="ml-auto text-[var(--accent)]">{usage.length} agents</span>}
+          {!loading && <span className="ml-auto text-[var(--orange)]">{usage.length} agents</span>}
         </div>
 
         {loading ? (
@@ -68,12 +68,12 @@ export default function AnalyticsPage() {
             ))}
           </div>
         ) : usage.length === 0 ? (
-          <p className="p-4 text-xs text-[var(--muted)]">no data — run a pipeline to see metrics</p>
+          <p className="p-4 text-xs text-[var(--text-muted)]">no data — run a pipeline to see metrics</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[var(--border)] text-[var(--muted)]">
+                <tr className="border-b border-[var(--border)] text-[var(--text-muted)]">
                   {["agent", "calls", "tok_in", "tok_out", "avg_ms", "cost_usd"].map((h) => (
                     <th key={h} className="px-4 py-2 text-left font-normal tracking-wider">{h}</th>
                   ))}
@@ -81,13 +81,13 @@ export default function AnalyticsPage() {
               </thead>
               <tbody>
                 {usage.map((u) => (
-                  <tr key={u.agent_name} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface2)] transition-colors">
-                    <td className="px-4 py-2 text-[var(--accent)]">{u.agent_name}</td>
+                  <tr key={u.agent_name} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)] transition-colors">
+                    <td className="px-4 py-2 text-[var(--orange)]">{u.agent_name}</td>
                     <td className="px-4 py-2 tabular-nums">{u.call_count}</td>
                     <td className="px-4 py-2 tabular-nums">{u.total_tokens_in.toLocaleString()}</td>
                     <td className="px-4 py-2 tabular-nums">{u.total_tokens_out.toLocaleString()}</td>
                     <td className="px-4 py-2 tabular-nums">{u.avg_duration_ms}ms</td>
-                    <td className="px-4 py-2 tabular-nums text-[var(--accent)]">${u.total_cost_usd.toFixed(6)}</td>
+                    <td className="px-4 py-2 tabular-nums text-[var(--orange)]">${u.total_cost_usd.toFixed(6)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -102,8 +102,8 @@ export default function AnalyticsPage() {
 function StatBox({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
   return (
     <div className="term-box p-3 space-y-1">
-      <p className="text-[10px] text-[var(--muted)] tracking-wider">{label}</p>
-      <p className={`text-lg font-bold tabular-nums ${accent ? "text-[var(--accent)]" : "text-[var(--text)]"}`}>
+      <p className="text-[10px] text-[var(--text-muted)] tracking-wider">{label}</p>
+      <p className={`text-lg font-bold tabular-nums ${accent ? "text-[var(--orange)]" : "text-[var(--text)]"}`}>
         {value}
       </p>
     </div>

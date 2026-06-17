@@ -205,6 +205,25 @@ html, body {
   margin-bottom: 6px;
 }
 
+/* ── Terminal-style box (analytics page) ── */
+.term-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.term-box-header {
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border);
+  padding: 7px 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  letter-spacing: 0.04em;
+}
+
 /* cursor blink for pipeline page */
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
 .cursor-blink {
