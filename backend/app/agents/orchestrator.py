@@ -180,6 +180,7 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
                 f"All gates passed. "
                 f"Score: {report.score:.2f} | "
                 f"Read ratio: {report.read_ratio_prediction:.0%} | "
+                f"Words: {report.word_count} | "
                 f"{boost_label}."
             )
         else:
@@ -414,7 +415,7 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
 
 def _gate_check(report: QualityReport) -> tuple[bool, list[str]]:
     """
-    Three independent quality gates — ALL must pass to approve the post.
+    Four independent quality gates — ALL must pass to approve the post.
 
     Returns (passed, failure_reasons).
 
@@ -422,6 +423,7 @@ def _gate_check(report: QualityReport) -> tuple[bool, list[str]]:
     Gate 2 — Read ratio       : predicted 30-sec read rate; drives revenue directly
     Gate 3 — AI pattern block : any HIGH-severity AI issue (forbidden phrases, structural
                                 slop) disqualifies regardless of overall score
+    Gate 4 — Word count       : under 1,200 words is too short for Partner Program earnings
     """
     failures: list[str] = []
 
@@ -446,6 +448,13 @@ def _gate_check(report: QualityReport) -> tuple[bool, list[str]]:
                 f"{len(ai_blocks)} high-severity AI pattern(s): "
                 + "; ".join(i.category for i in ai_blocks[:2])
             )
+
+    if report.word_count < settings.min_word_count:
+        needed = settings.min_word_count - report.word_count
+        failures.append(
+            f"word count {report.word_count} below minimum {settings.min_word_count} "
+            f"— add ~{needed} words of specific detail to the shortest sections"
+        )
 
     return len(failures) == 0, failures
 

@@ -41,6 +41,7 @@ class QualityReport:
     issues: list[QualityIssue]
     strengths: list[str]
     revision_prompt: str  # injected into next content-gen pass
+    word_count: int = 0  # computed from content, not LLM
 
 
 @dataclass

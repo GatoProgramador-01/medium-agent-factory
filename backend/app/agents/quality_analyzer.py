@@ -138,4 +138,5 @@ async def run_quality_analysis(
         issues=issues,
         strengths=output.strengths,
         revision_prompt=output.revision_prompt,
+        word_count=len(content.split()),
     )

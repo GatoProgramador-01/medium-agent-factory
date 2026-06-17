@@ -35,10 +35,11 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-chat"  # deepseek-chat = V3, deepseek-reasoner = R1
 
-    # Quality gates — three independent checks, all must pass to approve
+    # Quality gates — four independent checks, all must pass to approve
     min_quality_score: float = 0.90      # overall earnings-potential score
     min_read_ratio: float = 0.65         # predicted 30-sec read rate (65% = Medium "Strong")
     block_high_ai_patterns: bool = True  # any HIGH-severity AI pattern issue blocks the post
+    min_word_count: int = 1000           # under 1,000 words = too short for Partner Program
     max_revision_cycles: int = 2
 
 
