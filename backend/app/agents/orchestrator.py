@@ -47,6 +47,7 @@ from app.agents.content_generator import (
     generate_initial_post,
     revise_post,
 )
+from app.agents.read_ratio_analyzer import format_factors_breakdown
 from app.agents.formatter import format_post
 from app.agents.logger import log_step
 from app.agents.quality_analyzer import run_quality_analysis
@@ -184,19 +185,30 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
             f"{low_count}×LOW(-{low_count * 0.01:.2f}) "
             f"readratio({report.read_ratio_prediction:.0%})"
         )
+        rr_breakdown = (
+            " | ".join(
+                f"{f.name} {f.measured} (-{f.deduction:.0%})"
+                for f in report.read_ratio_factors
+            )
+            if report.read_ratio_factors
+            else "no structural issues"
+        )
 
         if passed:
             verdict = (
                 f"All gates passed. "
                 f"Score: {report.score:.2f} [{score_breakdown}] | "
-                f"Read ratio: {report.read_ratio_prediction:.0%} | "
+                f"Read ratio: {report.read_ratio_prediction:.0%} "
+                f"[hook={report.read_ratio_hook_score:.2f}, {rr_breakdown}] | "
                 f"Words: {report.word_count} | "
                 f"{boost_label}."
             )
         else:
             verdict = (
                 f"Gate(s) failed — queuing revision. "
-                f"Score: {report.score:.2f} [{score_breakdown}]. "
+                f"Score: {report.score:.2f} [{score_breakdown}] | "
+                f"Read ratio: {report.read_ratio_prediction:.0%} "
+                f"[hook={report.read_ratio_hook_score:.2f}, {rr_breakdown}]. "
                 + " | ".join(gate_failures)
             )
 
@@ -209,6 +221,11 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
                 "score": report.score,
                 "score_breakdown": score_breakdown,
                 "read_ratio_prediction": report.read_ratio_prediction,
+                "read_ratio_hook_score": report.read_ratio_hook_score,
+                "read_ratio_factors": [
+                    {"name": f.name, "measured": f.measured, "deduction": f.deduction}
+                    for f in report.read_ratio_factors
+                ],
                 "word_count": report.word_count,
                 "medium_boost_eligible": report.medium_boost_eligible,
                 "passed": passed,
@@ -304,6 +321,10 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
     )
     _, gate_failures = _gate_check(report)
 
+    rr_breakdown_text = format_factors_breakdown(
+        report.read_ratio_prediction, report.read_ratio_factors
+    )
+
     try:
         revised = await revise_post(
             run_id=run_id,
@@ -322,6 +343,7 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
             ],
             strengths=report.strengths,
             gate_failures=gate_failures,
+            read_ratio_breakdown=rr_breakdown_text,
             revision_number=revision_number,
         )
         word_count = len(revised.content.split())

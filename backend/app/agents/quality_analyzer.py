@@ -20,8 +20,9 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.agents.base import AgentTokenTracker
 from app.agents.llm_factory import get_llm, get_model_name
+from app.agents.read_ratio_analyzer import analyze_read_ratio
 from app.agents.retry import with_langchain_retry
-from app.models.post import QualityIssue, QualityReport
+from app.models.post import QualityIssue, QualityReport, ReadRatioFactor
 from app.prompt_loader import load_prompt, load_template
 
 
@@ -68,21 +69,6 @@ def _compute_score(issues: list["_Issue"], read_ratio: float) -> float:
 
 
 class _AnalysisOutput(BaseModel):
-    read_ratio_prediction: float = Field(
-        ge=0.0,
-        description="Estimated fraction of viewers who will read 30+ seconds (0-1 or 0-100)",
-    )
-
-    @field_validator("read_ratio_prediction", mode="before")
-    @classmethod
-    def _normalize_ratio(cls, v: Any) -> Any:
-        # Small models sometimes return percentages (e.g. 67.4) instead of decimals (0.674)
-        try:
-            f = float(v)
-            return f / 100.0 if f > 1.0 else f
-        except (TypeError, ValueError):
-            return v
-
     medium_boost_eligible: bool = Field(
         description=(
             "True only if ALL six Medium Boost criteria are met: "
@@ -156,6 +142,9 @@ async def run_quality_analysis(
     if output is None:
         raise ValueError("quality_analyzer: LLM returned None — structured output failed")
 
+    # Read ratio is computed by the dedicated analyzer — not guessed by this LLM.
+    rr = await analyze_read_ratio(run_id=run_id, content=content)
+
     issues = [
         QualityIssue(
             category=i.category,
@@ -166,14 +155,26 @@ async def run_quality_analysis(
         for i in output.issues
     ]
 
-    score = _compute_score(output.issues, output.read_ratio_prediction)
+    score = _compute_score(output.issues, rr.predicted_ratio)
+
+    rr_factors: list[ReadRatioFactor] = [
+        ReadRatioFactor(
+            name=f.name,
+            measured=f.measured,
+            deduction=f.deduction,
+            guidance=f.guidance,
+        )
+        for f in rr.factors
+    ]
 
     return QualityReport(
         score=score,
-        read_ratio_prediction=output.read_ratio_prediction,
+        read_ratio_prediction=rr.predicted_ratio,
         medium_boost_eligible=output.medium_boost_eligible,
         issues=issues,
         strengths=output.strengths,
         revision_prompt=output.revision_prompt,
         word_count=len(content.split()),
+        read_ratio_factors=rr_factors,
+        read_ratio_hook_score=rr.hook_score,
     )

@@ -11,6 +11,9 @@ SCORE: {score}/1.0 (minimum to pass: {min_score})
 GATE FAILURES — these specific thresholds were not met:
 {gate_failures_list}
 
+READ RATIO ANALYSIS — exact structural measurements (fix these to lift the ratio):
+{read_ratio_section}
+
 STRENGTHS — preserve these exactly, do not rewrite them:
 {strengths_list}
 

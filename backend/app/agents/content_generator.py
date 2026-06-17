@@ -102,6 +102,7 @@ async def revise_post(
     issues: list[dict[str, Any]],
     strengths: list[str] | None = None,
     gate_failures: list[str] | None = None,
+    read_ratio_breakdown: str | None = None,
     revision_number: int = 1,
 ) -> GeneratedPost:
     role = _pick_role(revision_number)
@@ -122,6 +123,11 @@ async def revise_post(
         if gate_failures
         else "  (no hard gate failures — score improvement only)"
     )
+    read_ratio_section = (
+        read_ratio_breakdown
+        if read_ratio_breakdown
+        else "  (no read ratio breakdown available)"
+    )
 
     return await _call_generator(
         run_id=run_id,
@@ -140,6 +146,7 @@ async def revise_post(
                     issues_list=issues_list,
                     strengths_list=strengths_list,
                     gate_failures_list=gate_failures_list,
+                    read_ratio_section=read_ratio_section,
                 )
             ),
         ],

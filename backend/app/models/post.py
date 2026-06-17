@@ -34,14 +34,24 @@ class QualityIssue:
 
 
 @dataclass
+class ReadRatioFactor:
+    name: str       # e.g. "Intro length"
+    measured: str   # e.g. "143 words"
+    deduction: float
+    guidance: str   # what to fix
+
+
+@dataclass
 class QualityReport:
-    score: float  # 0.0 – 1.0
-    read_ratio_prediction: float  # estimated % of viewers who finish
-    medium_boost_eligible: bool  # meets all 6 Medium Boost criteria
+    score: float  # 0.0 – 1.0, computed from issues + read_ratio
+    read_ratio_prediction: float  # from read_ratio_analyzer formula
+    medium_boost_eligible: bool   # meets all 6 Medium Boost criteria
     issues: list[QualityIssue]
     strengths: list[str]
     revision_prompt: str  # injected into next content-gen pass
-    word_count: int = 0  # computed from content, not LLM
+    word_count: int = 0   # computed from content, not LLM
+    read_ratio_factors: list[ReadRatioFactor] = field(default_factory=list)
+    read_ratio_hook_score: float = 0.0
 
 
 @dataclass
