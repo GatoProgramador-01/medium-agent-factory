@@ -1,34 +1,38 @@
-Revise this Medium post based on the quality analysis below.
+Revise this Medium post using the quality report below.
 
 ORIGINAL TITLE: {title}
+CURRENT WORD COUNT: {word_count} words (target: 1,300–1,700)
 ORIGINAL CONTENT:
 {content}
 
-QUALITY SCORE: {score}/1.0 (needs to reach {min_score})
+━━━ QUALITY REPORT ━━━
+SCORE: {score}/1.0 (minimum to pass: {min_score})
 
-REVISION BRIEF (apply ALL of these):
+GATE FAILURES — these specific thresholds were not met:
+{gate_failures_list}
+
+STRENGTHS — preserve these exactly, do not rewrite them:
+{strengths_list}
+
+EDITOR'S BRIEF (apply all of these):
 {revision_prompt}
 
-SPECIFIC ISSUES TO FIX:
+SPECIFIC ISSUES TO FIX (HIGH severity first):
 {issues_list}
 
-MANDATORY FORMAT COMPLIANCE — fix every violation before submitting:
-□ Written in English (non-English = no earnings)
-□ 1,300–1,700 words — cut filler if too long, add specific detail if too short
-□ Intro (before --- or first ##): 60–110 words ONLY.
-  If the intro is longer, cut it. Do not add preamble or context — hook first, always.
-  The reader must know why this post matters to them by word 100.
-□ No paragraph over 4 sentences — break any that are longer
-□ H2 heading every 300–500 words — add headings where gaps exceed 500 words
-□ At least 2 [IMAGE: description | alt: alt text] placeholders — first within 600 words
-□ Pattern interrupt at the midpoint (bold one-liner, rhetorical question, or reveal)
+━━━ MANDATORY FORMAT COMPLIANCE ━━━
+□ English only (non-English = no earnings)
+□ 1,300–1,700 words — if under 1,200: add specific detail to the shortest sections
+□ Intro (before --- or first ##): 60–110 words ONLY — hook first, no context-setting
+□ No paragraph over 4 sentences
+□ H2 heading every 300–500 words
+□ At least one [IMAGE: description | alt: alt text] within the first 600 words
 □ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion / Let's dive in /
-  It's worth noting / delve / tapestry / game-changer / cutting-edge / transformative /
-  serves as a / unlock the / in the realm of / perhaps / it could be argued / "many people" /
-  Transition sentences that summarize the previous section
-□ At least 3 specific data points: a real year, a named stat, or a named example —
-  replace every "research shows" / "many people" / "some experts" with a specific one
-□ Sentence length varies: check that you have both short punchy sentences AND longer ones
+  delve / tapestry / game-changer / cutting-edge / transformative / serves as a /
+  unlock the / in the realm of / perhaps / it could be argued / "many people" /
+  summarizing transition sentences ("Now that we've covered X, let's look at Y")
+□ At least 3 specific data points (real year, named stat, named example)
+□ Sentence length varies: short punchy sentences AND longer analytical ones
 
-Rewrite the full post. Keep every strong element. Fix every issue. Do not acknowledge
-that this is a revision — write as if it is the finished, polished version.
+Rewrite the full post. Keep every strong element listed above. Fix every issue.
+Do not acknowledge that this is a revision — write as if it is the finished version.

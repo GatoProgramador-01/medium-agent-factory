@@ -285,6 +285,8 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
             "score_before": report.score,
         },
     )
+    _, gate_failures = _gate_check(report)
+
     try:
         revised = await revise_post(
             run_id=run_id,
@@ -296,10 +298,13 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
                 {
                     "category": i.category,
                     "severity": i.severity,
+                    "location": i.location,
                     "suggestion": i.suggestion,
                 }
                 for i in report.issues
             ],
+            strengths=report.strengths,
+            gate_failures=gate_failures,
             revision_number=revision_number,
         )
         word_count = len(revised.content.split())

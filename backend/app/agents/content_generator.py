@@ -100,27 +100,46 @@ async def revise_post(
     score: float,
     revision_prompt: str,
     issues: list[dict[str, Any]],
+    strengths: list[str] | None = None,
+    gate_failures: list[str] | None = None,
     revision_number: int = 1,
 ) -> GeneratedPost:
     role = _pick_role(revision_number)
+    word_count = len(content.split())
+
     issues_list = "\n".join(
         f"- [{i['severity'].upper()}] {i['category']}: {i['suggestion']}"
+        + (f"\n  LOCATION: {i['location']}" if i.get("location") else "")
         for i in issues
     )
+    strengths_list = (
+        "\n".join(f"• {s}" for s in strengths)
+        if strengths
+        else "  (no specific strengths identified)"
+    )
+    gate_failures_list = (
+        "\n".join(f"✗ {f}" for f in gate_failures)
+        if gate_failures
+        else "  (no hard gate failures — score improvement only)"
+    )
+
     return await _call_generator(
         run_id=run_id,
         agent_label=f"content_generator_revision_{revision_number}",
         role=role,
         messages=[
-            SystemMessage(content=load_prompt("content_generator_system")),
+            SystemMessage(content=load_prompt("content_reviser_system")),
             HumanMessage(
                 content=load_template("content_generator_human_revision").format(
                     title=title,
                     content=content,
+                    word_count=word_count,
                     score=round(score, 2),
                     min_score=settings.min_quality_score,
                     revision_prompt=revision_prompt,
                     issues_list=issues_list,
+                    strengths_list=strengths_list,
+                    gate_failures_list=gate_failures_list,
                 )
             ),
         ],
