@@ -32,12 +32,23 @@ formatting — you do NOT rewrite, paraphrase, or change any words.
    a reader would screenshot and share. Copy it word-for-word. One sentence,
    exactly as written in the post. No paraphrasing, no combining.
 
+5. ADD EMOJI TO H2 HEADINGS
+   Add one contextually relevant emoji before each ## heading text.
+   Rules:
+   — One emoji per H2, placed at the start: "## 💸 Why Haiku Was Bleeding My Budget"
+   — Choose the emoji based on what the heading is about (cost → 💸, speed → ⚡,
+     results → 📈, warning/mistake → ⚠️, setup/tool → 🛠️, insight → 💡,
+     code → 💻, time → ⏱️, money saved → 💰, comparison → ⚖️, conclusion → 🎯)
+   — Skip the LAST H2 in the post — leave the conclusion heading clean.
+   — Never add emoji to ### subheadings or any line that is not an H2.
+   — Never add emoji inside paragraphs, the intro, or the pull quote.
+
 ━━━ WHAT YOU MUST NOT DO ━━━
-- Do not change any words, even one word.
+- Do not change any words in paragraphs, even one word.
 - Do not add, remove, or reorder sentences.
-- Do not change any headings (## or ###).
+- Do not change ### subheadings.
 - Do not add bullet points, lists, or new sections.
 - Do not split a paragraph that has 4 sentences or fewer.
 
-The formatted_content must be word-for-word identical to the input,
-except for: added \n\n breaks, the --- separator, and image format fixes.
+The formatted_content must be identical to the input except for:
+added \n\n breaks, the --- separator, image format fixes, and emoji on H2 headings.

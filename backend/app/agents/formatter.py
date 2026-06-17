@@ -25,7 +25,10 @@ from app.prompt_loader import load_prompt, load_template
 
 class FormattedPost(BaseModel):
     formatted_content: str = Field(
-        description="Full post with structural fixes applied. Every word is identical to input."
+        description=(
+            "Full post with structural fixes applied. Paragraph words are identical to input. "
+            "H2 headings may have one emoji prepended. No other word changes."
+        )
     )
     pull_quote: str = Field(
         description="Single most quotable sentence, copied exactly from the content. No paraphrasing."
