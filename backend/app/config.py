@@ -35,9 +35,11 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-chat"  # deepseek-chat = V3, deepseek-reasoner = R1
 
-    # Quality gate: min read-ratio score (0-1) before approving
-    min_quality_score: float = 0.90
-    max_revision_cycles: int = 2  # was 3 — capped at 2 to control cost; plan to drop to 1
+    # Quality gates — three independent checks, all must pass to approve
+    min_quality_score: float = 0.90      # overall earnings-potential score
+    min_read_ratio: float = 0.65         # predicted 30-sec read rate (65% = Medium "Strong")
+    block_high_ai_patterns: bool = True  # any HIGH-severity AI pattern issue blocks the post
+    max_revision_cycles: int = 2
 
 
 settings = Settings()

@@ -13,7 +13,7 @@ import json
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.agents.base import AgentTokenTracker
 from app.agents.llm_factory import get_llm, get_model_name
@@ -25,6 +25,14 @@ from app.config import settings
 
 class _Queries(BaseModel):
     queries: list[str] = Field(min_length=2, max_length=4)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _wrap_bare_list(cls, v: Any) -> Any:
+        # json_mode can return a raw JSON array instead of {"queries": [...]}
+        if isinstance(v, list):
+            return {"queries": v}
+        return v
 
     @field_validator("queries", mode="before")
     @classmethod

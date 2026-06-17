@@ -171,16 +171,20 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
             run_id=run_id, title=post.title, content=post.content
         )
 
-        passed = report.score >= settings.min_quality_score
+        passed, gate_failures = _gate_check(report)
         level = "success" if passed else "warning"
         boost_label = "Boost-eligible" if report.medium_boost_eligible else "NOT Boost-eligible"
-        verdict = (
-            f"Passed threshold ({settings.min_quality_score}). "
-            f"Predicted read ratio: {report.read_ratio_prediction * 100:.0f}%. {boost_label}."
-            if passed
-            else f"Below threshold ({settings.min_quality_score}). "
-            f"Found {len(report.issues)} issues. {boost_label}. Queuing revision."
-        )
+
+        if passed:
+            verdict = (
+                f"All gates passed. "
+                f"Score: {report.score:.2f} | "
+                f"Read ratio: {report.read_ratio_prediction:.0%} | "
+                f"{boost_label}."
+            )
+        else:
+            verdict = "Gate(s) failed — queuing revision. " + " | ".join(gate_failures)
+
         await log_step(
             run_id,
             "quality_analyzer",
@@ -191,6 +195,7 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
                 "read_ratio_prediction": report.read_ratio_prediction,
                 "medium_boost_eligible": report.medium_boost_eligible,
                 "passed": passed,
+                "gate_failures": gate_failures,
                 "issue_count": len(report.issues),
                 "top_issues": [
                     {
@@ -235,7 +240,8 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
             "read_ratio": report.read_ratio_prediction,
             "boost_eligible": report.medium_boost_eligible,
             "issue_count": len(report.issues),
-            "passed": report.score >= settings.min_quality_score,
+            "passed": passed,
+            "gate_failures": gate_failures,
         }
         return {
             "quality_report": report,
@@ -398,6 +404,47 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
     return {"completed_steps": ["finalized"]}
 
 
+# ── Quality gate ───────────────────────────────────────────────────────────────
+
+
+def _gate_check(report: QualityReport) -> tuple[bool, list[str]]:
+    """
+    Three independent quality gates — ALL must pass to approve the post.
+
+    Returns (passed, failure_reasons).
+
+    Gate 1 — Overall score    : earnings potential, composite of all rubric axes
+    Gate 2 — Read ratio       : predicted 30-sec read rate; drives revenue directly
+    Gate 3 — AI pattern block : any HIGH-severity AI issue (forbidden phrases, structural
+                                slop) disqualifies regardless of overall score
+    """
+    failures: list[str] = []
+
+    if report.score < settings.min_quality_score:
+        failures.append(
+            f"score {report.score:.2f} below minimum {settings.min_quality_score}"
+        )
+
+    if report.read_ratio_prediction < settings.min_read_ratio:
+        failures.append(
+            f"read ratio {report.read_ratio_prediction:.0%} below minimum "
+            f"{settings.min_read_ratio:.0%} — intro or hook needs work"
+        )
+
+    if settings.block_high_ai_patterns:
+        ai_blocks = [
+            i for i in report.issues
+            if i.severity.lower() == "high" and "ai" in i.category.lower()
+        ]
+        if ai_blocks:
+            failures.append(
+                f"{len(ai_blocks)} high-severity AI pattern(s): "
+                + "; ".join(i.category for i in ai_blocks[:2])
+            )
+
+    return len(failures) == 0, failures
+
+
 # ── Routing ────────────────────────────────────────────────────────────────────
 
 
@@ -405,10 +452,12 @@ def route_after_quality(state: PipelineState) -> str:
     report = state.get("quality_report")
     revisions = state.get("revision_count", 0)
     errors = state.get("errors", [])
-    # Any accumulated errors (e.g. failed revision or quality call) → bail to finalize
     if errors:
         return "finalize"
-    if not report or report.score >= settings.min_quality_score:
+    if not report:
+        return "finalize"
+    passed, _ = _gate_check(report)
+    if passed:
         return "finalize"
     if revisions >= settings.max_revision_cycles:
         return "finalize"

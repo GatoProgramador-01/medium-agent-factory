@@ -56,26 +56,54 @@ def get_llm(role: str = "worker", **kwargs: Any) -> BaseChatModel:
         from langchain_core.runnables import RunnableLambda
         from langchain_openai import ChatOpenAI  # only imported when needed
 
-        # DeepSeek V3 compatibility:
-        # - json_schema (OpenAI structured outputs) → not supported
-        # - function_calling → supported, but model occasionally returns text instead of a
-        #   tool call. We prepend a system message ensuring the word "json" appears so
-        #   json_mode also works as a fallback, and guard the output to raise a retryable
-        #   OutputParserException when None is returned.
+        # DeepSeek V3 compatibility notes:
+        # - json_schema (OpenAI strict structured outputs) → not supported, returns 400
+        # - function_calling → tool_choice is forced, but DeepSeek ignores it for complex
+        #   nested schemas (~5+ fields) and returns plain text → LangChain parses as None
+        # - json_mode → reliable for all schemas; BUT LangChain does NOT inject the field
+        #   schema into the prompt (only sets response_format). We must inject it ourselves
+        #   or DeepSeek wraps the whole output under a single generic key like {"post":"..."}.
         class _DeepSeekChatOpenAI(ChatOpenAI):  # type: ignore[misc]
             def with_structured_output(  # type: ignore[override]
-                self, schema: Any, *, method: str = "function_calling", **kw: Any
+                self, schema: Any, *, method: str = "json_mode", **kw: Any
             ) -> Any:
+                import json as _json
+
                 inner = super().with_structured_output(schema, method=method, **kw)
+
+                # Build the schema instruction once at chain-construction time.
+                try:
+                    schema_str = _json.dumps(schema.model_json_schema(), indent=2)
+                    schema_block = (
+                        "Respond ONLY with a valid JSON object that matches this schema "
+                        "exactly — no extra keys, no wrapper object:\n"
+                        f"```json\n{schema_str}\n```"
+                    )
+                except Exception:
+                    schema_block = "Respond with valid JSON."
+
+                def _inject_schema(messages: Any) -> Any:
+                    # Append schema instructions to the first SystemMessage so DeepSeek
+                    # knows the exact field names. Without this json_mode returns a generic
+                    # wrapper like {"post": "..."} instead of the structured fields.
+                    if not isinstance(messages, list):
+                        return messages
+                    for i, m in enumerate(messages):
+                        if isinstance(m, SystemMessage):
+                            patched = SystemMessage(
+                                content=m.content + "\n\n" + schema_block
+                            )
+                            return messages[:i] + [patched] + messages[i + 1 :]
+                    return [SystemMessage(content=schema_block)] + messages
 
                 def _guard(output: Any) -> Any:
                     if output is None:
                         raise OutputParserException(
-                            "DeepSeek did not invoke the tool — will retry"
+                            "DeepSeek json_mode returned None — will retry"
                         )
                     return output
 
-                return inner | RunnableLambda(_guard)
+                return RunnableLambda(_inject_schema) | inner | RunnableLambda(_guard)
 
         return _DeepSeekChatOpenAI(  # type: ignore[call-arg]
             model=settings.deepseek_model,
