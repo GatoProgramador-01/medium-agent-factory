@@ -112,9 +112,14 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
 
       - name: Build (next build)
-        # Verifies the production build compiles — catches runtime errors missed by tsc
+        # Verifies the production build compiles — catches runtime errors missed by tsc.
+        # NODE_ENV=production is set explicitly: Next.js forces it internally during build,
+        # but being explicit prevents any tool in the chain from behaving differently.
+        # npm install (above) always includes devDeps on GH runners because NODE_ENV
+        # is unset at that step — devDeps are needed here for tailwindcss / postcss.
         run: npm run build
         env:
+          NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: "1"
           NEXT_PUBLIC_API_URL: "http://localhost:8000"
 
@@ -145,6 +150,7 @@ jobs:
       - name: Build Next.js for E2E
         run: npm run build
         env:
+          NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: "1"
           NEXT_PUBLIC_API_URL: "http://localhost:8000"
 

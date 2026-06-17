@@ -25,10 +25,16 @@ services:
     env_file: .env
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
-    user: "0"   # run as root in dev so npm install can write to mounted volume
+      # Local dev always runs in development mode.
+      # The production Dockerfile runner sets NODE_ENV=production, which would be
+      # inherited here and cause "npm install" to skip devDependencies (tailwindcss,
+      # @tailwindcss/postcss) — breaking the CSS pipeline. Explicitly override it.
+      # CI/CD never uses this compose file — it runs bare npm commands on the runner.
+      NODE_ENV: development
+    user: "0"   # run as root in dev — the mounted Windows volume isn't writable by UID 1001
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - /app/node_modules   # anonymous volume isolates Linux node_modules from Windows host
       - /app/.next
     depends_on:
       - backend
