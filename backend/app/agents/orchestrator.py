@@ -175,16 +175,30 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
         level = "success" if passed else "warning"
         boost_label = "Boost-eligible" if report.medium_boost_eligible else "NOT Boost-eligible"
 
+        high_count = sum(1 for i in report.issues if i.severity.lower() == "high")
+        med_count = sum(1 for i in report.issues if i.severity.lower() == "medium")
+        low_count = sum(1 for i in report.issues if i.severity.lower() == "low")
+        score_breakdown = (
+            f"{high_count}×HIGH(-{high_count * 0.07:.2f}) "
+            f"{med_count}×MED(-{med_count * 0.03:.2f}) "
+            f"{low_count}×LOW(-{low_count * 0.01:.2f}) "
+            f"readratio({report.read_ratio_prediction:.0%})"
+        )
+
         if passed:
             verdict = (
                 f"All gates passed. "
-                f"Score: {report.score:.2f} | "
+                f"Score: {report.score:.2f} [{score_breakdown}] | "
                 f"Read ratio: {report.read_ratio_prediction:.0%} | "
                 f"Words: {report.word_count} | "
                 f"{boost_label}."
             )
         else:
-            verdict = "Gate(s) failed — queuing revision. " + " | ".join(gate_failures)
+            verdict = (
+                f"Gate(s) failed — queuing revision. "
+                f"Score: {report.score:.2f} [{score_breakdown}]. "
+                + " | ".join(gate_failures)
+            )
 
         await log_step(
             run_id,
@@ -193,7 +207,9 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
             level=level,
             data={
                 "score": report.score,
+                "score_breakdown": score_breakdown,
                 "read_ratio_prediction": report.read_ratio_prediction,
+                "word_count": report.word_count,
                 "medium_boost_eligible": report.medium_boost_eligible,
                 "passed": passed,
                 "gate_failures": gate_failures,

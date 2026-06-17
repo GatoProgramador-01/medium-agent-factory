@@ -32,14 +32,48 @@ class _Issue(BaseModel):
     suggestion: str
 
 
+_HIGH_PENALTY = 0.07
+_MEDIUM_PENALTY = 0.03
+_LOW_PENALTY = 0.01
+
+
+def _compute_score(issues: list["_Issue"], read_ratio: float) -> float:
+    """
+    Deterministic score from issues + read ratio.
+
+    LLMs are good at finding which issues exist (qualitative).
+    They are bad at calibrating a continuous 0–1 float.
+    Deductions are fixed so the same post always produces the same score
+    (modulo variance in which issues the LLM identifies).
+
+    Read ratio is a direct input: improving the intro raises read_ratio,
+    which directly raises the score — one unified signal for the reviser.
+    """
+    issue_deduction = sum(
+        _HIGH_PENALTY if i.severity.lower() == "high" else
+        _MEDIUM_PENALTY if i.severity.lower() == "medium" else
+        _LOW_PENALTY
+        for i in issues
+    )
+    if read_ratio >= 0.75:
+        ratio_deduction = 0.0
+    elif read_ratio >= 0.65:
+        ratio_deduction = 0.03
+    elif read_ratio >= 0.50:
+        ratio_deduction = 0.07
+    else:
+        ratio_deduction = 0.12
+
+    return round(max(0.0, min(1.0, 1.0 - issue_deduction - ratio_deduction)), 2)
+
+
 class _AnalysisOutput(BaseModel):
-    score: float = Field(ge=0.0, le=1.0, description="Overall earnings potential score")
     read_ratio_prediction: float = Field(
         ge=0.0,
         description="Estimated fraction of viewers who will read 30+ seconds (0-1 or 0-100)",
     )
 
-    @field_validator("score", "read_ratio_prediction", mode="before")
+    @field_validator("read_ratio_prediction", mode="before")
     @classmethod
     def _normalize_ratio(cls, v: Any) -> Any:
         # Small models sometimes return percentages (e.g. 67.4) instead of decimals (0.674)
@@ -48,6 +82,7 @@ class _AnalysisOutput(BaseModel):
             return f / 100.0 if f > 1.0 else f
         except (TypeError, ValueError):
             return v
+
     medium_boost_eligible: bool = Field(
         description=(
             "True only if ALL six Medium Boost criteria are met: "
@@ -131,8 +166,10 @@ async def run_quality_analysis(
         for i in output.issues
     ]
 
+    score = _compute_score(output.issues, output.read_ratio_prediction)
+
     return QualityReport(
-        score=output.score,
+        score=score,
         read_ratio_prediction=output.read_ratio_prediction,
         medium_boost_eligible=output.medium_boost_eligible,
         issues=issues,
