@@ -25,10 +25,14 @@ export type Post = {
   tags: string[];
   status: string;
   revision_count: number;
+  pull_quote?: string;
+  series_id?: string;
+  series_position?: number;
   medium_url?: string;
   quality_report?: {
     score: number;
     read_ratio_prediction: number;
+    medium_boost_eligible: boolean;
     issues: { category: string; severity: string; suggestion: string }[];
     strengths: string[];
   };

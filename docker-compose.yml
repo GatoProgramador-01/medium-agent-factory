@@ -9,8 +9,8 @@ services:
       # host.docker.internal resolves to the host machine on Windows/Mac.
       # On Linux add: extra_hosts: ["host.docker.internal:host-gateway"]
       MONGODB_URI: mongodb://host.docker.internal:27017
-      # When USE_LOCAL_LLM=true, point at the ollama service defined below
-      LOCAL_LLM_BASE_URL: http://ollama:11434
+      # When USE_LOCAL_LLM=true, point at native Ollama on the Windows host
+      LOCAL_LLM_BASE_URL: http://host.docker.internal:11434
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -40,10 +40,10 @@ services:
       - backend
     command: sh -c "npm install && npm run dev"
 
-  # ── Local LLM (optional) ───────────────────────────────────────────────────
-  # Start with: docker compose up ollama -d
-  # Pull a model: docker compose exec ollama ollama pull llama3.2
-  # Enable:       set USE_LOCAL_LLM=true in .env
+  # ── Local LLM (optional Docker Ollama — not needed if Ollama is native) ───
+  # Native Ollama on Windows is preferred: https://ollama.com/download/windows
+  # After install: ollama pull llama3.2   (runs on localhost:11434 automatically)
+  # Docker fallback: docker compose --profile local-llm up ollama -d
   ollama:
     image: ollama/ollama
     container_name: medium-factory-ollama

@@ -5,15 +5,15 @@ Graph:
   START
     │
     ▼
-  content_generation      (ContentGeneratorAgent — Haiku initial)
+  research                (WebResearcher — Tavily search + LLM synthesis; skips gracefully)
     │
     ▼
-  format                  (FormatterAgent — Haiku, structural fixes + pull quote)
+  content_generation      (ContentGeneratorAgent — Haiku initial draft)
     │
     ▼
-  quality_analysis        (QualityAnalyzerAgent — Haiku, scores formatted content)
+  quality_analysis        (QualityAnalyzerAgent — Haiku, scores raw content)
     │
-    ├─── score >= 0.90 ──→ finalize
+    ├─── score >= 0.90 ──→ format ──→ finalize → END
     │
     └─── score < 0.90 AND revisions < max
               revision_count=1 → Haiku revision
@@ -21,11 +21,17 @@ Graph:
               revision_count=3 → Sonnet final attempt
                 │
                 ▼
-              format (re-format revised content)
+          quality_analysis (loop back)
+                │
+          score >= 0.90 OR revisions exhausted
                 │
                 ▼
-          quality_analysis (loop back)
-  finalize → END
+             format (runs ONCE on the final approved version)
+                │
+                ▼
+           finalize → END
+
+Cost note: format (Haiku ~$0.002) runs exactly once regardless of revision count.
 """
 
 import operator
@@ -63,6 +69,7 @@ class PipelineState(TypedDict):
     pull_quote: str | None
     format_changes: Annotated[list[str], operator.add]
     revision_count: int
+    quality_history: Annotated[list[dict[str, Any]], operator.add]  # score per cycle
     errors: Annotated[list[str], operator.add]
     completed_steps: Annotated[list[str], operator.add]
 
@@ -221,7 +228,20 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
                 }
             },
         )
-        return {"quality_report": report, "completed_steps": ["quality_analysis"]}
+        cycle = state.get("revision_count", 0)
+        history_entry: dict[str, Any] = {
+            "cycle": cycle,
+            "score": report.score,
+            "read_ratio": report.read_ratio_prediction,
+            "boost_eligible": report.medium_boost_eligible,
+            "issue_count": len(report.issues),
+            "passed": report.score >= settings.min_quality_score,
+        }
+        return {
+            "quality_report": report,
+            "quality_history": [history_entry],
+            "completed_steps": ["quality_analysis"],
+        }
     except Exception as e:
         await log_step(run_id, "quality_analyzer", f"Failed: {e}", level="error")
         return {"errors": [f"quality_analysis failed: {e}"]}
@@ -313,7 +333,7 @@ async def format_node(state: PipelineState) -> dict[str, Any]:
     await log_step(
         run_id,
         "formatter",
-        f"Formatting post: splitting long paragraphs, adding separator, extracting pull quote...",
+        "Formatting final approved version: splitting long paragraphs, adding separator, extracting pull quote...",
     )
     try:
         result = await format_post(run_id=run_id, title=post.title, content=post.content)
@@ -339,7 +359,7 @@ async def format_node(state: PipelineState) -> dict[str, Any]:
         await _upsert_post(
             run_id,
             post,
-            PostStatus.REVISED,
+            PostStatus.APPROVED,
             revision_count=state.get("revision_count", 0),
             pull_quote=result.pull_quote,
             format_changes=result.changes_applied,
@@ -358,15 +378,22 @@ async def format_node(state: PipelineState) -> dict[str, Any]:
 async def finalize_node(state: PipelineState) -> dict[str, Any]:
     run_id = state["run_id"]
     qr = state.get("quality_report")
+    history = state.get("quality_history", [])
     db = get_db()
     await db.posts.update_one(
         {"run_id": run_id},
-        {"$set": {"status": str(PostStatus.APPROVED), "updated_at": datetime.now(UTC)}},
+        {"$set": {
+            "status": str(PostStatus.APPROVED),
+            "quality_history": history,
+            "revision_count": state.get("revision_count", 0),
+            "updated_at": datetime.now(UTC),
+        }},
     )
     await _update_pipeline_run(state, "approved")
     score_msg = f" Final quality score: {qr.score:.2f}" if qr else ""
+    cycles_msg = f" Revision cycles: {state.get('revision_count', 0)}/{settings.max_revision_cycles}."
     await log_step(
-        run_id, "orchestrator", f"Post approved and saved.{score_msg}", level="success"
+        run_id, "orchestrator", f"Post approved and saved.{score_msg}{cycles_msg}", level="success"
     )
     return {"completed_steps": ["finalized"]}
 
@@ -377,6 +404,10 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
 def route_after_quality(state: PipelineState) -> str:
     report = state.get("quality_report")
     revisions = state.get("revision_count", 0)
+    errors = state.get("errors", [])
+    # Any accumulated errors (e.g. failed revision or quality call) → bail to finalize
+    if errors:
+        return "finalize"
     if not report or report.score >= settings.min_quality_score:
         return "finalize"
     if revisions >= settings.max_revision_cycles:
@@ -398,14 +429,14 @@ def build_graph() -> Any:
 
     g.add_edge(START, "research")
     g.add_edge("research", "content_generation")
-    g.add_edge("content_generation", "format")
-    g.add_edge("format", "quality_analysis")
+    g.add_edge("content_generation", "quality_analysis")
     g.add_conditional_edges(
         "quality_analysis",
         route_after_quality,
-        {"finalize": "finalize", "revision": "revision"},
+        {"finalize": "format", "revision": "revision"},
     )
-    g.add_edge("revision", "format")
+    g.add_edge("revision", "quality_analysis")
+    g.add_edge("format", "finalize")
     g.add_edge("finalize", END)
     return g.compile()
 
@@ -452,6 +483,7 @@ async def run_pipeline(
         "pull_quote": None,
         "format_changes": [],
         "revision_count": 0,
+        "quality_history": [],
         "errors": [],
         "completed_steps": [],
     }

@@ -36,9 +36,18 @@ class _AnalysisOutput(BaseModel):
     score: float = Field(ge=0.0, le=1.0, description="Overall earnings potential score")
     read_ratio_prediction: float = Field(
         ge=0.0,
-        le=1.0,
-        description="Estimated fraction of viewers who will read 30+ seconds",
+        description="Estimated fraction of viewers who will read 30+ seconds (0-1 or 0-100)",
     )
+
+    @field_validator("score", "read_ratio_prediction", mode="before")
+    @classmethod
+    def _normalize_ratio(cls, v: Any) -> Any:
+        # Small models sometimes return percentages (e.g. 67.4) instead of decimals (0.674)
+        try:
+            f = float(v)
+            return f / 100.0 if f > 1.0 else f
+        except (TypeError, ValueError):
+            return v
     medium_boost_eligible: bool = Field(
         description=(
             "True only if ALL six Medium Boost criteria are met: "

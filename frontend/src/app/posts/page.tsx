@@ -28,7 +28,7 @@ function PostCard({ post }: { post: Post }) {
     <Link
       href={`/posts/${post.run_id}`}
       data-testid="post-card"
-      className="block card p-5 hover:border-[var(--border-light)] transition-colors group"
+      className="block card p-5 post-card group"
       style={{ textDecoration: "none" }}
     >
       <div className="flex items-start justify-between gap-4">
@@ -86,7 +86,11 @@ function PostCard({ post }: { post: Post }) {
                 <span
                   key={t}
                   className="text-xs px-2 py-0.5 rounded-full"
-                  style={{ background: "var(--surface-hover)", color: "var(--text-muted)" }}
+                  style={{
+                    background: "rgba(249,115,22,0.07)",
+                    color: "var(--text-muted)",
+                    border: "1px solid rgba(249,115,22,0.14)",
+                  }}
                 >
                   {t}
                 </span>

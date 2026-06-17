@@ -30,9 +30,14 @@ class Settings(BaseSettings):
     local_llm_model: str = "llama3.2"
     local_llm_base_url: str = "http://ollama:11434"
 
+    # DeepSeek — set USE_DEEPSEEK=true + DEEPSEEK_API_KEY for cheap cloud inference
+    use_deepseek: bool = False
+    deepseek_api_key: str = ""
+    deepseek_model: str = "deepseek-chat"  # deepseek-chat = V3, deepseek-reasoner = R1
+
     # Quality gate: min read-ratio score (0-1) before approving
     min_quality_score: float = 0.90
-    max_revision_cycles: int = 3
+    max_revision_cycles: int = 2  # was 3 — capped at 2 to control cost; plan to drop to 1
 
 
 settings = Settings()

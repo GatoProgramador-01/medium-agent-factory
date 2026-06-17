@@ -13,7 +13,12 @@ function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
   return (
     <aside
       className="card p-5 space-y-4 text-sm"
-      style={{ minWidth: 220, maxWidth: 260 }}
+      style={{
+        minWidth: 220,
+        maxWidth: 260,
+        background: "linear-gradient(170deg, #1e1409 0%, #180f06 100%)",
+        border: "1px solid rgba(249,115,22,0.2)",
+      }}
     >
       <div>
         <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Quality Score</div>
@@ -153,7 +158,7 @@ export default function PostReaderPage() {
 
       <div className="flex gap-10 items-start">
         {/* Article */}
-        <article className="flex-1 min-w-0">
+        <article className="flex-1 min-w-0 reading-wrapper">
           {/* Meta */}
           <div className="flex flex-wrap items-center gap-2 mb-4 text-xs" style={{ color: "var(--text-dim)" }}>
             <span
@@ -179,7 +184,7 @@ export default function PostReaderPage() {
           {/* Title */}
           <h1
             className="font-bold mb-4 leading-tight"
-            style={{ fontSize: "2rem", color: "#fff", letterSpacing: "-0.02em" }}
+            style={{ fontSize: "2rem", color: "#f5e8d0", letterSpacing: "-0.02em" }}
           >
             {post.title}
           </h1>
@@ -187,12 +192,15 @@ export default function PostReaderPage() {
           {/* Pull quote */}
           {post.pull_quote && (
             <blockquote
-              className="mb-6 pl-4 italic text-lg"
+              className="mb-6 pl-5 italic text-lg"
               style={{
                 borderLeft: "3px solid var(--orange)",
-                color: "var(--text-muted)",
+                color: "#c89a60",
                 fontFamily: "Georgia, serif",
-                lineHeight: 1.6,
+                lineHeight: 1.65,
+                background: "rgba(249,115,22,0.05)",
+                borderRadius: "0 8px 8px 0",
+                padding: "0.75rem 1.25rem",
               }}
             >
               {post.pull_quote}
@@ -206,7 +214,11 @@ export default function PostReaderPage() {
                 <span
                   key={t}
                   className="text-xs px-2.5 py-1 rounded-full"
-                  style={{ background: "var(--surface)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+                  style={{
+                    background: "rgba(249,115,22,0.08)",
+                    color: "var(--text-muted)",
+                    border: "1px solid rgba(249,115,22,0.18)",
+                  }}
                 >
                   {t}
                 </span>
@@ -215,7 +227,7 @@ export default function PostReaderPage() {
           )}
 
           {/* Divider */}
-          <div style={{ height: "1px", background: "var(--border)", marginBottom: "2.5rem" }} />
+          <div style={{ height: "1px", background: "rgba(249,115,22,0.18)", marginBottom: "2.5rem" }} />
 
           {/* Full post content */}
           <PostContent content={post.content} />
