@@ -25,13 +25,14 @@ services:
     env_file: .env
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+    user: "0"   # run as root in dev so npm install can write to mounted volume
     volumes:
       - ./frontend:/app
       - /app/node_modules
       - /app/.next
     depends_on:
       - backend
-    command: npm run dev
+    command: sh -c "npm install && npm run dev"
 
   # ── Local LLM (optional) ───────────────────────────────────────────────────
   # Start with: docker compose up ollama -d
