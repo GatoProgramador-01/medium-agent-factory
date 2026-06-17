@@ -8,6 +8,7 @@ TREND CONTEXT (use this to make the content timely and specific):
 RECOMMENDED TAGS: {tags}
 TARGET AUDIENCE: {audience}
 
+{exemplar_section}
 MANDATORY CHECKS — verify every box before submitting:
 □ Written in English (non-English = no earnings)
 □ 1,300–1,700 words (5–7 min read — sweet spot for read ratio)

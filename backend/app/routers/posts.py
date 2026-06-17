@@ -2,6 +2,7 @@ from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException
 
+from app.agents.exemplar_store import promote_post_to_exemplar
 from app.database import get_db
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -28,3 +29,22 @@ async def get_post(run_id: str) -> dict[str, Any]:
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     return cast(dict[str, Any], post)
+
+
+@router.post("/{run_id}/exemplar")
+async def promote_exemplar(run_id: str) -> dict[str, Any]:
+    """Promote an existing post to exemplar status for few-shot injection."""
+    saved = await promote_post_to_exemplar(run_id)
+    if not saved:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return {"run_id": run_id, "status": "saved_as_exemplar"}
+
+
+@router.get("/exemplars/list")
+async def list_exemplars() -> list[dict[str, Any]]:
+    """List all stored exemplars."""
+    db = get_db()
+    exemplars = await db.exemplars.find(
+        {}, {"_id": 0, "intro": 0, "code_block": 0}, sort=[("score", -1)]
+    ).to_list(length=50)
+    return cast(list[dict[str, Any]], exemplars)

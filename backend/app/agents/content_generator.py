@@ -63,7 +63,14 @@ class GeneratedPost(BaseModel):
 
 
 def _pick_role(revision_number: int) -> str:
-    """worker (Haiku) for revision 0–1, supervisor (Sonnet) on revision 2+ only."""
+    """
+    Always use 'worker' when DeepSeek or a local LLM is configured —
+    there is only one model so escalation is meaningless.
+    For Anthropic only: escalate to 'supervisor' (Sonnet) on revision 2+
+    as a last-resort quality upgrade over Haiku.
+    """
+    if settings.use_deepseek or settings.use_local_llm:
+        return "worker"
     return "worker" if revision_number < 2 else "supervisor"
 
 
@@ -73,6 +80,7 @@ async def generate_initial_post(
     trend_context: str,
     tags: list[str],
     audience: str,
+    exemplar_section: str = "",
 ) -> GeneratedPost:
     role = _pick_role(0)
     return await _call_generator(
@@ -87,6 +95,7 @@ async def generate_initial_post(
                     trend_context=trend_context,
                     tags=", ".join(tags),
                     audience=audience,
+                    exemplar_section=exemplar_section,
                 )
             ),
         ],

@@ -47,6 +47,12 @@ from app.agents.content_generator import (
     generate_initial_post,
     revise_post,
 )
+from app.agents.exemplar_store import (
+    EXEMPLAR_THRESHOLD,
+    find_exemplar,
+    format_exemplar_injection,
+    save_exemplar,
+)
 from app.agents.read_ratio_analyzer import format_factors_breakdown
 from app.agents.formatter import format_post
 from app.agents.logger import log_step
@@ -123,12 +129,22 @@ async def content_generation_node(state: PipelineState) -> dict[str, Any]:
         data={"model": settings.worker_model, "topic": topic},
     )
     try:
+        exemplar = await find_exemplar(topic)
+        exemplar_section = format_exemplar_injection(exemplar) if exemplar else ""
+        if exemplar:
+            await log_step(
+                run_id, "content_generator",
+                f'Exemplar found: "{exemplar["title"]}" '
+                f'(score {exemplar["score"]:.2f}) — injecting as few-shot reference',
+                data={"exemplar_title": exemplar["title"], "exemplar_score": exemplar["score"]},
+            )
         post = await generate_initial_post(
             run_id=run_id,
             topic=topic,
             trend_context=state.get("trend_context", ""),
             tags=[],
             audience="content creators and professionals",
+            exemplar_section=exemplar_section,
         )
         word_count = len(post.content.split())
         await log_step(
@@ -302,11 +318,9 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
         )
         return {"errors": ["revision: missing post or quality report"]}
 
-    # revision_number determines model: 1 → Haiku, 2 → Sonnet
-    model = settings.worker_model if revision_number < 2 else settings.supervisor_model
-    model_label = (
-        "Claude Haiku" if revision_number < 2 else "Claude Sonnet (quality upgrade)"
-    )
+    from app.agents.llm_factory import get_model_name as _get_model_name
+    model = _get_model_name("worker")
+    model_label = model
     max_rev = settings.max_revision_cycles
 
     await log_step(
@@ -428,6 +442,7 @@ async def format_node(state: PipelineState) -> dict[str, Any]:
 async def finalize_node(state: PipelineState) -> dict[str, Any]:
     run_id = state["run_id"]
     qr = state.get("quality_report")
+    post = state.get("post")
     history = state.get("quality_history", [])
     db = get_db()
     await db.posts.update_one(
@@ -445,6 +460,25 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
     await log_step(
         run_id, "orchestrator", f"Post approved and saved.{score_msg}{cycles_msg}", level="success"
     )
+
+    # Auto-save as exemplar when score clears the threshold
+    if qr and post and qr.score >= EXEMPLAR_THRESHOLD:
+        await save_exemplar(
+            run_id=run_id,
+            title=post.title,
+            content=post.content,
+            tags=post.tags,
+            score=qr.score,
+            read_ratio=qr.read_ratio_prediction,
+            hook_score=qr.read_ratio_hook_score,
+        )
+        await log_step(
+            run_id, "orchestrator",
+            f"Post saved as few-shot exemplar (score {qr.score:.2f} >= {EXEMPLAR_THRESHOLD}).",
+            level="success",
+            data={"exemplar_saved": True, "score": qr.score},
+        )
+
     return {"completed_steps": ["finalized"]}
 
 
