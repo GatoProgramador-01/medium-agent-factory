@@ -607,14 +607,20 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
     post = state.get("post")
     history = state.get("quality_history", [])
     db = get_db()
+    quality_fields: dict[str, Any] = {
+        "status": str(PostStatus.APPROVED),
+        "quality_history": history,
+        "revision_count": state.get("revision_count", 0),
+        "updated_at": datetime.now(UTC),
+    }
+    if qr:
+        quality_fields["quality_score"] = qr.score
+        quality_fields["read_ratio_prediction"] = qr.read_ratio_prediction
+        quality_fields["medium_boost_eligible"] = qr.medium_boost_eligible
+        quality_fields["word_count"] = qr.word_count
     await db.posts.update_one(
         {"run_id": run_id},
-        {"$set": {
-            "status": str(PostStatus.APPROVED),
-            "quality_history": history,
-            "revision_count": state.get("revision_count", 0),
-            "updated_at": datetime.now(UTC),
-        }},
+        {"$set": quality_fields},
     )
     await _update_pipeline_run(state, "approved")
     score_msg = f" Final quality score: {qr.score:.2f}" if qr else ""
@@ -673,9 +679,12 @@ def _gate_check(report: QualityReport) -> tuple[bool, list[str]]:
         )
 
     if settings.block_high_ai_patterns:
+        # Only block on structural AI pattern issues (ai_pattern from structural_checker).
+        # "ai" in i.category is too broad — it matches "unattributed_claim" ("cl**ai**m")
+        # which would incorrectly prevent word-count-only expansion path from running.
         ai_blocks = [
             i for i in report.issues
-            if i.severity.lower() == "high" and "ai" in i.category.lower()
+            if i.severity.lower() == "high" and i.category.startswith("ai_")
         ]
         if ai_blocks:
             failures.append(
