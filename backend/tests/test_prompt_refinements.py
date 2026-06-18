@@ -186,6 +186,41 @@ class TestQualityAnalyzerSystemPrompt:
         )
 
 
+class TestContentReviserIntroSurgery:
+    def test_intro_surgery_is_first_step(self) -> None:
+        """Intro surgery must be the literal first instruction in the reviser — not a checklist item."""
+        system = load_prompt("content_reviser_system")
+        # "STEP 0" or "FIRST" must appear before the first mention of "issues" in the body
+        intro_pos = system.lower().find("intro surgery") if "intro surgery" in system.lower() else system.lower().find("step 0")
+        issues_pos = system.lower().find("work methodically through each issue")
+        assert intro_pos != -1, (
+            "content_reviser_system.txt must have an INTRO SURGERY / STEP 0 section"
+        )
+        assert intro_pos < issues_pos, (
+            "INTRO SURGERY must appear BEFORE 'work methodically through each issue' — "
+            "the intro fix must be sequenced as step 0, not a trailing checklist item"
+        )
+
+    def test_intro_surgery_forbids_expansion(self) -> None:
+        """Reviser must be told never to add words to the intro to hit word count."""
+        system = load_prompt("content_reviser_system")
+        lower = system.lower()
+        assert "do not add" in lower or "never add" in lower or "not where you add" in lower, (
+            "content_reviser_system.txt must explicitly forbid adding words to the intro — "
+            "the reviser was using the intro as overflow space when expanding for word count"
+        )
+
+    def test_intro_surgery_cut_before_other_edits(self) -> None:
+        """Must tell the reviser to cut the intro BEFORE touching any other section."""
+        system = load_prompt("content_reviser_system")
+        lower = system.lower()
+        assert ("before" in lower and "other section" in lower) or \
+               ("before" in lower and "anything else" in lower) or \
+               ("all other" in lower and "after" in lower), (
+            "content_reviser_system.txt must sequence intro cut as: do this BEFORE other edits"
+        )
+
+
 class TestContentReviserSelfAudit:
     def test_self_audit_section_exists(self) -> None:
         """Reviser must have a final self-audit gate to prevent introducing new violations."""

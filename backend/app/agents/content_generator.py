@@ -125,6 +125,10 @@ async def revise_post(
     role = _pick_role(revision_number)
     word_count = len(content.split())
 
+    # Compute intro word count so the reviser sees it as a number before STEP 0
+    intro_text = content.split("---")[0].split("## ")[0] if ("---" in content or "## " in content) else content[:500]
+    intro_word_count = len(intro_text.split())
+
     issues_list = "\n".join(
         f"- [{i['severity'].upper()}] {i['category']}: {i['suggestion']}"
         + (f"\n  LOCATION: {i['location']}" if i.get("location") else "")
@@ -165,6 +169,7 @@ async def revise_post(
                     gate_failures_list=gate_failures_list,
                     read_ratio_section=read_ratio_section,
                     prior_cycle_summary=prior_cycle_summary,
+                    intro_word_count=intro_word_count,
                 )
             ),
         ],

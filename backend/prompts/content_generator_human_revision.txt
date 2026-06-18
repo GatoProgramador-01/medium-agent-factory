@@ -2,6 +2,7 @@ Revise this Medium post using the quality report below.
 
 ORIGINAL TITLE: {title}
 CURRENT WORD COUNT: {word_count} words (target: 1,300–1,700)
+INTRO WORD COUNT: {intro_word_count} words (limit: 60–110) — run STEP 0 on this first
 ORIGINAL CONTENT:
 {content}
 
