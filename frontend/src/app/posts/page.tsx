@@ -165,10 +165,11 @@ function PostCard({ post }: { post: Post }) {
 }
 
 export default function PostsPage() {
-  const [posts, setPosts]     = useState<Post[]>([]);
-  const [filter, setFilter]   = useState("");
-  const [search, setSearch]   = useState("");
-  const [loading, setLoading] = useState(true);
+  const [posts, setPosts]       = useState<Post[]>([]);
+  const [filter, setFilter]     = useState("");
+  const [search, setSearch]     = useState("");
+  const [boostOnly, setBoostOnly] = useState(false);
+  const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
     setLoading(true);
@@ -178,9 +179,11 @@ export default function PostsPage() {
       .finally(() => setLoading(false));
   }, [filter]);
 
-  const visible = search.trim()
-    ? posts.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()))
-    : posts;
+  const visible = posts.filter((p) => {
+    if (boostOnly && !p.quality_report?.medium_boost_eligible) return false;
+    if (search.trim() && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -215,6 +218,19 @@ export default function PostsPage() {
             </button>
           ))}
         </div>
+        <button
+          data-testid="filter-boost"
+          onClick={() => setBoostOnly((b) => !b)}
+          className="text-xs px-3 py-1.5 rounded-md transition-colors"
+          style={{
+            background: boostOnly ? "rgba(16,185,129,0.12)" : "transparent",
+            color:      boostOnly ? "var(--green)"           : "var(--text-muted)",
+            border:     `1px solid ${boostOnly ? "var(--green)" : "var(--border)"}`,
+            fontWeight: boostOnly ? 500 : 400,
+          }}
+        >
+          Boost eligible
+        </button>
         <input
           data-testid="search-input"
           type="text"
@@ -247,7 +263,7 @@ export default function PostsPage() {
         <div className="card p-12 text-center space-y-4" data-testid="empty-state">
           <p className="text-lg" style={{ color: "var(--text-muted)" }}>No posts yet</p>
           <p className="text-sm" style={{ color: "var(--text-dim)" }}>
-            {search ? `No posts matching "${search}"` : filter ? `No posts with status "${filter}"` : "Run the pipeline to generate your first post."}
+            {boostOnly && !search ? "No Boost-eligible posts yet." : search ? `No posts matching "${search}"` : filter ? `No posts with status "${filter}"` : "Run the pipeline to generate your first post."}
           </p>
           <Link
             href="/pipeline"

@@ -182,4 +182,79 @@ describe("PostsPage", () => {
       expect(screen.getAllByTestId("post-card")).toHaveLength(2);
     });
   });
+
+  describe("Boost filter", () => {
+    const BOOST_POST = {
+      ...MOCK_POST,
+      run_id: "run-boost",
+      title: "Boost Eligible Post",
+      quality_report: {
+        score: 0.96,
+        read_ratio_prediction: 0.88,
+        medium_boost_eligible: true,
+        issues: [],
+        strengths: ["Excellent hook"],
+      },
+    };
+    const NO_BOOST_POST = {
+      ...DRAFT_POST,
+      run_id: "run-noboost",
+      title: "Not Boost Eligible",
+      quality_report: {
+        score: 0.72,
+        read_ratio_prediction: 0.55,
+        medium_boost_eligible: false,
+        issues: [],
+        strengths: [],
+      },
+    };
+
+    it("renders a Boost filter button", async () => {
+      (api.listPosts as jest.Mock).mockResolvedValue([]);
+      render(<PostsPage />);
+      expect(screen.getByTestId("filter-boost")).toBeInTheDocument();
+    });
+
+    it("clicking Boost shows only boost-eligible posts", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([BOOST_POST, NO_BOOST_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(2));
+      await user.click(screen.getByTestId("filter-boost"));
+      expect(screen.getAllByTestId("post-card")).toHaveLength(1);
+      expect(screen.getByText("Boost Eligible Post")).toBeInTheDocument();
+    });
+
+    it("hides non-boost-eligible posts when Boost filter is active", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([BOOST_POST, NO_BOOST_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(2));
+      await user.click(screen.getByTestId("filter-boost"));
+      expect(screen.queryByText("Not Boost Eligible")).not.toBeInTheDocument();
+    });
+
+    it("clicking Boost again toggles it off and restores all posts", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([BOOST_POST, NO_BOOST_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(2));
+      await user.click(screen.getByTestId("filter-boost"));
+      expect(screen.getAllByTestId("post-card")).toHaveLength(1);
+      await user.click(screen.getByTestId("filter-boost"));
+      expect(screen.getAllByTestId("post-card")).toHaveLength(2);
+    });
+
+    it("Boost filter combines with title search", async () => {
+      const user = userEvent.setup();
+      const ANOTHER_BOOST = { ...BOOST_POST, run_id: "run-boost2", title: "Another Boost Post" };
+      (api.listPosts as jest.Mock).mockResolvedValue([BOOST_POST, ANOTHER_BOOST, NO_BOOST_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(3));
+      await user.click(screen.getByTestId("filter-boost"));
+      await user.type(screen.getByTestId("search-input"), "Another");
+      expect(screen.getAllByTestId("post-card")).toHaveLength(1);
+      expect(screen.getByText("Another Boost Post")).toBeInTheDocument();
+    });
+  });
 });
