@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api, type Post } from "@/lib/api";
 import { PostContent } from "@/components/PostContent";
+import { SourcesPanel } from "@/components/SourcesPanel";
 
 function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
   const pct = Math.round(qr.score * 100);
@@ -252,10 +253,11 @@ export default function PostReaderPage() {
           </div>
         </article>
 
-        {/* Quality sidebar — sticky */}
-        {post.quality_report && (
-          <div className="shrink-0 sticky top-6">
-            <QualityPanel qr={post.quality_report} />
+        {/* Sidebar — sticky; quality + sources stacked */}
+        {(post.quality_report || (post.verified_sources && post.verified_sources.length > 0)) && (
+          <div className="shrink-0 sticky top-6 space-y-4">
+            {post.quality_report && <QualityPanel qr={post.quality_report} />}
+            <SourcesPanel sources={post.verified_sources} />
           </div>
         )}
       </div>

@@ -17,6 +17,13 @@ export type PipelineRun = {
   completed_at?: string;
 };
 
+export type VerifiedSource = {
+  claim_text: string;
+  source_url: string;
+  source_title: string;
+  claim_type: string;
+};
+
 export type Post = {
   run_id: string;
   title: string;
@@ -29,6 +36,11 @@ export type Post = {
   series_id?: string;
   series_position?: number;
   medium_url?: string;
+  quality_score?: number;
+  read_ratio_prediction?: number;
+  medium_boost_eligible?: boolean;
+  word_count?: number;
+  verified_sources?: VerifiedSource[];
   quality_report?: {
     score: number;
     read_ratio_prediction: number;

@@ -618,6 +618,17 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
         quality_fields["read_ratio_prediction"] = qr.read_ratio_prediction
         quality_fields["medium_boost_eligible"] = qr.medium_boost_eligible
         quality_fields["word_count"] = qr.word_count
+    verified_sources = [
+        {
+            "claim_text": r.claim.text,
+            "source_url": r.source_url,
+            "source_title": r.source_title,
+            "claim_type": r.claim.claim_type,
+        }
+        for r in (state.get("fact_check_results") or [])
+        if r.verdict == "SUPPORTED" and r.source_url
+    ]
+    quality_fields["verified_sources"] = verified_sources
     await db.posts.update_one(
         {"run_id": run_id},
         {"$set": quality_fields},

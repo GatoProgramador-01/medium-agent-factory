@@ -4,6 +4,34 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, type Post } from "@/lib/api";
 
+function CopyMarkdownButton({ content, title }: { content: string; title: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    await navigator.clipboard.writeText(`# ${title}\n\n${content}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      className="text-xs px-2 py-0.5 rounded transition-colors"
+      style={{
+        background: "rgba(124,133,162,0.1)",
+        color: copied ? "var(--green)" : "var(--text-dim)",
+        border: "1px solid var(--border)",
+        fontFamily: "monospace",
+        cursor: "pointer",
+      }}
+    >
+      {copied ? "copied!" : "copy_markdown"}
+    </button>
+  );
+}
+
 const STATUSES = ["", "draft", "revised", "approved"];
 
 function scoreColor(score: number) {
@@ -97,6 +125,16 @@ function PostCard({ post }: { post: Post }) {
               ))}
             </div>
           )}
+
+          {/* Quick actions */}
+          <div className="flex items-center gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+            <CopyMarkdownButton content={post.content} title={post.title} />
+            {post.verified_sources && post.verified_sources.length > 0 && (
+              <span className="text-xs" style={{ color: "var(--green)", fontFamily: "monospace" }}>
+                {post.verified_sources.length} source{post.verified_sources.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Score column */}
