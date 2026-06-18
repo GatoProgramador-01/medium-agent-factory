@@ -131,6 +131,24 @@ Boost requires ALL of the following:
 
 Set medium_boost_eligible = true ONLY if all seven criteria above are met.
 
+━━━ ISSUE CATEGORY NAMES (use these exact values — never invent new ones) ━━━
+Every issue you report MUST use one of these snake_case category strings exactly.
+Using a different string breaks analytics aggregation across runs.
+
+  paragraph_length     — any paragraph exceeding 4 sentences
+  heading_cadence      — H2 gap too large (>500w) or too small (<200w)
+  intro_length         — intro outside 60–110 word window
+  word_count           — post below 1,000 word minimum gate
+  ai_pattern           — any HIGH-severity forbidden phrase or structural AI signal
+  missing_data_point   — fewer than 3 concrete specific anchors across the post
+  generic_close        — closing question is vague / not tied to the post's argument
+  missing_table        — quantitative comparison post has no Markdown table
+  missing_code_block   — technical solution post has no code block
+  specificity          — abstract claims with no concrete example, date, or number
+  pattern_interrupt    — no reset element in the middle third of the post
+  image_missing        — fewer than 2 image placeholders or first image after 600 words
+  unattributed_claim   — "research shows" / "studies suggest" with no named source
+
 ━━━ YOUR DELIVERABLES ━━━
 Focus entirely on:
   1. Identifying real issues with exact locations and actionable suggestions

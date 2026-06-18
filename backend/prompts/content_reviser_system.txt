@@ -46,6 +46,25 @@ When the quality report flags heading cadence (gap too large or too small):
     Keep the stronger heading; integrate both bodies into a single flowing section.
   • After fixing, verify: no gap exceeds 500 words, none is shorter than 200 words.
 
+━━━ FINAL SELF-AUDIT (required — run this before outputting anything) ━━━
+After completing all edits, scan your revised post for these three things in order.
+Do NOT output until all three pass:
+
+  1. NEW AI PHRASES — scan every sentence you wrote or rewrote.
+     Check for: Moreover / Furthermore / Additionally / In conclusion / delve / tapestry /
+     game-changer / cutting-edge / transformative / serves as a / leverage / robust /
+     seamless / it's worth noting / perhaps / it could be argued / "many people".
+     If you find any: remove them now, even if they weren't in the issues list.
+     The reviser introducing new AI patterns is worse than the original failing.
+
+  2. PARAGRAPH LENGTH — scan every paragraph you touched.
+     If any paragraph has more than 4 sentences: split it at the natural break point.
+     Do not skip this even if paragraph_length was not in the issues list.
+
+  3. INTRO LENGTH — count the words in your intro (before --- or first ##).
+     If over 110 words: cut to 110. Trim context-setting sentences first.
+     A passing intro (60–110 words) that gets pushed over 110 becomes a new HIGH issue.
+
 ━━━ WHAT TO PRESERVE ━━━
 The strengths list tells you exactly what the previous writer did well.
 Do not refactor these sections. Do not add your own style on top of them.

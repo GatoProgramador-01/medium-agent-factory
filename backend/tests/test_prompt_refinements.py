@@ -162,3 +162,83 @@ class TestQualityAnalyzerSystemPrompt:
             "quality_analyzer_system.txt must flag generic closing questions as MEDIUM — "
             "e.g. 'What do you think?' vs 'What context-length threshold would make you switch back?'"
         )
+
+    def test_canonical_snake_case_category_names_enforced(self) -> None:
+        """Quality analyzer must output issue categories from a fixed snake_case list."""
+        system = load_prompt("quality_analyzer_system")
+        assert "paragraph_length" in system and "heading_cadence" in system and "ai_pattern" in system, (
+            "quality_analyzer_system.txt must specify canonical snake_case category names "
+            "so quality_snapshots aggregation works correctly — "
+            "data showed Platform Compliance/platform_compliance/Platform compliance as 3 different keys"
+        )
+
+    def test_all_required_category_names_present(self) -> None:
+        """All canonical categories must be listed so the LLM doesn't invent new ones."""
+        system = load_prompt("quality_analyzer_system")
+        required = [
+            "paragraph_length", "heading_cadence", "intro_length",
+            "word_count", "ai_pattern", "missing_data_point",
+            "generic_close", "missing_table", "missing_code_block",
+        ]
+        missing = [c for c in required if c not in system]
+        assert not missing, (
+            f"quality_analyzer_system.txt is missing canonical categories: {missing}"
+        )
+
+
+class TestContentReviserSelfAudit:
+    def test_self_audit_section_exists(self) -> None:
+        """Reviser must have a final self-audit gate to prevent introducing new violations."""
+        system = load_prompt("content_reviser_system")
+        assert "self-audit" in system.lower() or "SELF-AUDIT" in system or "final audit" in system.lower(), (
+            "content_reviser_system.txt must include a FINAL SELF-AUDIT section — "
+            "data showed Cases 2 and 3 scored lower after revision 1 because the reviser "
+            "introduced new HIGH issues while fixing the reported ones"
+        )
+
+    def test_self_audit_checks_new_ai_phrases(self) -> None:
+        """Self-audit must explicitly scan for newly introduced AI forbidden phrases."""
+        system = load_prompt("content_reviser_system")
+        assert "new" in system.lower() and "ai" in system.lower() and "audit" in system.lower(), (
+            "Self-audit must tell the reviser to check for new AI phrases it may have introduced, "
+            "not just the ones already flagged in the issues list"
+        )
+
+    def test_self_audit_checks_paragraph_length(self) -> None:
+        """Self-audit must verify no paragraph > 4 sentences was introduced."""
+        system = load_prompt("content_reviser_system")
+        lower = system.lower()
+        assert "audit" in lower and "paragraph" in lower and ("4 sentence" in lower or "four sentence" in lower or "4-sentence" in lower), (
+            "Self-audit must verify paragraph length — the reviser introduced new paragraph violations "
+            "in Case 3 while fixing an AI pattern issue"
+        )
+
+    def test_self_audit_checks_intro_length(self) -> None:
+        """Self-audit must verify the intro was not pushed over 110 words."""
+        system = load_prompt("content_reviser_system")
+        lower = system.lower()
+        assert "audit" in lower and "intro" in lower and "110" in system, (
+            "Self-audit must check intro word count — Case 2 revision 1 pushed intro to 111 words "
+            "creating a new HIGH issue"
+        )
+
+
+class TestContentGeneratorWordCountTarget:
+    def test_section_level_word_count_anchor_exists(self) -> None:
+        """System prompt must give per-section word count so LLM knows where to expand."""
+        system = load_prompt("content_generator_system")
+        assert ("200" in system and "300" in system and "section" in system.lower()) or \
+               ("per section" in system.lower() or "each section" in system.lower()), (
+            "content_generator_system.txt must include per-H2-section word count target "
+            "(200-300 words/section) — generator consistently undershoots 1,300 because it has "
+            "no section-level anchor, only a total-post target it ignores"
+        )
+
+    def test_generator_targets_1500_not_1300(self) -> None:
+        """Generator should target 1,400-1,700 words to reliably land above the 1,300 floor."""
+        system = load_prompt("content_generator_system")
+        assert "1,400" in system or "1,500" in system, (
+            "content_generator_system.txt must target 1,400–1,700 words — "
+            "all 11 snapshots from 3-case test landed under 1,300 when targeting 1,300–1,700; "
+            "raise the floor target so natural landing zone shifts to 1,400-1,500"
+        )
