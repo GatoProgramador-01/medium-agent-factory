@@ -176,6 +176,52 @@ async def revise_post(
     )
 
 
+async def expand_post(
+    run_id: str,
+    title: str,
+    content: str,
+    deficit: int,
+) -> str:
+    """
+    Generate ONE new H2 section (~deficit words) to append to a post that
+    cleared all quality gates but is short of the minimum word count.
+    Returns only the new section text; the caller appends it to post.content.
+    Uses creation mode (not revision mode) so the LLM adds, never edits.
+    """
+    role = "worker"
+    model_name = get_model_name(role)
+    tracker = AgentTokenTracker(
+        agent_name="content_generator_expand",
+        run_id=run_id,
+        model=model_name,
+    )
+
+    llm = with_langchain_retry(get_llm(role, max_tokens=1024, callbacks=[tracker]))
+
+    messages: list[Any] = [
+        SystemMessage(content=(
+            "You are a technical writer adding one new section to an existing Medium post. "
+            "Output ONLY the new section — nothing else, no preamble, no sign-off. "
+            "Start with a Markdown H2 heading (## Section Title). "
+            "Every sentence must contain a specific fact, number, named tool, or concrete example. "
+            "Do not summarize, repeat, or conclude — add new information only."
+        )),
+        HumanMessage(content=(
+            f"Post title: {title}\n\n"
+            f"Existing content:\n{content}\n\n"
+            f"---\n"
+            f"The post needs approximately {deficit} more words. "
+            f"Write ONE new H2 section (~{deficit} words) covering the most obvious follow-up "
+            f"topic a reader would ask about after reading the existing content. "
+            f"Use specific numbers, tool names, and real examples — no vague generalizations. "
+            f"Output the new section only, starting with ##"
+        )),
+    ]
+
+    result = await llm.ainvoke(messages)
+    return result.content if hasattr(result, "content") else str(result)
+
+
 async def _call_generator(
     run_id: str,
     agent_label: str,

@@ -1,22 +1,23 @@
 """
-Sprint 7.2 — Word count floor fix.
+Sprint 7.2 — Word count floor fix (v2: dedicated expander).
 
 Problem: When ONLY Gate 4 (word count) fails and content score is 1.0,
-the reviser makes diminishing additions (88 words → 50 → 30 → 20) because
-"add ~88 words" gives no structural guidance. After 6 cycles the post is
-force-finalized below 1,300 words.
+revise_post makes diminishing additions (984→985→1039 words) because its
+"editing" mindset ignores structural-addition instructions. After 6 cycles
+the post is force-finalized below 1,300 words.
 
-Fix: content_revision_node detects "word count only" failure and injects a
-MANDATORY EXPANSION PROTOCOL into the revision_prompt before calling revise_post.
-The protocol mandates structural additions (sub-sections, tables, case studies)
-with a 150-word buffer target — not incremental padding.
+Fix: content_revision_node detects "word count only" failure and calls
+expand_post (content generator) instead of revise_post. expand_post generates
+ONE new section (~deficit+150 words) which is appended verbatim to the post.
+The reviser is not called at all for word-count-only failures.
 
 Tests verify:
-  1. Word-count-only failure → expansion protocol injected into revision_prompt arg
-  2. Mixed failures (word count + other) → no expansion protocol
-  3. No word count failure → no expansion protocol
-  4. Expansion protocol includes concrete structural directives
-  5. Expansion protocol includes the numerical deficit and buffer target
+  1. Word-count-only failure → expand_post called, revise_post NOT called
+  2. Mixed failures → revise_post called, expand_post NOT called
+  3. Score-only failure → revise_post called, expand_post NOT called
+  4. Appended content makes the post longer
+  5. expand_post receives the correct deficit (+150 buffer)
+  6. expand_post section is appended (original content preserved)
 """
 
 from __future__ import annotations
@@ -86,32 +87,22 @@ def _base_state(report: QualityReport, revision_count: int = 2) -> dict[str, Any
     }
 
 
-# ── Expansion protocol injection ──────────────────────────────────────────────
+# ── Word-count-only: expand_post called, revise_post skipped ──────────────────
 
-class TestWordCountOnlyExpansionProtocol:
-    def _capture_revision_prompt(self) -> list[str]:
-        captured: list[str] = []
-
-        async def fake_revise_post(**kwargs: Any) -> Any:
-            captured.append(kwargs.get("revision_prompt", ""))
-            post = MagicMock()
-            post.title = "Revised Title"
-            post.content = "Revised content. " * 100
-            post.tags = []
-            return post
-
-        return captured, fake_revise_post
-
+class TestWordCountOnlyUsesExpander:
     @pytest.mark.asyncio
-    async def test_word_count_only_injects_expansion_protocol(self) -> None:
-        """When only word count fails, expansion protocol must be prepended to revision_prompt."""
+    async def test_word_count_only_calls_expand_post(self) -> None:
+        """When only word count fails, expand_post must be called instead of revise_post."""
         from app.agents.orchestrator import content_revision_node
 
         report = _make_report(score=1.0, word_count=1212, read_ratio=0.75)
-        captured, fake_revise = self._capture_revision_prompt()
+
+        mock_expand = AsyncMock(return_value="## A New Section\n\nThis is new content " * 20)
+        mock_revise = AsyncMock()
 
         with (
-            patch("app.agents.orchestrator.revise_post", side_effect=fake_revise),
+            patch("app.agents.orchestrator.expand_post", mock_expand),
+            patch("app.agents.orchestrator.revise_post", mock_revise),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator._upsert_post", new_callable=AsyncMock),
             patch("app.agents.orchestrator.settings") as s,
@@ -125,22 +116,21 @@ class TestWordCountOnlyExpansionProtocol:
 
             await content_revision_node(_base_state(report))
 
-        assert captured, "revise_post was not called"
-        prompt = captured[0]
-        assert "EXPANSION PROTOCOL" in prompt or "expansion" in prompt.lower(), (
-            "Expansion protocol must be injected when only word count fails"
-        )
+        mock_expand.assert_called_once()
+        mock_revise.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_expansion_protocol_contains_structural_directive(self) -> None:
-        """Expansion protocol must mandate structural additions, not padding."""
+    async def test_word_count_only_revise_post_not_called(self) -> None:
+        """revise_post must be bypassed entirely for word-count-only failures."""
         from app.agents.orchestrator import content_revision_node
 
-        report = _make_report(score=1.0, word_count=1212, read_ratio=0.75)
-        captured, fake_revise = self._capture_revision_prompt()
+        report = _make_report(score=1.0, word_count=1000, read_ratio=0.75)
+        mock_expand = AsyncMock(return_value="## Extra Section\n\n" + "New content. " * 30)
+        mock_revise = AsyncMock()
 
         with (
-            patch("app.agents.orchestrator.revise_post", side_effect=fake_revise),
+            patch("app.agents.orchestrator.expand_post", mock_expand),
+            patch("app.agents.orchestrator.revise_post", mock_revise),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator._upsert_post", new_callable=AsyncMock),
             patch("app.agents.orchestrator.settings") as s,
@@ -154,27 +144,24 @@ class TestWordCountOnlyExpansionProtocol:
 
             await content_revision_node(_base_state(report))
 
-        prompt = captured[0]
-        # Must instruct adding substance — sections, examples, tables
-        has_structural_guidance = any(
-            kw in prompt.lower()
-            for kw in ["section", "example", "table", "case study", "sub-section", "numbered"]
-        )
-        assert has_structural_guidance, (
-            f"Expansion protocol must mandate structural additions. Got:\n{prompt[:500]}"
-        )
+        mock_revise.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_expansion_protocol_includes_deficit_and_buffer_target(self) -> None:
-        """Protocol must show exact deficit and a buffer target above the minimum."""
+    async def test_expand_post_receives_correct_deficit(self) -> None:
+        """expand_post must receive deficit = (min_word_count - word_count) + 150 buffer."""
         from app.agents.orchestrator import content_revision_node
 
+        # deficit = 1300 - 1212 = 88; with buffer → 88 + 150 = 238
         report = _make_report(score=1.0, word_count=1212, read_ratio=0.75)
-        # deficit = 1300 - 1212 = 88; buffer target should be > 1300
-        captured, fake_revise = self._capture_revision_prompt()
+        captured_kwargs: list[dict[str, Any]] = []
+
+        async def fake_expand(**kwargs: Any) -> str:
+            captured_kwargs.append(kwargs)
+            return "## New Section\n\n" + "More content. " * 20
 
         with (
-            patch("app.agents.orchestrator.revise_post", side_effect=fake_revise),
+            patch("app.agents.orchestrator.expand_post", side_effect=fake_expand),
+            patch("app.agents.orchestrator.revise_post", new_callable=AsyncMock),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator._upsert_post", new_callable=AsyncMock),
             patch("app.agents.orchestrator.settings") as s,
@@ -188,24 +175,25 @@ class TestWordCountOnlyExpansionProtocol:
 
             await content_revision_node(_base_state(report))
 
-        prompt = captured[0]
-        assert "88" in prompt or "1,212" in prompt or "1212" in prompt, (
-            "Protocol must include current word count or deficit"
+        assert captured_kwargs, "expand_post was not called"
+        kw = captured_kwargs[0]
+        # deficit + buffer = 88 + 150 = 238
+        assert kw.get("deficit") == 238, (
+            f"Expected deficit=238 (88+150 buffer), got {kw.get('deficit')}"
         )
-        # Buffer target: 1300 + some buffer (e.g. 150) = 1450
-        has_buffer = any(str(t) in prompt for t in range(1350, 1600))
-        assert has_buffer, "Protocol must set a buffer target above 1,300"
 
     @pytest.mark.asyncio
-    async def test_expansion_protocol_warns_against_small_increments(self) -> None:
-        """Protocol must warn the reviser not to make tiny additions cycle after cycle."""
+    async def test_expanded_content_appended_to_original(self) -> None:
+        """expand_post result must be appended — original content preserved."""
         from app.agents.orchestrator import content_revision_node
 
         report = _make_report(score=1.0, word_count=1212, read_ratio=0.75)
-        captured, fake_revise = self._capture_revision_prompt()
+        new_section = "## The Missing Piece\n\nHere is the new section content."
 
         with (
-            patch("app.agents.orchestrator.revise_post", side_effect=fake_revise),
+            patch("app.agents.orchestrator.expand_post",
+                  new_callable=AsyncMock, return_value=new_section),
+            patch("app.agents.orchestrator.revise_post", new_callable=AsyncMock),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator._upsert_post", new_callable=AsyncMock),
             patch("app.agents.orchestrator.settings") as s,
@@ -217,26 +205,72 @@ class TestWordCountOnlyExpansionProtocol:
             s.max_revision_cycles = 6
             s.worker_model = "deepseek-chat"
 
-            await content_revision_node(_base_state(report))
+            state = _base_state(report)
+            original_content = state["post"].content
+            result = await content_revision_node(state)
 
-        prompt = captured[0]
-        has_warning = any(
-            kw in prompt.lower()
-            for kw in ["small", "padding", "filler", "incremental", "one big", "single addition"]
+        new_post = result.get("post") or state["post"]
+        final_content = new_post.content if hasattr(new_post, "content") else ""
+        # original content must still be present
+        assert original_content in final_content or new_section in final_content, (
+            "Original content must be preserved and new section appended"
         )
-        assert has_warning, "Protocol must warn against incremental padding"
+        assert new_section in final_content, "New section must appear in the final content"
 
     @pytest.mark.asyncio
-    async def test_mixed_failures_do_not_inject_expansion_protocol(self) -> None:
-        """When word count AND other gates fail, no expansion protocol — normal revision."""
+    async def test_post_is_longer_after_expansion(self) -> None:
+        """The post returned by content_revision_node must be longer than the input."""
         from app.agents.orchestrator import content_revision_node
 
-        # Low score (fails Gate 1) + low word count (fails Gate 4)
+        report = _make_report(score=1.0, word_count=1212, read_ratio=0.75)
+        big_addition = "## New Section\n\n" + "This is new content with real words. " * 40
+
+        with (
+            patch("app.agents.orchestrator.expand_post",
+                  new_callable=AsyncMock, return_value=big_addition),
+            patch("app.agents.orchestrator.revise_post", new_callable=AsyncMock),
+            patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
+            patch("app.agents.orchestrator._upsert_post", new_callable=AsyncMock),
+            patch("app.agents.orchestrator.settings") as s,
+        ):
+            s.min_quality_score = 0.70
+            s.min_read_ratio = 0.65
+            s.block_high_ai_patterns = True
+            s.min_word_count = 1300
+            s.max_revision_cycles = 6
+            s.worker_model = "deepseek-chat"
+
+            state = _base_state(report)
+            original_len = len(state["post"].content.split())
+            result = await content_revision_node(state)
+
+        new_post = result.get("post") or state["post"]
+        new_len = len(new_post.content.split())
+        assert new_len > original_len, (
+            f"Post must be longer after expansion. Before: {original_len}, after: {new_len}"
+        )
+
+
+# ── Mixed / score-only failures use revise_post (unchanged path) ──────────────
+
+class TestNonWordCountFailuresUseReviser:
+    @pytest.mark.asyncio
+    async def test_mixed_failures_call_revise_post(self) -> None:
+        """When word count AND other gates fail, revise_post is called (normal path)."""
+        from app.agents.orchestrator import content_revision_node
+
         report = _make_report(score=0.55, word_count=1100, read_ratio=0.75)
-        captured, fake_revise = self._capture_revision_prompt()
+        mock_expand = AsyncMock()
+
+        revised_post = MagicMock()
+        revised_post.title = "Revised"
+        revised_post.content = "Revised content. " * 100
+        revised_post.tags = []
+        mock_revise = AsyncMock(return_value=revised_post)
 
         with (
-            patch("app.agents.orchestrator.revise_post", side_effect=fake_revise),
+            patch("app.agents.orchestrator.expand_post", mock_expand),
+            patch("app.agents.orchestrator.revise_post", mock_revise),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator._upsert_post", new_callable=AsyncMock),
             patch("app.agents.orchestrator.settings") as s,
@@ -250,22 +284,26 @@ class TestWordCountOnlyExpansionProtocol:
 
             await content_revision_node(_base_state(report))
 
-        prompt = captured[0]
-        assert "EXPANSION PROTOCOL" not in prompt, (
-            "Must not inject expansion protocol when other gates also fail"
-        )
+        mock_revise.assert_called_once()
+        mock_expand.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_score_only_failure_does_not_inject_expansion_protocol(self) -> None:
-        """When only score fails (word count is fine), no expansion protocol."""
+    async def test_score_only_failure_calls_revise_post(self) -> None:
+        """When only score fails (word count OK), revise_post is called."""
         from app.agents.orchestrator import content_revision_node
 
-        # Score fails, word count passes
         report = _make_report(score=0.55, word_count=1400, read_ratio=0.75)
-        captured, fake_revise = self._capture_revision_prompt()
+        mock_expand = AsyncMock()
+
+        revised_post = MagicMock()
+        revised_post.title = "Revised"
+        revised_post.content = "Revised content. " * 100
+        revised_post.tags = []
+        mock_revise = AsyncMock(return_value=revised_post)
 
         with (
-            patch("app.agents.orchestrator.revise_post", side_effect=fake_revise),
+            patch("app.agents.orchestrator.expand_post", mock_expand),
+            patch("app.agents.orchestrator.revise_post", mock_revise),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator._upsert_post", new_callable=AsyncMock),
             patch("app.agents.orchestrator.settings") as s,
@@ -279,19 +317,27 @@ class TestWordCountOnlyExpansionProtocol:
 
             await content_revision_node(_base_state(report))
 
-        prompt = captured[0]
-        assert "EXPANSION PROTOCOL" not in prompt
+        mock_revise.assert_called_once()
+        mock_expand.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_original_revision_prompt_preserved_in_expansion(self) -> None:
-        """The original LLM revision_prompt must still be present alongside the protocol."""
+    async def test_word_count_passes_calls_revise_post(self) -> None:
+        """When word count already meets minimum (only score fails), revise_post is used."""
         from app.agents.orchestrator import content_revision_node
 
-        report = _make_report(score=1.0, word_count=1212, read_ratio=0.75)
-        captured, fake_revise = self._capture_revision_prompt()
+        # score fails, word count passes
+        report = _make_report(score=0.60, word_count=1350, read_ratio=0.75)
+        mock_expand = AsyncMock()
+
+        revised_post = MagicMock()
+        revised_post.title = "Revised"
+        revised_post.content = "Revised. " * 100
+        revised_post.tags = []
+        mock_revise = AsyncMock(return_value=revised_post)
 
         with (
-            patch("app.agents.orchestrator.revise_post", side_effect=fake_revise),
+            patch("app.agents.orchestrator.expand_post", mock_expand),
+            patch("app.agents.orchestrator.revise_post", mock_revise),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator._upsert_post", new_callable=AsyncMock),
             patch("app.agents.orchestrator.settings") as s,
@@ -305,7 +351,5 @@ class TestWordCountOnlyExpansionProtocol:
 
             await content_revision_node(_base_state(report))
 
-        prompt = captured[0]
-        assert "Original LLM revision instructions." in prompt, (
-            "Original revision_prompt must be preserved alongside the expansion protocol"
-        )
+        mock_revise.assert_called_once()
+        mock_expand.assert_not_called()

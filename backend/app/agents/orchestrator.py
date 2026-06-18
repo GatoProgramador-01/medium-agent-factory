@@ -44,6 +44,7 @@ from typing_extensions import TypedDict
 
 from app.agents.content_generator import (
     GeneratedPost,
+    expand_post,
     generate_initial_post,
     revise_post,
 )
@@ -457,81 +458,80 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
             )
             prior_cycle_summary = "\n".join(lines) + "\n"
 
-    # When ONLY word count fails, inject a mandatory expansion protocol.
-    # Without this, the reviser adds ~30-50 words per cycle (diminishing returns)
-    # because "add ~88 words" gives no structural mandate. Force one big addition.
+    # When ONLY word count fails, use expand_post (additive) instead of revise_post (editing).
+    # revise_post ignores structural-addition instructions — empirically adds only 1-54 words
+    # per cycle. expand_post generates a new section in creation mode and appends it verbatim.
     word_count_only = (
         len(gate_failures) == 1
         and "word count" in gate_failures[0]
     )
-    if word_count_only:
-        deficit = settings.min_word_count - report.word_count
-        target = settings.min_word_count + 150
-        expansion_protocol = (
-            f"━━━ MANDATORY EXPANSION PROTOCOL — WORD COUNT IS THE ONLY FAILING GATE ━━━\n"
-            f"Content quality score is {report.score:.2f}/1.0 — PERFECT. Nothing needs fixing except length.\n"
-            f"Current word count: {report.word_count}. Minimum required: {settings.min_word_count}. "
-            f"Deficit: {deficit} words.\n"
-            f"Your target for this revision: {target} words (150-word buffer above the gate floor).\n\n"
-            f"⚠ DO NOT make small additions. Previous revision cycles already tried adding {deficit} words\n"
-            f"in small increments and failed to clear the gate. Incremental padding will not work.\n\n"
-            f"REQUIRED — make ONE substantial structural addition:\n"
-            f"  1. Find the 2 shortest body sections (after the intro, after the first ##).\n"
-            f"  2. Pick the section where a concrete example, numbered walkthrough, or comparison\n"
-            f"     table would fit most naturally.\n"
-            f"  3. Add that sub-section now — minimum 100 words of specific, nameable content:\n"
-            f"     • A numbered step-by-step (e.g. 'Here is exactly how I configured it:')\n"
-            f"     • A mini case study ('In my agent, this looked like...')\n"
-            f"     • A comparison table if the section makes a quantitative claim\n"
-            f"     • A 'what I tried first and why it failed' paragraph with named tools/costs\n"
-            f"  4. If no existing section can absorb 100 words naturally, add a new ## section\n"
-            f"     on the most obvious follow-up question a reader would ask after the current ending.\n\n"
-            f"DO NOT add filler sentences, transition summaries, or closing encouragement.\n"
-            f"Every added sentence must carry a fact, a number, or a named example.\n"
-        )
-        final_revision_prompt = expansion_protocol + "\n" + report.revision_prompt
-    else:
-        final_revision_prompt = report.revision_prompt
 
     try:
-        revised = await revise_post(
-            run_id=run_id,
-            title=post.title,
-            content=post.content,
-            score=report.score,
-            revision_prompt=final_revision_prompt,
-            issues=[
-                {
-                    "category": i.category,
-                    "severity": i.severity,
-                    "location": i.location,
-                    "suggestion": i.suggestion,
-                }
-                for i in report.issues
-            ],
-            strengths=report.strengths,
-            gate_failures=gate_failures,
-            read_ratio_breakdown=rr_breakdown_text,
-            revision_number=revision_number,
-            prior_cycle_summary=prior_cycle_summary,
-        )
-        word_count = len(revised.content.split())
-        await log_step(
-            run_id,
-            "content_generator",
-            f"Revision {revision_number} complete: "
-            f'"{revised.title}" (~{word_count} words)',
-            level="success",
-            data={"title": revised.title, "word_count": word_count},
-        )
-        await _upsert_post(
-            run_id, revised, PostStatus.REVISED, revision_count=revision_number
-        )
-        return {
-            "post": revised,
-            "revision_count": revision_number,
-            "completed_steps": [f"revision_{revision_number}"],
-        }
+        if word_count_only:
+            deficit = settings.min_word_count - report.word_count + 150  # 150-word buffer
+            new_section = await expand_post(
+                run_id=run_id,
+                title=post.title,
+                content=post.content,
+                deficit=deficit,
+            )
+            post.content = post.content + "\n\n" + new_section
+            word_count = len(post.content.split())
+            await log_step(
+                run_id,
+                "content_generator",
+                f"Revision {revision_number} complete (expand): "
+                f'"{post.title}" (~{word_count} words)',
+                level="success",
+                data={"title": post.title, "word_count": word_count, "mode": "expand"},
+            )
+            await _upsert_post(
+                run_id, post, PostStatus.REVISED, revision_count=revision_number
+            )
+            return {
+                "post": post,
+                "revision_count": revision_number,
+                "completed_steps": [f"revision_{revision_number}"],
+            }
+        else:
+            revised = await revise_post(
+                run_id=run_id,
+                title=post.title,
+                content=post.content,
+                score=report.score,
+                revision_prompt=report.revision_prompt,
+                issues=[
+                    {
+                        "category": i.category,
+                        "severity": i.severity,
+                        "location": i.location,
+                        "suggestion": i.suggestion,
+                    }
+                    for i in report.issues
+                ],
+                strengths=report.strengths,
+                gate_failures=gate_failures,
+                read_ratio_breakdown=rr_breakdown_text,
+                revision_number=revision_number,
+                prior_cycle_summary=prior_cycle_summary,
+            )
+            word_count = len(revised.content.split())
+            await log_step(
+                run_id,
+                "content_generator",
+                f"Revision {revision_number} complete: "
+                f'"{revised.title}" (~{word_count} words)',
+                level="success",
+                data={"title": revised.title, "word_count": word_count},
+            )
+            await _upsert_post(
+                run_id, revised, PostStatus.REVISED, revision_count=revision_number
+            )
+            return {
+                "post": revised,
+                "revision_count": revision_number,
+                "completed_steps": [f"revision_{revision_number}"],
+            }
     except Exception as e:
         await log_step(
             run_id,
