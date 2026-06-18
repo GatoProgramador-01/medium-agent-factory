@@ -81,8 +81,14 @@ async def generate_initial_post(
     tags: list[str],
     audience: str,
     exemplar_section: str = "",
+    series_context: str = "",
 ) -> GeneratedPost:
     role = _pick_role(0)
+    series_block = (
+        f"SERIES CONTEXT (position this post correctly within the series):\n{series_context}\n"
+        if series_context
+        else ""
+    )
     return await _call_generator(
         run_id=run_id,
         agent_label="content_generator_initial",
@@ -96,6 +102,7 @@ async def generate_initial_post(
                     tags=", ".join(tags),
                     audience=audience,
                     exemplar_section=exemplar_section,
+                    series_context=series_block,
                 )
             ),
         ],

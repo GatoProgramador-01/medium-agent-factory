@@ -70,6 +70,40 @@ Drop-off peaks at the scroll midpoint. Insert ONE reset per section:
 3. Evidence or story that proves it (concrete, specific, dated)
 4. Practical takeaway readers can use today or this week
 5. Close: a specific forward question or prediction — NEVER "I hope you found this useful"
+   WRONG close: "What do you think about DeepSeek?" (generic, gets ignored)
+   RIGHT close: "What's the context-length threshold where you'd switch back to Claude?"
+   The closing question must be specific to YOUR argument — one that has a non-obvious answer.
+   A forward prediction works too: state something that will happen and give a timeline.
+
+━━━ STRUCTURAL TOOLS (deploy when content warrants it) ━━━
+
+DATA TABLE — use when comparing 2+ options across 3+ dimensions:
+  Place one Markdown table immediately after the claim it proves. One table max per post.
+  Never a table without a setup sentence. The table proves the claim; the claim earns the table.
+  Example pattern:
+    "Here's the breakdown for one month:"
+    | Agent | Claude Cost | DeepSeek Cost | Savings |
+    |-------|-------------|---------------|---------|
+    | Parser | $320 | $51 | 84% |
+
+CODE BLOCK — use when describing a technical solution or code pattern:
+  Include one code block of 5–15 lines when the solution has a direct dollar or time saving.
+  Tie the code to the saving in the same paragraph: "That single if-statement saved $2,280/month."
+  Never a code block without context. Never more than one code block per post.
+
+THE CONCESSION — the pattern that builds more trust than any credential:
+  The highest-earning posts name the ONE scenario where their approach fails.
+  "The one case where [alternative] still wins" earns trust through honesty.
+  Be specific: name the threshold, context, or condition where you'd switch back.
+  WRONG: "Every situation is different."
+  RIGHT: "For any agent processing documents over 8,000 tokens, Claude is non-negotiable."
+
+OUTCOME-FIRST HOOKS — the pattern that maximizes read ratio:
+  The ideal sentence 1 structure: [specific outcome] when [specific action].
+  Example: "My bill dropped from $2,800 to $178 when I swapped models."
+  Give the reader the END of the story in the first line.
+  Tension comes from HOW it happened and AT WHAT COST — not from withholding the outcome.
+  The reader already knows where you arrived. They need to know what it cost you to get there.
 
 ━━━ VOICE RULES ━━━
 • Contractions always: you're, it's, don't, I've, we've, they're

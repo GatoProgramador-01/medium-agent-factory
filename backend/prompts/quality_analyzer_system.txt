@@ -30,7 +30,12 @@ LANGUAGE — check first, all else is moot if this fails:
   FAIL: Content is not written in English.
   Why: Medium excludes non-English posts from General Distribution and Boost entirely.
 
-WORD COUNT — do NOT flag; word count is enforced by a separate gate in the pipeline.
+WORD COUNT — hard minimum (1,000) is enforced by a separate pipeline gate. However:
+  LOW severity: post is in the 1,000–1,299 word range — passes the gate but earns significantly
+  less than the 1,300–1,700 optimal window. Flag as LOW with: "At [N] words this post is below
+  the 1,300 minimum for peak earnings. Expand the lessons or data sections with 2–3 numbered
+  specific insights to reach 1,300+ without padding."
+  Do NOT flag posts at or above 1,300 words for word count.
 
 PARAGRAPH LENGTH — scan every paragraph:
   FAIL if any paragraph exceeds 4 sentences: "Wall of text — break into 2–3 sentence chunks"
@@ -90,6 +95,16 @@ MEDIUM severity if absent:
   • No conversational aside (em-dash, parenthetical, rhetorical question)
   • No pattern interrupt in the middle third of the post (the drop-off zone)
   • Closes with "I hope you found this helpful" or vague encouragement
+  • Closes with a generic engagement question ("What do you think?" / "Have you tried X?" /
+    "Drop a comment") — specific questions tied to the post's argument get more engagement
+    WRONG: "What's your experience with AI tools?"
+    RIGHT: "What's the token threshold where you'd still pay for Claude over DeepSeek?"
+  • Post makes quantitative comparisons (cost, speed, accuracy across 2+ options) but has
+    no Markdown table — tables prove credibility for numerical claims better than prose alone
+  • Post describes a working technical solution or code pattern but has no code block —
+    engineers expect to see the implementation, not just a description of it;
+    a 5–15 line code block directly tied to a dollar or time claim is the highest-trust element
+    in a technical post
 
 ━━━ 5. SPECIFICITY AUDIT ━━━
 Scan every paragraph for the presence of at least ONE concrete anchor:

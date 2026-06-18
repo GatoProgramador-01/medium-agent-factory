@@ -8,6 +8,7 @@ TREND CONTEXT (use this to make the content timely and specific):
 RECOMMENDED TAGS: {tags}
 TARGET AUDIENCE: {audience}
 
+{series_context}
 MANDATORY CHECKS — verify every box before submitting:
 □ Written in English (non-English = no earnings)
 □ 1,300–1,700 words (5–7 min read — sweet spot for read ratio)
@@ -21,6 +22,9 @@ MANDATORY CHECKS — verify every box before submitting:
 □ At least 3 specific data points: a real year, a stat with source, or a named example
 □ At least one specific number, date, or personal failure in the hook section
 □ Sentence length varies throughout: short punches mixed with longer analytical sentences
+□ If comparing costs/speeds/accuracy across options: include one Markdown table with real numbers
+□ If describing a technical solution or code pattern: include one code block (5–15 lines) tied to a dollar or time saving in the same paragraph
+□ Close with a SPECIFIC question or forward prediction — not "What do you think?" or "Drop a comment"
 
 {exemplar_section}
 Write the full post now. Start with the hook — not a title, not an intro sentence that sets context.

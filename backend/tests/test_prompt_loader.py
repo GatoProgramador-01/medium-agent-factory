@@ -41,6 +41,8 @@ class TestLoadTemplate:
             trend_context="no trends",
             tags="ai, writing",
             audience="developers",
+            exemplar_section="",
+            series_context="",
         )
         assert "test topic" in result
 

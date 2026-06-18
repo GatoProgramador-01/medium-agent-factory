@@ -69,6 +69,7 @@ class PipelineState(TypedDict):
     custom_topic: str
     series_id: str | None
     series_position: int | None
+    series_context: str  # angle + hook_seed injected by run_series; "" for standalone runs
     trend_context: str  # populated by research_node; "" when Tavily unavailable
 
     post: GeneratedPost | None
@@ -143,8 +144,9 @@ async def content_generation_node(state: PipelineState) -> dict[str, Any]:
             topic=topic,
             trend_context=state.get("trend_context", ""),
             tags=[],
-            audience="content creators and professionals",
+            audience="software engineers and developers building LLM agents and AI pipelines",
             exemplar_section=exemplar_section,
+            series_context=state.get("series_context", ""),
         )
         word_count = len(post.content.split())
         await log_step(
@@ -587,6 +589,7 @@ async def run_pipeline(
     run_id: str | None = None,
     series_id: str | None = None,
     series_position: int | None = None,
+    series_context: str = "",
 ) -> dict[str, Any]:
     db = get_db()
 
@@ -612,6 +615,7 @@ async def run_pipeline(
         "custom_topic": custom_topic,
         "series_id": series_id,
         "series_position": series_position,
+        "series_context": series_context,
         "trend_context": "",
         "post": None,
         "quality_report": None,
@@ -714,10 +718,19 @@ async def run_series(
             "series_planner",
             f"Starting post {post_plan.position}/{len(plan.posts)}: {post_plan.angle}",
         )
+        post_series_context = (
+            f"SERIES: Post {post_plan.position} of {len(plan.posts)} — \"{plan.series_title}\"\n"
+            f"SERIES DESCRIPTION: {plan.series_description}\n"
+            f"THIS POST'S ANGLE: {post_plan.angle}\n"
+            f"HOOK SEED: {post_plan.hook_seed}\n"
+            f"NOTE: Each post in this series is self-contained. Do not reference other posts "
+            f"directly (e.g. no 'In part 1...'). The series context is for tone and positioning only."
+        )
         result = await run_pipeline(
             custom_topic=post_plan.topic,
             series_id=series_id,
             series_position=post_plan.position,
+            series_context=post_series_context,
         )
         results.append(result)
         run_ids.append(result["run_id"])
