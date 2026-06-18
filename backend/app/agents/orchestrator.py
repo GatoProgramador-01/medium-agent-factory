@@ -618,6 +618,20 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
         quality_fields["read_ratio_prediction"] = qr.read_ratio_prediction
         quality_fields["medium_boost_eligible"] = qr.medium_boost_eligible
         quality_fields["word_count"] = qr.word_count
+        quality_fields["quality_report"] = {
+            "score": qr.score,
+            "read_ratio_prediction": qr.read_ratio_prediction,
+            "medium_boost_eligible": qr.medium_boost_eligible,
+            "issues": [
+                {
+                    "category": i.category,
+                    "severity": i.severity,
+                    "suggestion": i.suggestion,
+                }
+                for i in qr.issues
+            ],
+            "strengths": qr.strengths,
+        }
     verified_sources = [
         {
             "claim_text": r.claim.text,

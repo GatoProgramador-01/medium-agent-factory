@@ -253,3 +253,77 @@ class TestSourcesPersistence:
         assert doc.get("quality_score") == pytest.approx(0.97)
         assert doc.get("read_ratio_prediction") == pytest.approx(0.78)
         assert doc.get("medium_boost_eligible") is True
+
+
+class TestQualityReportPersistence:
+    @pytest.mark.asyncio
+    async def test_finalize_writes_quality_report_subdocument(self) -> None:
+        """finalize_node must write a 'quality_report' sub-document for QualityPanel."""
+        from app.agents.orchestrator import finalize_node
+
+        report = _make_report(score=0.92, word_count=1500)
+        report.issues = [
+            QualityIssue(
+                category="readability",
+                severity="low",
+                location="paragraph 3",
+                suggestion="Shorten.",
+            )
+        ]
+        report.strengths = ["Great hook"]
+        state = _base_state(report=report)
+
+        written: list[dict[str, Any]] = []
+
+        async def fake_update_one(filter: Any, update: Any, **kw: Any) -> None:
+            written.append(update.get("$set", {}))
+
+        mock_db = MagicMock()
+        mock_db.posts.update_one = fake_update_one
+        mock_db.quality_snapshots.insert_one = AsyncMock()
+
+        with (
+            patch("app.agents.orchestrator.get_db", return_value=mock_db),
+            patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
+            patch("app.agents.orchestrator._update_pipeline_run", new_callable=AsyncMock),
+            patch("app.agents.orchestrator.save_exemplar", new_callable=AsyncMock),
+        ):
+            await finalize_node(state)
+
+        assert written, "update_one was never called"
+        qr = written[0].get("quality_report")
+        assert qr is not None, "'quality_report' sub-document must be written to posts"
+        assert qr["score"] == pytest.approx(0.92)
+        assert qr["read_ratio_prediction"] == pytest.approx(0.78)
+        assert qr["medium_boost_eligible"] is True
+        assert qr["issues"][0]["category"] == "readability"
+        assert qr["strengths"] == ["Great hook"]
+
+    @pytest.mark.asyncio
+    async def test_quality_report_subdocument_has_required_shape(self) -> None:
+        """quality_report sub-document must have score, issues, strengths, read_ratio_prediction, medium_boost_eligible."""
+        from app.agents.orchestrator import finalize_node
+
+        report = _make_report(score=0.85, word_count=1350)
+        state = _base_state(report=report)
+
+        written: list[dict[str, Any]] = []
+
+        async def fake_update_one(filter: Any, update: Any, **kw: Any) -> None:
+            written.append(update.get("$set", {}))
+
+        mock_db = MagicMock()
+        mock_db.posts.update_one = fake_update_one
+        mock_db.quality_snapshots.insert_one = AsyncMock()
+
+        with (
+            patch("app.agents.orchestrator.get_db", return_value=mock_db),
+            patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
+            patch("app.agents.orchestrator._update_pipeline_run", new_callable=AsyncMock),
+            patch("app.agents.orchestrator.save_exemplar", new_callable=AsyncMock),
+        ):
+            await finalize_node(state)
+
+        qr = written[0].get("quality_report", {})
+        for key in ("score", "read_ratio_prediction", "medium_boost_eligible", "issues", "strengths"):
+            assert key in qr, f"quality_report missing required key: '{key}'"
