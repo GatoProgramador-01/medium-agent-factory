@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, type Post, type Summary } from "@/lib/api";
+import { api, type Exemplar, type Post, type Summary } from "@/lib/api";
 
-function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+function StatCard({ label, value, sub, testId }: { label: string; value: string | number; sub?: string; testId?: string }) {
   return (
-    <div className="card p-5">
+    <div className="card p-5" data-testid={testId}>
       <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>{label}</div>
       <div className="text-2xl font-bold tabular-nums" style={{ color: "#fff" }}>{value}</div>
       {sub && <div className="text-xs mt-0.5" style={{ color: "var(--text-dim)" }}>{sub}</div>}
@@ -21,16 +21,18 @@ function scoreColor(score: number) {
 }
 
 export default function DashboardPage() {
-  const [summary, setSummary]   = useState<Summary | null>(null);
-  const [posts, setPosts]       = useState<Post[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [summary, setSummary]         = useState<Summary | null>(null);
+  const [posts, setPosts]             = useState<Post[]>([]);
+  const [exemplars, setExemplars]     = useState<Exemplar[]>([]);
+  const [loading, setLoading]         = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.summary(),
       api.listPosts(),
+      api.listExemplars(),
     ])
-      .then(([s, p]) => { setSummary(s); setPosts(p); })
+      .then(([s, p, e]) => { setSummary(s); setPosts(p); setExemplars(e); })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -65,6 +67,7 @@ export default function DashboardPage() {
           <StatCard label="Published"        value={summary.published_posts} />
           <StatCard label="Total tokens"     value={summary.total_tokens.toLocaleString()} />
           <StatCard label="Total cost"       value={`$${summary.total_cost_usd.toFixed(4)}`} sub="USD" />
+          <StatCard label="Exemplars saved"  value={exemplars.length} testId="stat-exemplars" />
         </div>
       ) : (
         <div className="card p-8 text-center" style={{ color: "var(--text-muted)" }}>

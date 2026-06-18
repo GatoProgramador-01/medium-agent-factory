@@ -6,6 +6,7 @@ jest.mock("@/lib/api", () => ({
   api: {
     summary: jest.fn(),
     listPosts: jest.fn(),
+    listExemplars: jest.fn(),
   },
 }));
 
@@ -46,6 +47,7 @@ describe("DashboardPage", () => {
     jest.clearAllMocks();
     (api.summary as jest.Mock).mockResolvedValue(MOCK_SUMMARY);
     (api.listPosts as jest.Mock).mockResolvedValue(MOCK_POSTS);
+    (api.listExemplars as jest.Mock).mockResolvedValue([]);
   });
 
   it("renders page heading", () => {
@@ -101,5 +103,18 @@ describe("DashboardPage", () => {
     render(<DashboardPage />);
     await waitFor(() => screen.getByTestId("recent-posts-empty"));
     expect(screen.getByTestId("recent-posts-empty")).toBeInTheDocument();
+  });
+
+  it("shows exemplars saved stat card after data loads", async () => {
+    const MOCK_EXEMPLARS = [
+      { run_id: "e-1", title: "Exemplar One", tags: [], score: 0.97, read_ratio: 0.82,
+        hook_score: 0.95, hook: "hook", intro_word_count: 90, word_count: 1720, created_at: "2026-06-18T10:00:00Z" },
+      { run_id: "e-2", title: "Exemplar Two", tags: [], score: 0.96, read_ratio: 0.80,
+        hook_score: 0.93, hook: "hook2", intro_word_count: 85, word_count: 1650, created_at: "2026-06-17T10:00:00Z" },
+    ];
+    (api.listExemplars as jest.Mock).mockResolvedValue(MOCK_EXEMPLARS);
+    render(<DashboardPage />);
+    await waitFor(() => screen.getByTestId("stat-exemplars"));
+    expect(screen.getByTestId("stat-exemplars")).toHaveTextContent("2");
   });
 });
