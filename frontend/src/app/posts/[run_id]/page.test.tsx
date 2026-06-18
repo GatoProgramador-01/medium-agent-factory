@@ -10,6 +10,13 @@ jest.mock("@/lib/api", () => ({
   },
 }));
 
+// DownloadButton uses URL.createObjectURL — stub it for jsdom
+beforeAll(() => {
+  URL.createObjectURL = jest.fn().mockReturnValue("blob:fake");
+  URL.revokeObjectURL = jest.fn();
+  jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+});
+
 const MOCK_POST = {
   run_id: "run-1",
   title: "How I Saved $2,000 on LLM Inference",
@@ -101,6 +108,13 @@ describe("PostReaderPage", () => {
     render(<PostReaderPage />);
     await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
     expect(screen.getByRole("button", { name: /save as exemplar/i })).toBeInTheDocument();
+  });
+
+  it("shows Download .md button in footer", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByRole("button", { name: /download/i })).toBeInTheDocument();
   });
 
   it("shows View on Medium link when medium_url is present", async () => {

@@ -9,6 +9,7 @@ import { SourcesPanel } from "@/components/SourcesPanel";
 import { RevisionHistoryPanel } from "@/components/RevisionHistoryPanel";
 import { SeriesNav } from "@/components/SeriesNav";
 import { PromoteExemplarButton } from "@/components/PromoteExemplarButton";
+import { DownloadButton } from "@/components/DownloadButton";
 
 function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
   const pct = Math.round(qr.score * 100);
@@ -257,6 +258,7 @@ export default function PostReaderPage() {
             style={{ borderTop: "1px solid var(--border)" }}
           >
             <CopyButton content={post.content} title={post.title} />
+            <DownloadButton title={post.title} content={post.content} />
             <PromoteExemplarButton runId={runId} />
             {post.medium_url && (
               <a
