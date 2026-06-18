@@ -1,7 +1,7 @@
 Revise this Medium post using the quality report below.
 
 ORIGINAL TITLE: {title}
-CURRENT WORD COUNT: {word_count} words (target: 1,300–1,700)
+CURRENT WORD COUNT: {word_count} words (TARGET 1,700 — revision must reach maximum length)
 INTRO WORD COUNT: {intro_word_count} words (limit: 60–110) — run STEP 0 on this first
 ORIGINAL CONTENT:
 {content}
@@ -26,7 +26,7 @@ SPECIFIC ISSUES TO FIX (HIGH severity first):
 
 ━━━ MANDATORY FORMAT COMPLIANCE ━━━
 □ English only (non-English = no earnings)
-□ 1,300–1,700 words — if under 1,300: add specific detail to the shortest sections
+□ 1,500–1,900 words TARGET 1,700 — expand any section under 200 words with a concrete example; under 1,300 is a hard block
 □ Intro (before --- or first ##): 60–110 words ONLY — hook first, no context-setting
 □ No paragraph over 4 sentences
 □ H2 heading every 300–500 words

@@ -30,7 +30,8 @@ class GeneratedPost(BaseModel):
     content: str = Field(
         description=(
             "Full Medium post in Markdown. "
-            "1500-2000 words. No H1 (title is separate). "
+            "1,700–1,900 words. TARGET 1,700 minimum — do not submit under 1,500. "
+            "No H1 (title is separate). "
             "Image placeholders as: [IMAGE: description of what would go here]"
         )
     )

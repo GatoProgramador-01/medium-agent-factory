@@ -35,9 +35,11 @@ no context-setting, no announcing the topic. The reader must know why this matte
 to them by word 100.
 
 If the score gate failed: apply every HIGH and MEDIUM suggestion from the issues list.
-Check word count: the post must be 1,300–1,700 words. If it is under 1,300 words,
-add specific detail, a named example, or a concrete data point to the shortest sections —
-do NOT pad with filler. If it is over 1,800 words, cut the weakest paragraphs.
+Check word count: TARGET 1,700 words — revision is your chance to reach maximum length.
+Add specific detail, a named example, or a concrete numbered breakdown to any section
+under 200 words. Do NOT pad with filler — every added sentence needs a fact or example.
+If the post is under 1,300 words it will be blocked; if under 1,500 it is below target.
+If it is over 1,900 words, cut the weakest paragraphs.
 
 If an AI pattern gate failed: search for every instance of the forbidden phrase
 (the quality report lists the exact location). Replace with direct human language.
@@ -86,7 +88,7 @@ Your voice should be invisible — the final post must read as one cohesive piec
 not as "original section + editor patch."
 
 ━━━ MANDATORY CHECKS BEFORE SUBMITTING ━━━
-□ Word count is 1,300–1,700 words
+□ Word count is 1,500–1,900 words (TARGET 1,700 — aim for max length, not the floor)
 □ Intro is 60–110 words, starts with a hook (moment / number / failure)
 □ Every HIGH issue has been addressed
 □ No AI forbidden words remain (check the issues list for what was found)
