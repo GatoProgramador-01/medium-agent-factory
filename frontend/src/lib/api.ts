@@ -24,6 +24,17 @@ export type VerifiedSource = {
   claim_type: string;
 };
 
+export type QualityHistoryEntry = {
+  cycle: number;
+  score: number;
+  read_ratio: number;
+  boost_eligible: boolean;
+  issue_count: number;
+  passed: boolean;
+  gate_failures: string[];
+  issue_categories: string[];
+};
+
 export type Post = {
   run_id: string;
   title: string;
@@ -41,6 +52,7 @@ export type Post = {
   medium_boost_eligible?: boolean;
   word_count?: number;
   verified_sources?: VerifiedSource[];
+  quality_history?: QualityHistoryEntry[];
   quality_report?: {
     score: number;
     read_ratio_prediction: number;

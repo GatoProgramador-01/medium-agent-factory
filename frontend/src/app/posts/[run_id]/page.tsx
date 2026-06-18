@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api, type Post } from "@/lib/api";
 import { PostContent } from "@/components/PostContent";
 import { SourcesPanel } from "@/components/SourcesPanel";
+import { RevisionHistoryPanel } from "@/components/RevisionHistoryPanel";
 
 function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
   const pct = Math.round(qr.score * 100);
@@ -253,11 +254,12 @@ export default function PostReaderPage() {
           </div>
         </article>
 
-        {/* Sidebar — sticky; quality + sources stacked */}
-        {(post.quality_report || (post.verified_sources && post.verified_sources.length > 0)) && (
+        {/* Sidebar — sticky; quality + sources + revision history stacked */}
+        {(post.quality_report || (post.verified_sources && post.verified_sources.length > 0) || (post.quality_history && post.quality_history.length >= 2)) && (
           <div className="shrink-0 sticky top-6 space-y-4">
             {post.quality_report && <QualityPanel qr={post.quality_report} />}
             <SourcesPanel sources={post.verified_sources} />
+            <RevisionHistoryPanel history={post.quality_history} />
           </div>
         )}
       </div>
