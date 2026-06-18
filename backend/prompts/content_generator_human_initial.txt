@@ -11,7 +11,7 @@ TARGET AUDIENCE: {audience}
 {series_context}
 MANDATORY CHECKS — verify every box before submitting:
 □ Written in English (non-English = no earnings)
-□ 1,300–1,700 words (5–7 min read — sweet spot for read ratio)
+□ 1,300–1,700 words MINIMUM 1,300 — count before submitting; if under, expand evidence/lessons section
 □ Intro (before --- or first ##): 60–110 words ONLY. Sentence 1 must be a hook, not context.
 □ No paragraph longer than 4 sentences (default: 2 sentences)
 □ H2 heading every 300–500 words. Each H2 creates curiosity, not just a label.

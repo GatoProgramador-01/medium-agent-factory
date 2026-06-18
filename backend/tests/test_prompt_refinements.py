@@ -86,6 +86,45 @@ class TestContentGeneratorHumanInitialTemplate:
         )
 
 
+class TestContentReviserSystemPrompt:
+    def test_paragraph_split_instruction_present(self) -> None:
+        """Reviser must have explicit 'split' instruction for long paragraphs, not just a rule."""
+        system = load_prompt("content_reviser_system")
+        assert "split" in system.lower(), (
+            "content_reviser_system.txt must tell the reviser to SPLIT paragraphs > 4 sentences, "
+            "not just list the rule — LLM needs the action verb to act on it"
+        )
+
+    def test_heading_cadence_fix_instruction_present(self) -> None:
+        """Reviser must tell the LLM HOW to fix heading cadence, not just flag it."""
+        system = load_prompt("content_reviser_system")
+        assert ("insert" in system.lower() or "add" in system.lower() or "merge" in system.lower()) and (
+            "h2" in system.lower() or "heading" in system.lower()
+        ), (
+            "content_reviser_system.txt must give the reviser an action for heading cadence: "
+            "insert a new H2 when gap > 500 words, merge when < 200 words"
+        )
+
+    def test_word_count_floor_is_1300_not_1200(self) -> None:
+        """Reviser must expand if under 1,300 — the current prompt says 'under 1,200'."""
+        system = load_prompt("content_reviser_system")
+        # Must NOT say expand only when under 1200
+        assert "1,200" not in system or "1,300" in system, (
+            "content_reviser_system.txt sets the expand threshold at 1,200 — "
+            "must be raised to 1,300 to match the quality gate"
+        )
+
+
+class TestContentReviserHumanTemplate:
+    def test_human_revision_word_count_floor_is_1300(self) -> None:
+        """Human revision template must say expand if under 1,300, not 1,200."""
+        text = str(load_template("content_generator_human_revision"))
+        assert "1,200" not in text or "1,300" in text, (
+            "content_generator_human_revision.txt sets expand threshold at 1,200 — "
+            "must be raised to 1,300"
+        )
+
+
 class TestQualityAnalyzerSystemPrompt:
     def test_suboptimal_word_count_flagged(self) -> None:
         """Quality analyzer must flag 1000-1299 word posts as LOW severity."""

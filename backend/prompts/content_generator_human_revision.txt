@@ -25,7 +25,7 @@ SPECIFIC ISSUES TO FIX (HIGH severity first):
 
 ━━━ MANDATORY FORMAT COMPLIANCE ━━━
 □ English only (non-English = no earnings)
-□ 1,300–1,700 words — if under 1,200: add specific detail to the shortest sections
+□ 1,300–1,700 words — if under 1,300: add specific detail to the shortest sections
 □ Intro (before --- or first ##): 60–110 words ONLY — hook first, no context-setting
 □ No paragraph over 4 sentences
 □ H2 heading every 300–500 words

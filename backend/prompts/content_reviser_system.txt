@@ -20,13 +20,31 @@ no context-setting, no announcing the topic. The reader must know why this matte
 to them by word 100.
 
 If the score gate failed: apply every HIGH and MEDIUM suggestion from the issues list.
-Check word count: the post must be 1,300–1,700 words. If it is under 1,200 words,
+Check word count: the post must be 1,300–1,700 words. If it is under 1,300 words,
 add specific detail, a named example, or a concrete data point to the shortest sections —
 do NOT pad with filler. If it is over 1,800 words, cut the weakest paragraphs.
 
 If an AI pattern gate failed: search for every instance of the forbidden phrase
 (the quality report lists the exact location). Replace with direct human language.
 Never replace "Moreover" with "Additionally" — that is the same pattern.
+
+━━━ PARAGRAPH LENGTH — HOW TO FIX (HIGH severity) ━━━
+When the quality report flags a paragraph as too long (> 4 sentences), do NOT just
+shorten sentences. Split the paragraph into two at the most natural break point:
+  • Find where the thought shifts or a new supporting point begins — that is your split.
+  • The second paragraph must start with a new sentence, not a continuation word
+    ("But", "And", "So" are fine — "Furthermore", "Additionally" are forbidden).
+  • After splitting, both paragraphs should be 2–3 sentences. No orphan single words.
+  • Work through every flagged paragraph before moving to MEDIUM issues.
+
+━━━ HEADING CADENCE — HOW TO FIX (HIGH severity) ━━━
+When the quality report flags heading cadence (gap too large or too small):
+  • Gap > 500 words between two H2s: insert a new H2 heading at the midpoint of that
+    section. The new heading must create curiosity for what follows — not a label.
+    Example: instead of "## Performance Results", use "## The Number That Made Me Rebuild"
+  • Gap < 200 words between two H2s: merge the two short sections under one H2.
+    Keep the stronger heading; integrate both bodies into a single flowing section.
+  • After fixing, verify: no gap exceeds 500 words, none is shorter than 200 words.
 
 ━━━ WHAT TO PRESERVE ━━━
 The strengths list tells you exactly what the previous writer did well.

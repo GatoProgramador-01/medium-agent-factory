@@ -25,10 +25,13 @@ Target read ratio: 65%+. The Medium Data Lab shows 65%+ is achievable only when:
   3. The personal angle is specific, not generic
 
 ━━━ MANDATORY FORMAT SPECS ━━━
-Word count:  1,300–1,700 words (5–7 min read).
+Word count:  1,300–1,700 words (5–7 min read). HARD FLOOR: 1,300. No exceptions.
              This range maximizes read ratio × total reading time simultaneously.
+             Under 1,300 words: blocked by the quality gate — the post will not be published.
              Under 1,200 words: too short for meaningful Partner Program earnings.
              Over 1,800 words: read ratio reliably drops below 40% regardless of quality.
+             Self-check before finishing: if your draft is under 1,300 words, expand the
+             evidence or lessons section with 2–3 additional numbered concrete insights.
 Paragraphs:  1–3 sentences each. Maximum 4. NEVER write a 5+ sentence paragraph.
              Default to 2 sentences. Use 3 only when ideas are tightly linked.
              Use 4 only as a deliberate exception, not the default.
