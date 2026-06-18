@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     min_read_ratio: float = 0.65         # predicted 30-sec read rate (65% = Medium "Strong")
     block_high_ai_patterns: bool = True  # any HIGH-severity AI pattern issue blocks the post
     min_word_count: int = 1000           # under 1,000 words = too short for Partner Program
-    max_revision_cycles: int = 2
+    max_revision_cycles: int = 6
 
 
 settings = Settings()

@@ -17,7 +17,7 @@ READ RATIO ANALYSIS — exact structural measurements (fix these to lift the rat
 STRENGTHS — preserve these exactly, do not rewrite them:
 {strengths_list}
 
-EDITOR'S BRIEF (apply all of these):
+{prior_cycle_summary}EDITOR'S BRIEF (apply all of these):
 {revision_prompt}
 
 SPECIFIC ISSUES TO FIX (HIGH severity first):

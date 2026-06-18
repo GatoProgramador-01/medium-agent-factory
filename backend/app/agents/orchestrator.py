@@ -286,6 +286,34 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
             },
         )
         cycle = state.get("revision_count", 0)
+        high_c = sum(1 for i in report.issues if i.severity.lower() == "high")
+        med_c = sum(1 for i in report.issues if i.severity.lower() == "medium")
+        low_c = sum(1 for i in report.issues if i.severity.lower() == "low")
+        snapshot: dict[str, Any] = {
+            "run_id": run_id,
+            "series_id": state.get("series_id"),
+            "topic": state.get("custom_topic", ""),
+            "iteration": cycle,
+            "score": report.score,
+            "read_ratio": report.read_ratio_prediction,
+            "word_count": report.word_count,
+            "medium_boost_eligible": report.medium_boost_eligible,
+            "passed": passed,
+            "gate_failures": gate_failures,
+            "issue_summary": {"high": high_c, "medium": med_c, "low": low_c, "total": len(report.issues)},
+            "issues": [
+                {
+                    "severity": i.severity,
+                    "category": i.category,
+                    "location": i.location,
+                    "suggestion": i.suggestion,
+                }
+                for i in report.issues
+            ],
+            "strengths": report.strengths,
+            "revision_prompt": report.revision_prompt,
+        }
+        await db.quality_snapshots.insert_one(snapshot)
         history_entry: dict[str, Any] = {
             "cycle": cycle,
             "score": report.score,
@@ -294,6 +322,7 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
             "issue_count": len(report.issues),
             "passed": passed,
             "gate_failures": gate_failures,
+            "issue_categories": [i.category for i in report.issues if i.severity.lower() == "high"],
         }
         return {
             "quality_report": report,
@@ -341,6 +370,26 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
         report.read_ratio_prediction, report.read_ratio_factors
     )
 
+    # Build a summary of what previous cycles failed to fix so the reviser
+    # knows which HIGH issues are "sticky" and must be prioritised.
+    quality_history: list[dict[str, Any]] = state.get("quality_history", [])
+    prior_cycle_summary = ""
+    if len(quality_history) >= 2:
+        lines = ["⚠ PRIOR REVISION HISTORY — THESE ISSUES WERE NOT RESOLVED:\n"]
+        for entry in quality_history[:-1]:  # all cycles except the current one
+            persisted = entry.get("issue_categories", [])
+            if persisted:
+                lines.append(
+                    f"  Cycle {entry['cycle']}: score {entry['score']:.2f} — "
+                    f"HIGH issues still present: {', '.join(persisted)}"
+                )
+        if len(lines) > 1:
+            lines.append(
+                "Fix the above categories FIRST in this revision — they have already "
+                "survived at least one revision attempt and are blocking the quality gate.\n"
+            )
+            prior_cycle_summary = "\n".join(lines) + "\n"
+
     try:
         revised = await revise_post(
             run_id=run_id,
@@ -361,6 +410,7 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
             gate_failures=gate_failures,
             read_ratio_breakdown=rr_breakdown_text,
             revision_number=revision_number,
+            prior_cycle_summary=prior_cycle_summary,
         )
         word_count = len(revised.content.split())
         await log_step(

@@ -120,6 +120,7 @@ async def revise_post(
     gate_failures: list[str] | None = None,
     read_ratio_breakdown: str | None = None,
     revision_number: int = 1,
+    prior_cycle_summary: str = "",
 ) -> GeneratedPost:
     role = _pick_role(revision_number)
     word_count = len(content.split())
@@ -163,6 +164,7 @@ async def revise_post(
                     strengths_list=strengths_list,
                     gate_failures_list=gate_failures_list,
                     read_ratio_section=read_ratio_section,
+                    prior_cycle_summary=prior_cycle_summary,
                 )
             ),
         ],
