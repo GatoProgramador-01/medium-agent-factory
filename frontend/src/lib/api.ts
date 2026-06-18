@@ -80,6 +80,19 @@ export type SeriesDetail = {
   posts: SeriesPost[];
 };
 
+export type Exemplar = {
+  run_id: string;
+  title: string;
+  tags: string[];
+  score: number;
+  read_ratio: number;
+  hook_score: number;
+  hook: string;
+  intro_word_count: number;
+  word_count: number;
+  created_at: string;
+};
+
 export type AgentUsage = {
   agent_name: string;
   total_tokens_in: number;
@@ -127,6 +140,10 @@ export const api = {
   summary: () => request<Summary>("/analytics/summary"),
 
   getLogs: (runId: string) => request<AgentLog[]>(`/pipeline/runs/${runId}/logs`),
+
+  listExemplars: () => request<Exemplar[]>("/posts/exemplars/list"),
+  promoteExemplar: (runId: string) =>
+    request<{ run_id: string; status: string }>(`/posts/${runId}/exemplar`, { method: "POST" }),
 
   listSeries: () => request<SeriesDetail[]>("/series"),
   getSeries: (id: string) => request<SeriesDetail>(`/series/${id}`),
