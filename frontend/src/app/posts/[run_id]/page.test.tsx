@@ -1,0 +1,138 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import { useParams } from "next/navigation";
+import PostReaderPage from "./page";
+import { api } from "@/lib/api";
+
+jest.mock("@/lib/api", () => ({
+  api: {
+    getPost: jest.fn(),
+    getSeries: jest.fn(),
+  },
+}));
+
+const MOCK_POST = {
+  run_id: "run-1",
+  title: "How I Saved $2,000 on LLM Inference",
+  subtitle: "A real cost breakdown",
+  content: "This is the full post content with enough words here.",
+  tags: ["ai", "cost", "llm"],
+  status: "approved",
+  revision_count: 2,
+  pull_quote: "The cheapest model that passes quality gates wins.",
+  medium_url: "https://medium.com/@user/article-slug",
+  created_at: "2026-06-18T10:00:00Z",
+  quality_report: {
+    score: 0.95,
+    read_ratio_prediction: 0.84,
+    medium_boost_eligible: true,
+    issues: [],
+    strengths: ["Strong hook", "Clear takeaways"],
+  },
+  verified_sources: [],
+  quality_history: [],
+};
+
+const POST_NO_QUALITY = {
+  ...MOCK_POST,
+  run_id: "run-2",
+  pull_quote: undefined,
+  medium_url: undefined,
+  quality_report: undefined,
+  verified_sources: [],
+  quality_history: [],
+};
+
+describe("PostReaderPage", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useParams as jest.Mock).mockReturnValue({ run_id: "run-1" });
+    (api.getSeries as jest.Mock).mockResolvedValue(null);
+  });
+
+  it("shows a loading skeleton before data arrives", () => {
+    (api.getPost as jest.Mock).mockReturnValue(new Promise(() => {}));
+    render(<PostReaderPage />);
+    // skeletons are rendered via className, check for the back nav absence and skeleton presence
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    const skeletons = document.querySelectorAll(".skeleton");
+    expect(skeletons.length).toBeGreaterThan(0);
+  });
+
+  it("renders post title after data loads", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: MOCK_POST.title })).toBeInTheDocument()
+    );
+  });
+
+  it("back link points to /posts", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByRole("link", { name: /all posts/i })).toHaveAttribute("href", "/posts");
+  });
+
+  it("renders post tags", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByText("ai")).toBeInTheDocument();
+    expect(screen.getByText("cost")).toBeInTheDocument();
+    expect(screen.getByText("llm")).toBeInTheDocument();
+  });
+
+  it("renders pull quote when present", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByText(/cheapest model/i)).toBeInTheDocument();
+  });
+
+  it("shows Copy Markdown button in footer", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByRole("button", { name: /copy markdown/i })).toBeInTheDocument();
+  });
+
+  it("shows Save as Exemplar button in footer", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByRole("button", { name: /save as exemplar/i })).toBeInTheDocument();
+  });
+
+  it("shows View on Medium link when medium_url is present", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    const mediumLink = screen.getByRole("link", { name: /view on medium/i });
+    expect(mediumLink).toHaveAttribute("href", MOCK_POST.medium_url);
+  });
+
+  it("renders quality score when quality_report is present", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    // quality score = 0.95 → 95
+    expect(screen.getByText("95")).toBeInTheDocument();
+  });
+
+  it("sidebar is not shown when post has no quality data", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(POST_NO_QUALITY);
+    (useParams as jest.Mock).mockReturnValue({ run_id: "run-2" });
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    // Quality score text (95) should not appear
+    expect(screen.queryByText("95")).not.toBeInTheDocument();
+  });
+
+  it("shows not-found message when API returns null", async () => {
+    (api.getPost as jest.Mock).mockRejectedValue(new Error("404"));
+    render(<PostReaderPage />);
+    await waitFor(() =>
+      expect(screen.getByText(/post not found/i)).toBeInTheDocument()
+    );
+  });
+});

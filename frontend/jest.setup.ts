@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 
-// Mock next/navigation — usePathname and useRouter require the Next.js router
-// context which doesn't exist in jsdom. Provide minimal stubs.
+// Mock next/navigation — usePathname, useRouter, and useParams require the
+// Next.js router context which doesn't exist in jsdom. Provide minimal stubs.
 jest.mock("next/navigation", () => ({
   usePathname: jest.fn(() => "/"),
   useRouter: jest.fn(() => ({
@@ -9,6 +9,7 @@ jest.mock("next/navigation", () => ({
     replace: jest.fn(),
     back: jest.fn(),
   })),
+  useParams: jest.fn(() => ({})),
 }));
 
 // navigator.clipboard is not available in jsdom.
