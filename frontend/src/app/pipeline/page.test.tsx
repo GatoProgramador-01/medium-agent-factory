@@ -9,6 +9,7 @@ jest.mock("@/lib/api", () => ({
     triggerSeries: jest.fn(),
     streamLogs: jest.fn(),
     getPost: jest.fn(),
+    listRuns: jest.fn(),
   },
 }));
 
@@ -36,6 +37,7 @@ describe("PipelinePage", () => {
     jest.clearAllMocks();
     fakeEs = makeFakeEventSource([]);
     (api.streamLogs as jest.Mock).mockReturnValue(fakeEs);
+    (api.listRuns as jest.Mock).mockResolvedValue([]);
   });
 
   it("renders the page heading and topic input", () => {
@@ -156,6 +158,61 @@ describe("PipelinePage", () => {
       await user.click(screen.getByTestId("run-series-button"));
       await waitFor(() => screen.getByTestId("view-series-link"));
       expect(screen.getByTestId("view-series-link")).toHaveAttribute("href", "/series");
+    });
+  });
+
+  describe("Run History", () => {
+    const MOCK_RUNS = [
+      {
+        run_id: "run-aabbcc",
+        custom_topic: "LLM cost tricks",
+        status: "completed",
+        created_at: "2026-06-18T10:00:00Z",
+        completed_at: "2026-06-18T10:05:00Z",
+      },
+      {
+        run_id: "run-ddeeff",
+        custom_topic: "Prompting tips",
+        status: "failed",
+        created_at: "2026-06-17T09:00:00Z",
+      },
+    ];
+
+    it("renders run history section when runs exist", async () => {
+      (api.listRuns as jest.Mock).mockResolvedValue(MOCK_RUNS);
+      render(<PipelinePage />);
+      await waitFor(() => screen.getByTestId("run-history"));
+      expect(screen.getByTestId("run-history")).toBeInTheDocument();
+    });
+
+    it("shows a row for each run", async () => {
+      (api.listRuns as jest.Mock).mockResolvedValue(MOCK_RUNS);
+      render(<PipelinePage />);
+      await waitFor(() => screen.getByTestId("run-row-run-aabbcc"));
+      expect(screen.getByTestId("run-row-run-aabbcc")).toBeInTheDocument();
+      expect(screen.getByTestId("run-row-run-ddeeff")).toBeInTheDocument();
+    });
+
+    it("completed run row links to the post reader", async () => {
+      (api.listRuns as jest.Mock).mockResolvedValue(MOCK_RUNS);
+      render(<PipelinePage />);
+      await waitFor(() => screen.getByTestId("run-post-link-run-aabbcc"));
+      expect(screen.getByTestId("run-post-link-run-aabbcc")).toHaveAttribute("href", "/posts/run-aabbcc");
+    });
+
+    it("failed run row shows failed status", async () => {
+      (api.listRuns as jest.Mock).mockResolvedValue(MOCK_RUNS);
+      render(<PipelinePage />);
+      await waitFor(() => screen.getByTestId("run-row-run-ddeeff"));
+      expect(screen.getByTestId("run-row-run-ddeeff")).toHaveTextContent("failed");
+    });
+
+    it("no run history section when list is empty", async () => {
+      (api.listRuns as jest.Mock).mockResolvedValue([]);
+      render(<PipelinePage />);
+      // give time for fetch to resolve
+      await waitFor(() => expect(api.listRuns).toHaveBeenCalled());
+      expect(screen.queryByTestId("run-history")).not.toBeInTheDocument();
     });
   });
 

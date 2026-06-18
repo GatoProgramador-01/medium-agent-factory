@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { api, type AgentLog, type Post } from "@/lib/api";
+import { api, type AgentLog, type PipelineRun, type Post } from "@/lib/api";
 
 type RunPhase = "idle" | "running" | "done";
 type Mode = "single" | "series";
@@ -150,6 +150,65 @@ function SeriesResultCard({ seriesId }: { seriesId: string }) {
   );
 }
 
+const STATUS_COLOR: Record<string, string> = {
+  completed: "var(--green)",
+  failed:    "var(--red)",
+  running:   "var(--amber)",
+  queued:    "var(--text-dim)",
+};
+
+function RunHistory({ runs }: { runs: PipelineRun[] }) {
+  if (runs.length === 0) return null;
+  return (
+    <div data-testid="run-history" className="space-y-2">
+      <h2 className="text-xs font-medium tracking-wide" style={{ color: "var(--text-muted)" }}>
+        Recent Runs
+      </h2>
+      <div className="card overflow-hidden">
+        {runs.slice(0, 5).map((run, i) => (
+          <div
+            key={run.run_id}
+            data-testid={`run-row-${run.run_id}`}
+            className="flex items-center gap-3 px-4 py-2.5 text-xs"
+            style={{
+              borderTop: i > 0 ? "1px solid var(--border)" : "none",
+            }}
+          >
+            <span
+              className="shrink-0 font-mono"
+              style={{ color: "var(--text-dim)" }}
+            >
+              {run.run_id.slice(0, 8)}
+            </span>
+            <span className="flex-1 truncate" style={{ color: "var(--text-muted)" }}>
+              {run.custom_topic || "—"}
+            </span>
+            <span
+              className="shrink-0 font-medium"
+              style={{ color: STATUS_COLOR[run.status] ?? "var(--text-dim)" }}
+            >
+              {run.status}
+            </span>
+            <span className="shrink-0" style={{ color: "var(--text-dim)" }}>
+              {new Date(run.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </span>
+            {run.status === "completed" && (
+              <Link
+                href={`/posts/${run.run_id}`}
+                data-testid={`run-post-link-${run.run_id}`}
+                className="shrink-0 text-xs"
+                style={{ color: "var(--orange)", textDecoration: "none" }}
+              >
+                View →
+              </Link>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function PipelinePage() {
   const [mode,  setMode]  = useState<Mode>("single");
 
@@ -169,6 +228,15 @@ export default function PipelinePage() {
   const [seriesPhase, setSeriesPhase] = useState<"idle" | "running" | "done">("idle");
   const [seriesId,    setSeriesId]    = useState<string | null>(null);
   const [seriesError, setSeriesError] = useState<string | null>(null);
+
+  // Run history
+  const [runs, setRuns] = useState<PipelineRun[]>([]);
+
+  function fetchRuns() {
+    api.listRuns().then(setRuns).catch(() => {});
+  }
+
+  useEffect(() => { fetchRuns(); }, []);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -190,6 +258,7 @@ export default function PipelinePage() {
   useEffect(() => {
     if (phase !== "done" || !runId) return;
     api.getPost(runId).then(setPost).catch(() => {});
+    fetchRuns();
   }, [phase, runId]);
 
   async function handleRun() {
@@ -412,6 +481,8 @@ export default function PipelinePage() {
       )}
 
       {phase === "done" && post && <ResultCard post={post} />}
+
+      <RunHistory runs={runs} />
     </div>
   );
 }
