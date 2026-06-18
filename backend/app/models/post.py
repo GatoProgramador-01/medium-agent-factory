@@ -1,7 +1,25 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
+
+
+@dataclass
+class AtomicClaim:
+    text: str        # exact phrase from the post
+    claim_type: str  # "statistic" | "percentage" | "dollar_amount" | "date" | "company_claim"
+    search_query: str
+    location: str    # e.g. "paragraph 1"
+
+
+@dataclass
+class VerificationResult:
+    claim: AtomicClaim
+    verdict: str          # "SUPPORTED" | "UNVERIFIABLE"
+    source_url: str | None
+    source_title: str | None
 
 
 @dataclass

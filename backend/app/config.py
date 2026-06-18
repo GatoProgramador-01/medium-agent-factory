@@ -42,5 +42,8 @@ class Settings(BaseSettings):
     min_word_count: int = 1300           # under 1,300 words misses peak Partner Program earnings
     max_revision_cycles: int = 6
 
+    # Source reliability — Sprint 7
+    fact_check_enabled: bool = True  # run claim extraction + Tavily verification
+
 
 settings = Settings()

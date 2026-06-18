@@ -53,6 +53,7 @@ from app.agents.exemplar_store import (
     format_exemplar_injection,
     save_exemplar,
 )
+from app.agents.fact_checker import run_fact_check
 from app.agents.read_ratio_analyzer import format_factors_breakdown
 from app.agents.formatter import format_post
 from app.agents.logger import log_step
@@ -62,7 +63,7 @@ from app.agents.series_planner import plan_series
 from app.agents.web_researcher import research_topic
 from app.config import settings
 from app.database import get_db
-from app.models.post import PostStatus, QualityReport
+from app.models.post import PostStatus, QualityIssue, QualityReport
 
 
 class PipelineState(TypedDict):
@@ -79,6 +80,7 @@ class PipelineState(TypedDict):
     format_changes: Annotated[list[str], operator.add]
     revision_count: int
     quality_history: Annotated[list[dict[str, Any]], operator.add]  # score per cycle
+    fact_check_issues: list[QualityIssue]  # unverifiable claims from fact_checker_node
     errors: Annotated[list[str], operator.add]
     completed_steps: Annotated[list[str], operator.add]
 
@@ -174,6 +176,43 @@ async def content_generation_node(state: PipelineState) -> dict[str, Any]:
         return {"errors": [f"content_generation failed: {e}"]}
 
 
+async def fact_check_node(state: PipelineState) -> dict[str, Any]:
+    run_id = state["run_id"]
+    post = state["post"]
+    if not post:
+        return {"fact_check_issues": []}
+
+    if not settings.fact_check_enabled:
+        return {"fact_check_issues": [], "completed_steps": ["fact_check_skipped"]}
+
+    await log_step(
+        run_id,
+        "fact_checker",
+        "Extracting and verifying factual claims (parallel Tavily searches)...",
+    )
+    try:
+        annotated_content, issues = await run_fact_check(post.content)
+        verified = sum(1 for i in issues if i.category != "unattributed_claim")
+        unverifiable = len(issues)
+        hyperlinks = annotated_content.count("](http") - post.content.count("](http")
+        post.content = annotated_content
+        await log_step(
+            run_id,
+            "fact_checker",
+            f"Fact check complete — {hyperlinks} source(s) injected, {unverifiable} unverifiable claim(s) flagged",
+            level="success" if unverifiable == 0 else "warning",
+            data={"hyperlinks_injected": hyperlinks, "unverifiable_count": unverifiable},
+        )
+        return {
+            "post": post,
+            "fact_check_issues": issues,
+            "completed_steps": ["fact_check"],
+        }
+    except Exception as e:
+        await log_step(run_id, "fact_checker", f"Fact check skipped: {e}", level="warning")
+        return {"fact_check_issues": [], "completed_steps": ["fact_check_skipped"]}
+
+
 async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
     run_id = state["run_id"]
     post = state["post"]
@@ -192,8 +231,10 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
         )
 
         structural_issues = run_structural_checks(post.content)
-        if structural_issues:
-            report.issues = structural_issues + report.issues
+        fact_issues: list[QualityIssue] = state.get("fact_check_issues") or []
+        all_prepend = structural_issues + fact_issues
+        if all_prepend:
+            report.issues = all_prepend + report.issues
 
         passed, gate_failures = _gate_check(report)
         level = "success" if passed else "warning"
@@ -615,6 +656,7 @@ def build_graph() -> Any:
     g = StateGraph(PipelineState)
     g.add_node("research", research_node)
     g.add_node("content_generation", content_generation_node)
+    g.add_node("fact_check", fact_check_node)
     g.add_node("quality_analysis", quality_analysis_node)
     g.add_node("revision", content_revision_node)
     g.add_node("format", format_node)
@@ -622,7 +664,8 @@ def build_graph() -> Any:
 
     g.add_edge(START, "research")
     g.add_edge("research", "content_generation")
-    g.add_edge("content_generation", "quality_analysis")
+    g.add_edge("content_generation", "fact_check")
+    g.add_edge("fact_check", "quality_analysis")
     g.add_conditional_edges(
         "quality_analysis",
         route_after_quality,
@@ -679,6 +722,7 @@ async def run_pipeline(
         "format_changes": [],
         "revision_count": 0,
         "quality_history": [],
+        "fact_check_issues": [],
         "errors": [],
         "completed_steps": [],
     }

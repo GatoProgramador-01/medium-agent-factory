@@ -1,462 +1,357 @@
-# medium-agent-factory
+# Medium Agent Factory
 
 [![CI](https://github.com/GatoProgramador-01/medium-agent-factory/actions/workflows/ci.yml/badge.svg)](https://github.com/GatoProgramador-01/medium-agent-factory/actions/workflows/ci.yml)
 [![Eval Gate](https://github.com/GatoProgramador-01/medium-agent-factory/actions/workflows/eval.yml/badge.svg)](https://github.com/GatoProgramador-01/medium-agent-factory/actions/workflows/eval.yml)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
-[![Node 22](https://img.shields.io/badge/node-22-green.svg)](https://nodejs.org/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
-A production-grade LLM content pipeline built on **LangGraph** + **FastAPI** + **Next.js**. Give it a topic — it writes, scores, and revises a full article using a multi-agent loop, streaming every decision live to the browser.
-
-> **The meta story:** the posts in `/posts` were written by this pipeline about this pipeline. All three scored 0.82 on the first attempt with zero revisions.
+> A LangGraph multi-agent pipeline that writes, scores, fact-checks, and iteratively revises Medium posts until they meet the exact criteria Medium's Boost curators use — source-backed numbers, no AI patterns, and a 1,300-word floor.
 
 ---
 
-## System Architecture
+## The Problem
+
+Every developer who's tried to use AI to write technical blog posts runs into the same wall.
+
+The draft looks fine. The grammar is clean. The structure is solid. But read it back — really read it — and you notice: the statistics are suspiciously round. The numbers don't have sources. Sentences begin with "Moreover" and "Furthermore." The hook announces the topic instead of opening mid-action. And the word count is 1,062, not the 1,300 that Medium's Partner Program needs to maximize earnings.
+
+You could fix it by hand. You could prompt GPT to "make it longer." But that just gives you more of the same prose — AI writing about AI, in the style of AI, citing AI-generated statistics that may or may not exist.
+
+The question is: can a pipeline of specialized agents, each holding the other accountable, produce content that passes a human curator's review?
+
+This project is the answer.
+
+---
+
+## The Story
+
+### Act 1 — A Pipeline Is Born
+
+The first version was three nodes in a LangGraph graph: **Write → Quality → Revise**. A writer agent drafted a post, a quality agent scored it, and a reviser agent fixed it. If the score crossed a threshold, a formatter cleaned it up and saved it to MongoDB.
+
+Simple. But the quality gate was a black box — a list of penalty weights applied to detected issues, with magic numbers like `0.12` for a HIGH issue and `0.05` for a MEDIUM. The reviser didn't know *why* it was failing. It just knew the score was 0.63 and tried again.
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#111111', 'primaryTextColor': '#d4f0d4', 'primaryBorderColor': '#4ade80', 'lineColor': '#4a5a4a', 'secondaryColor': '#161616', 'tertiaryColor': '#0b0b0b', 'clusterBkg': '#0d0d0d', 'clusterBorder': '#1f1f1f', 'edgeLabelBackground': '#0b0b0b', 'titleColor': '#4ade80', 'nodeTextColor': '#d4f0d4'}}}%%
-graph TB
-    subgraph Browser["🌐  Browser · Next.js 15"]
-        UI_PIPE["Pipeline Page\ntrigger + SSE terminal"]
-        UI_POST["Posts Page\nquality scores + copy"]
-        UI_ANA["Analytics Page\ncost & token charts"]
-    end
-
-    subgraph Backend["⚙️  FastAPI · BackgroundTasks"]
-        API_RUN["POST /pipeline/run"]
-        API_SSE["GET /runs/{id}/stream\nSSE · text/event-stream"]
-        API_POST["GET /posts"]
-        API_ANA["GET /analytics/*"]
-    end
-
-    subgraph LangGraph["🤖  LangGraph Orchestrator · StateGraph"]
-        CG["ContentGenerator\ngenerate draft / revise"]
-        QA["QualityAnalyzer\nscore 0 – 1"]
-        ROUTE{"route_after_quality()\nscore ≥ 0.75 or revisions ≥ 2?"}
-        FIN["Finalize\nstatus = approved"]
-    end
-
-    subgraph AI["🧠  AI Layer"]
-        HAIKU["Claude Haiku 4.5\nWorker · $0.25 / M tokens"]
-        SONNET["Claude Sonnet 4.6\nSupervisor · $3 / M tokens\n(last resort only)"]
-        OLLAMA["Ollama · llama3.2\nFree · local · USE_LOCAL_LLM=true"]
-    end
-
-    subgraph Storage["💾  MongoDB"]
-        POSTS[("posts")]
-        RUNS[("pipeline_runs")]
-        AGENT[("agent_runs\ntokens · cost · latency")]
-        LOGS[("agent_logs\nSSE source")]
-    end
-
-    UI_PIPE -->|"POST /pipeline/run {topic}"| API_RUN
-    API_RUN -->|"run_id (immediate)"| UI_PIPE
-    API_RUN -->|"BackgroundTask"| CG
-
-    CG -->|"initial draft"| HAIKU
-    QA -->|"score + issues"| HAIKU
-    CG -.->|"revision_count = 2\nlast resort"| SONNET
-    CG & QA -.->|"USE_LOCAL_LLM=true"| OLLAMA
-
-    CG --> ROUTE
-    QA --> ROUTE
-    ROUTE -->|"pass"| FIN
-    ROUTE -->|"fail"| CG
-
-    FIN --> POSTS & RUNS
-    CG & QA -->|"log_step()"| LOGS
-
-    UI_PIPE -->|"EventSource"| API_SSE
-    API_SSE -->|"tails agent_logs\ndata: {...}\\n\\n"| UI_PIPE
-
-    UI_POST -->|"GET /posts"| API_POST
-    API_POST --> POSTS
-    UI_ANA -->|"GET /analytics/*"| API_ANA
-    API_ANA --> AGENT
-
-    HAIKU & SONNET -->|"AgentTokenTracker\ncallback"| AGENT
+flowchart LR
+    A([Research]) --> B([Write])
+    B --> C([Quality Check])
+    C -->|score ≥ threshold| D([Format & Save])
+    C -->|score < threshold| E([Revise])
+    E --> C
 ```
 
----
+This worked — until it didn't. Posts passed quality gates at 1,062 words. The threshold was `min_word_count = 1000`. The content score was 1.0. Nobody flagged anything. The reviser had no motivation to add 300 words because it had no instruction to do so.
 
-## LangGraph Pipeline — State Machine
+### Act 2 — Quality as Code
+
+The second sprint turned intuition into deterministic rules.
+
+The key insight: quality checks split cleanly into two worlds. **Structural metrics** are pure computation — you don't need a language model to count sentences per paragraph or measure the gap between two headings. **Content quality** needs an LLM, but it needs a rubric, not magic weights.
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#111111', 'primaryTextColor': '#d4f0d4', 'primaryBorderColor': '#4ade80', 'lineColor': '#4a5a4a', 'secondaryColor': '#161616', 'edgeLabelBackground': '#0b0b0b'}}}%%
-stateDiagram-v2
-    direction TB
+flowchart TD
+    post[Post Content]
 
-    [*] --> content_generation : pipeline.ainvoke(initial_state)
+    post --> structural[Layer A · Structural Checker\nPython · zero LLM cost]
+    post --> llm[Layer B · G-Eval Rubric\nLLM · 4 axes independently scored]
 
-    state content_generation {
-        [*] --> generate_draft
-        generate_draft : generate_draft\nClaude Haiku · load_template(human_initial)\nreturns GeneratedPost
-        generate_draft --> [*]
-    }
+    structural -->|paragraph_length\nheading_cadence\nintro_length\nword_count\nai_pattern\nimage_missing| merge[Merged Issues]
+    llm -->|hook_strength\nspecificity\nvoice_authenticity\ninsight_value| merge
 
-    content_generation --> quality_analysis : post written to state
-
-    state quality_analysis {
-        [*] --> score_post
-        score_post : score_post\nClaude Haiku · load_template(human_score)\nreturns QualityReport — score · issues · revision_prompt
-        score_post --> [*]
-    }
-
-    quality_analysis --> routing : quality_report written to state
-
-    state routing <<choice>>
-
-    routing --> finalize     : score ≥ 0.75\nOR revision_count ≥ max_revision_cycles (2)
-    routing --> revision     : score < 0.75\nAND revision_count < 2
-
-    state revision {
-        [*] --> rewrite
-        rewrite : rewrite\nrev 1 → Claude Haiku\nrev 2 → Claude Sonnet (escalation)\napplies revision_prompt from QualityReport
-        rewrite --> [*]
-    }
-
-    revision --> quality_analysis : revised post written to state\nrevision_count += 1
-
-    state finalize {
-        [*] --> approve
-        approve : approve\ndb.posts.update status = approved\nlog_step(Pipeline completed)
-        approve --> [*]
-    }
-
-    finalize --> [*] : ✓ done · post approved
+    merge --> gates[Layer C · Config Thresholds]
+    gates --> verdict{All 4 gates pass?}
+    verdict -->|yes| finalize([Finalize])
+    verdict -->|no + cycles left| reviser([Revise])
 ```
 
----
+**Layer A** catches deterministic structural problems — zero LLM cost, zero variability:
+- Paragraphs over 4 full sentences flagged as `paragraph_length`
+- Heading gaps over 500 words flagged as `heading_cadence`
+- Intros over 110 words flagged as `intro_length`
+- Forbidden AI phrases ("delve", "tapestry", "Moreover") flagged as `ai_pattern`
+- Posts under 1,300 words flagged as `word_count`
 
-## Request Lifecycle — One Pipeline Run
+**Layer B** uses G-Eval (EMNLP 2023) — the LLM scores 4 axes independently on a 0.0–1.0 rubric:
+
+| Axis | 1.0 | 0.0 |
+|------|-----|-----|
+| `hook_strength` | Specific outcome (number, dollar, failure) in sentence 1 before word 15 | No hook at all |
+| `specificity` | 3+ named data points (company names, dates, amounts with source) | Fully abstract, zero concrete anchors |
+| `voice_authenticity` | Contractions throughout, personal anecdote with named detail, no AI hedging | Multiple forbidden phrases, zero personal voice |
+| `insight_value` | Non-obvious claim + concession + specific prediction | Zero original insight |
+
+`content_score = mean(hook_strength, specificity, voice_authenticity, insight_value)`
+
+No more magic penalties. The LLM reasons about each axis independently — calibrated, explainable, easy to tune.
+
+**Layer C** holds the gates in config:
+
+| Gate | Threshold | What it blocks |
+|------|-----------|----------------|
+| Gate 1 · Content quality | `min_quality_score = 0.70` | Weak hook, generic voice, no insight |
+| Gate 2 · Read ratio | `min_read_ratio = 0.65` | Predicted 30-second read rate below "Strong" |
+| Gate 3 · AI patterns | `block_high_ai_patterns = True` | Any HIGH-severity forbidden phrase |
+| Gate 4 · Word count | `min_word_count = 1300` | Below Partner Program minimum |
+
+`max_revision_cycles = 6` — the pipeline gets 6 shots before it finalizes whatever it has.
+
+### Act 3 — The Series Machine
+
+The third capability was *continuity*. A single post is fine. A three-post series that reads like chapters of the same guide — where each post knows what the previous one covered and opens with a different angle — is what earns readers who follow the author.
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#111111', 'primaryTextColor': '#d4f0d4', 'primaryBorderColor': '#4ade80', 'lineColor': '#4a5a4a', 'actorBkg': '#111111', 'actorBorder': '#4ade80', 'actorTextColor': '#d4f0d4', 'noteBkgColor': '#161616', 'noteBorderColor': '#1f1f1f', 'noteTextColor': '#4a5a4a', 'signalColor': '#4a5a4a', 'signalTextColor': '#d4f0d4', 'activationBkgColor': '#161616', 'activationBorderColor': '#4ade80'}}}%%
-sequenceDiagram
-    autonumber
-    actor Browser
-    participant API       as FastAPI
-    participant Graph     as LangGraph
-    participant CG        as ContentGenerator
-    participant QA        as QualityAnalyzer
-    participant Claude    as Claude Haiku
-    participant MongoDB
-
-    Browser->>API: POST /pipeline/run { topic }
-    API-->>Browser: 200 { run_id } — returns immediately
-
-    Browser->>API: GET /pipeline/runs/{id}/stream
-    Note over Browser,API: EventSource opened — SSE connection live
-
-    activate Graph
-    API->>Graph: pipeline.ainvoke(initial_state) [BackgroundTask]
-
-    Graph->>API: log_step("Pipeline started")
-    API-->>Browser: data: { step: orchestrator, level: info }
-
-    Graph->>CG: content_generation_node(state)
-    activate CG
-    CG->>Claude: ainvoke([system_prompt, human_initial])
-    Claude-->>CG: GeneratedPost { title, content, tags }
-    CG->>MongoDB: upsert post { status: draft }
-    CG->>API: log_step("Draft generated — ~1800 words")
-    API-->>Browser: data: { step: content_generator, level: success }
-    CG-->>Graph: { post: GeneratedPost, revision_count: 0 }
-    deactivate CG
-
-    Graph->>QA: quality_analysis_node(state)
-    activate QA
-    QA->>Claude: ainvoke([system_prompt, human_score])
-    Claude-->>QA: { score: 0.82, issues: [...], revision_prompt }
-    QA->>MongoDB: update post quality_report
-    QA->>API: log_step("Quality score: 0.82 — Passed threshold")
-    API-->>Browser: data: { step: quality_analyzer, level: success }
-    QA-->>Graph: { quality_report: QualityReport }
-    deactivate QA
-
-    Note over Graph: route_after_quality()<br/>score 0.82 ≥ 0.75 → finalize
-
-    Graph->>MongoDB: update post { status: approved }
-    Graph->>API: log_step("Post approved. Final quality score: 0.82")
-    API-->>Browser: data: { step: orchestrator, level: success }
-    API-->>Browser: data: { __done__: true }
-    deactivate Graph
-
-    Note over Browser: EventSource.close()<br/>phase = done
-
-    Browser->>API: GET /posts/{run_id}
-    API->>MongoDB: find post
-    MongoDB-->>API: Post + QualityReport
-    API-->>Browser: 200 Post
-    Note over Browser: ResultCard rendered<br/>score 82/100 · read ratio 71%
+flowchart TD
+    topic[Topic + Goal]
+    topic --> planner[Series Planner\nClaude Sonnet · outline]
+    planner -->|Post 1: angle + hook_seed| p1[Pipeline Run 1]
+    planner -->|Post 2: angle + hook_seed| p2[Pipeline Run 2]
+    planner -->|Post 3: angle + hook_seed| p3[Pipeline Run 3]
+    p1 -->|series_context injected| p2
+    p2 -->|series_context injected| p3
+    p1 & p2 & p3 --> db[(MongoDB\nseries collection)]
 ```
+
+The series planner drafts a 3–5 post series outline. Each entry gets a unique `angle` and a `hook_seed` — a single sentence handed to the writer as the first thing to write: specific, grounded, no topic announcement.
+
+Each subsequent run injects `series_context` into the writer's prompt: what the previous posts covered, what *not* to repeat, and which concepts to build on. The result is a guide that actually reads like a guide.
+
+**Validation run — DeepSeek cost savings series (June 2026):**
+
+| Post | Words | Content Score | Boost Eligible | Revisions |
+|------|-------|---------------|----------------|-----------|
+| 1 | 1,356 | 1.00 | ✓ | 2 |
+| 2 | 1,302 | 1.00 | ✓ | 6 |
+| 3 | 1,363 | 1.00 | ✓ | 2 |
+
+All three passed. Post 2 hit 6 revisions and barely cleared 1,302 words — the diminishing-increment problem when content score is already 1.0 and only word count fails. That's a known issue, tracked.
 
 ---
 
-## Cost Model
-
-The pipeline uses the cheapest model that can do the job and escalates only when needed.
+## Current Architecture
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#111111', 'primaryTextColor': '#d4f0d4', 'primaryBorderColor': '#4ade80', 'lineColor': '#4a5a4a', 'edgeLabelBackground': '#0b0b0b'}}}%%
-graph LR
-    START(["topic"]):::start
+flowchart TD
+    api[FastAPI · POST /pipeline/runs]
+    api --> state[AgentState · LangGraph]
 
-    subgraph Attempt_0 ["Attempt 1 — always Haiku"]
-        CG0["ContentGenerator\nClaude Haiku · ~$0.003"]
-        QA0["QualityAnalyzer\nClaude Haiku · ~$0.002"]
-        PASS0{score ≥ 0.75?}
-        CG0 --> QA0 --> PASS0
+    state --> trend[Trend Researcher\nTavily · angles]
+    trend --> exemplar[Exemplar Retrieval\nMongoDB · few-shot]
+    exemplar --> writer[Content Generator\nClaude Haiku · draft]
+
+    writer --> structural[Structural Checker\nPython · zero cost]
+    writer --> llm_quality[Quality Analyzer\nClaude Sonnet · G-Eval]
+    structural --> merge_issues[Merge Issues]
+    llm_quality --> merge_issues
+
+    merge_issues --> gate{All 4 gates pass?}
+    gate -->|yes| formatter[Formatter · pull quotes]
+    gate -->|no, cycles left| reviser[Reviser · Claude Haiku]
+    reviser --> writer
+
+    formatter --> mongo[(MongoDB)]
+    formatter --> sse[SSE Stream → Frontend]
+
+    subgraph series [Series Mode]
+        sp[Series Planner] --> r1[Run 1]
+        r1 -->|series_context| r2[Run 2]
+        r2 -->|series_context| r3[Run 3]
     end
-
-    subgraph Attempt_1 ["Attempt 2 — Haiku revision"]
-        CG1["ContentGenerator\nClaude Haiku · ~$0.003"]
-        QA1["QualityAnalyzer\nClaude Haiku · ~$0.002"]
-        PASS1{score ≥ 0.75?}
-        CG1 --> QA1 --> PASS1
-    end
-
-    subgraph Attempt_2 ["Attempt 3 — Sonnet escalation"]
-        CG2["ContentGenerator\nClaude Sonnet · ~$0.025"]
-        QA2["QualityAnalyzer\nClaude Haiku · ~$0.002"]
-        CG2 --> QA2
-    end
-
-    DONE(["✓ approved"]):::done
-
-    START --> CG0
-    PASS0 -->|"✓ pass\n~$0.005 total"| DONE
-    PASS0 -->|"✗ fail"| CG1
-    PASS1 -->|"✓ pass\n~$0.012 total"| DONE
-    PASS1 -->|"✗ fail"| CG2
-    QA2 --> DONE
-
-    NOTE["~$0.035 worst case\nvs ~$0.050 always-Sonnet"]:::note
-
-    classDef start fill:#001a0d,stroke:#4ade80,color:#4ade80
-    classDef done fill:#001a0d,stroke:#4ade80,color:#4ade80
-    classDef note fill:#0b0b0b,stroke:#1f1f1f,color:#4a5a4a
 ```
 
----
-
-## CI/CD Pipeline
-
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#111111', 'primaryTextColor': '#d4f0d4', 'primaryBorderColor': '#4ade80', 'lineColor': '#4a5a4a', 'clusterBkg': '#0d0d0d', 'clusterBorder': '#1f1f1f', 'edgeLabelBackground': '#0b0b0b'}}}%%
-graph TD
-    PR(["Pull Request\nor push to master"])
-
-    subgraph CI ["ci.yml — every PR + push"]
-        direction LR
-        BE["Backend CI\nruff · black · mypy\npytest tests/ --timeout=30"]
-        FE["Frontend CI\ntsc · eslint · jest --ci\nnext build"]
-        E2E["Frontend E2E\nPlaywright · Chromium\nSSE mocked via page.route()"]
-        DOCK["Docker Build\nboth images — push: false\nPR only"]
-
-        BE & FE --> E2E
-        BE & FE --> DOCK
-    end
-
-    subgraph EVAL ["eval.yml — PR touching agents/ or prompts/"]
-        GATE["Eval Gate\npytest evals/ -m 'not eval_deep'\nLayer 1 + 2 · ~$0.04 · ~2 min\nblocks merge if accuracy < 75%"]
-    end
-
-    subgraph DEPLOY ["deploy.yml — push to master only"]
-        direction LR
-        BUILD["Build & Push Images\nGHCR backend:sha+latest\nGHCR frontend:sha+latest"]
-        RW["Deploy Backend\nrailway up --service backend --detach"]
-        VL["Deploy Frontend\nvercel build --prod\nvercel deploy --prebuilt --prod"]
-        SUM["Step Summary\n| Service | Status |\n|---------|--------|"]
-
-        BUILD --> RW & VL --> SUM
-    end
-
-    PR --> CI
-    PR --> EVAL
-    PR -->|"merge to master"| DEPLOY
-
-    classDef trigger fill:#001a0d,stroke:#4ade80,color:#4ade80
-    class PR trigger
-```
-
----
-
-## LLMOps Patterns
-
-Each pattern was built, broken, debugged, and verified with tests before moving on.
-
-| Week | Pattern | Production problem it solves |
-|---|---|---|
-| 1 | **3-layer eval pipeline** | Prompt regressions reach production silently — eval gate blocks them before merge |
-| 2 | **Ollama local switch** | API bills during development — `USE_LOCAL_LLM=true` routes everything to a free local model |
-| 2 | **SSE streaming** | Polling creates 2× DB round trips per second — SSE uses one persistent connection |
-| 3 | **Prompt versioning** | Prompts buried in code can't be reviewed or rolled back — `.txt` files in git with eval gate trigger |
-| 4 | **LangChain retry + tenacity** | Anthropic 529 overloaded errors fail silently — automatic backoff with jitter |
-
----
-
-## Stack
+### Tech Stack
 
 | Layer | Technology |
-|---|---|
-| Orchestration | LangGraph (StateGraph with revision loop) |
-| LLM — worker | Claude Haiku 4.5 ($0.25/M tokens) |
-| LLM — supervisor | Claude Sonnet 4.6 ($3/M tokens, last resort only) |
-| Local LLM | Ollama (`USE_LOCAL_LLM=true` — zero cost, drop-in swap) |
-| Agent framework | LangChain · `.with_structured_output(PydanticModel)` |
-| Observability | LangSmith tracing · per-agent token + cost tracking |
-| Backend | FastAPI · Motor (async MongoDB) |
-| Frontend | Next.js 15 · React 19 · TypeScript · Tailwind CSS · Recharts |
-| Tests | pytest (31 unit) · Jest + RTL (15 unit) · Playwright (9 E2E) |
-| CI/CD | GitHub Actions · Railway · Vercel · GHCR |
-| Database | MongoDB 7 (Docker local) · MongoDB Atlas M0 (production) |
+|-------|-----------|
+| Orchestration | LangGraph (StateGraph) |
+| LLM — supervisor | Claude Sonnet 4.6 |
+| LLM — workers | Claude Haiku 4.5 |
+| LLM — optional | DeepSeek V3 / Ollama (local) |
+| Web research | Tavily Search API |
+| Storage | MongoDB (Motor async) |
+| API | FastAPI + Server-Sent Events |
+| Frontend | Next.js 14 + Tailwind CSS |
+| Prompts | Git-versioned `.txt` files |
+| Config | Pydantic Settings (env vars) |
 
 ---
 
-## Quick Start
+## Quality Snapshot Analytics
 
-### Prerequisites
+Every quality check — pass or fail — writes a snapshot to MongoDB's `quality_snapshots` collection. This accumulates a dataset of which issue categories persist across revision cycles and which revision prompts are most effective.
 
-- Python 3.11+ and Node.js 22+
-- Docker (for local MongoDB) or MongoDB on port 27017
-- [Anthropic API key](https://console.anthropic.com)
-
-### 1. Clone and configure
-
-```bash
-git clone https://github.com/GatoProgramador-01/medium-agent-factory
-cd medium-agent-factory
-cp .env.example .env
-# Edit .env — add ANTHROPIC_API_KEY at minimum
+```json
+{
+  "run_id": "abc-123",
+  "iteration": 2,
+  "score": 0.74,
+  "passed": false,
+  "gate_failures": ["word_count"],
+  "issue_summary": { "high": 0, "medium": 1, "low": 1, "total": 2 },
+  "issues": [
+    { "severity": "LOW", "category": "word_count", "location": "full post", "suggestion": "..." }
+  ],
+  "topic": "DeepSeek cost savings",
+  "series_id": "ce30bf36"
+}
 ```
 
-### 2. Start MongoDB
-
-```bash
-docker run -d -p 27017:27017 --name mongo mongo:7
+Query example — which categories block posts most often:
+```javascript
+db.quality_snapshots.aggregate([
+  { $unwind: "$issues" },
+  { $group: { _id: "$issues.category", count: { $sum: 1 } } },
+  { $sort: { count: -1 } }
+])
 ```
 
-### 3. Backend
+---
+
+## Test Suite
+
+116 tests, all passing. TDD throughout — every feature started with a failing test.
+
+```
+tests/
+├── test_routing.py              # route_after_quality — pure logic, no LLM
+├── test_structural_checker.py   # 19 tests · paragraph, heading, intro, word count, phrases
+├── test_quality_snapshot.py     # MongoDB snapshot persistence + structural integration
+├── test_prompt_refinements.py   # G-Eval rubric presence, category name canonicalization
+├── test_validators.py           # Pydantic unicode-normalizer coerce fix
+├── test_formatter.py            # Pull quote extraction, formatting rules
+├── test_series_context.py       # Series planner output, continuity injection
+├── test_llm_factory.py          # get_llm() routing (Anthropic / DeepSeek / Ollama)
+├── test_prompt_loader.py        # Prompt file loading and caching
+└── e2e/
+    └── test_api.py              # Real FastAPI + real MongoDB
+```
+
+---
+
+## Sprint History
+
+| Sprint | What shipped |
+|--------|-------------|
+| 1 · Core pipeline | Write → Quality → Revise → Format loop with LangGraph |
+| 2 · Quality v1 | Penalty weight scoring system |
+| 3 · Series mode | Series planner, `series_context` injection, continuity |
+| 4 · Read ratio | Predicted 30-sec read rate as a separate gate |
+| 5 · Quality redesign | Structural checker (Layer A) + G-Eval rubric (Layer B) + config gates (Layer C) |
+| 6 · Word count fix | `min_word_count` raised 1000 → 1300, validated with DeepSeek series |
+| **7 · Source reliability** | **FactChecker agent — claim extraction + Tavily verification + hyperlink injection** |
+
+---
+
+## Sprint 7 — Source Reliability
+
+### The Problem
+
+The pipeline produces content with statistics and dollar amounts that look authoritative but have no verifiable source. This violates the AP Stylebook rule that every percentage, dollar figure, and survey result needs a named primary source. It also means content can contain hallucinated numbers — research shows LLM hallucination rates on numeric claims are in the **critical** category, with LLMs producing round numbers (50%, $1B, 3×) at 3.7× the rate of factual writing ([UC Berkeley hallucination research](https://arxiv.org/html/2504.17550v1)).
+
+RAG-grounded verification pipelines cut hallucinations by 59% versus fully autonomous generation ([ACM FAccT 2024](https://arxiv.org/html/2412.15189v3)). The intervention is targeted Tavily search per claim — approximately $0.001 per check.
+
+### The Architecture
+
+A new `fact_checker.py` agent runs as a LangGraph node **after the writer, before quality analysis**. It extracts every factual claim, searches for evidence in parallel, and injects results as structured `QualityIssue` entries.
+
+```mermaid
+flowchart TD
+    writer[Content Generator]
+    writer --> extractor[Claim Extractor\nClaude Haiku · structured output]
+    extractor -->|list of AtomicClaim| parallel[Parallel Tavily Searches\none per claim]
+    parallel --> verdict[Verdict · SUPPORTED / UNVERIFIABLE]
+    verdict -->|SUPPORTED → inject source hyperlink| annotate[Annotate Draft]
+    verdict -->|UNVERIFIABLE → QualityIssue unattributed_claim| issues[Issue List]
+    annotate --> quality[Quality Analyzer]
+    issues --> quality
+```
+
+**Claim types extracted:** statistics · percentages · dollar amounts · dates · company claims · product names
+
+**Verdict labels** (mirrors [production citation systems](https://arxiv.org/html/2511.16198v1)):
+- `SUPPORTED` — Tavily snippet entails the claim → source URL injected as hyperlink in the draft
+- `UNVERIFIABLE` — no Tavily result entails the claim → `QualityIssue(severity="HIGH", category="unattributed_claim")`
+
+**Medium citation format** (hyperlinked anchor text — [best for reader experience on Medium](https://medium.com/@bjdixon/citations-and-footnotes-on-medium-3713cc665722)):
+```markdown
+According to [Anthropic's 2025 pricing page](https://anthropic.com/pricing), Claude Haiku costs $0.25 per million input tokens.
+```
+
+### Files Touched (TDD order)
+
+| Step | File | Action |
+|------|------|--------|
+| RED | `tests/test_fact_checker.py` | Write failing tests first |
+| GREEN | `app/models/post.py` | Add `AtomicClaim`, `VerificationResult` |
+| GREEN | `app/agents/fact_checker.py` | Implement extractor + verifier |
+| GREEN | `prompts/claim_extractor_system.txt` | Extraction prompt |
+| WIRE | `app/agents/orchestrator.py` | Add `fact_check_node` after writer |
+| CONFIG | `app/config.py` | Add `fact_check_enabled: bool = True` |
+
+### Success Criteria
+
+- Every HIGH-risk claim (statistic, dollar amount, percentage) in a published post has a Tavily-verified source with a hyperlink
+- `UNVERIFIABLE` claims route to the reviser, which drops or replaces them with first-person observations
+- Parallel Tavily calls — no sequential latency penalty
+- Claim extractor uses Claude Haiku (same worker tier — no new model cost)
+
+---
+
+## Getting Started
 
 ```bash
+# 1. Clone and install
 cd backend
-python -m venv .venv && .venv/Scripts/activate   # Windows
-# source .venv/bin/activate                      # macOS / Linux
+python -m venv .venv
+.\.venv\Scripts\activate    # Windows
 pip install -e ".[dev]"
-uvicorn app.main:app --reload
-# → http://localhost:8000/docs
-```
 
-### 4. Frontend
+# 2. Configure
+cp .env.example .env
+# Set: ANTHROPIC_API_KEY, TAVILY_API_KEY, MONGODB_URI
 
-```bash
-cd frontend
-npm install && npm run dev
-# → http://localhost:3000
-```
+# 3. Run the server (Windows PowerShell)
+Start-Process -FilePath ".\.venv\Scripts\python.exe" `
+  -ArgumentList "-m", "uvicorn", "app.main:app", "--port", "8000", "--reload" -NoNewWindow
 
-### 5. Run the pipeline
+# 4. Run tests
+pytest tests/ -v
 
-Open `http://localhost:3000/pipeline`, type a topic, press Enter.
-
-```bash
-# Or via curl
-curl -X POST http://localhost:8000/pipeline/run \
+# 5. Generate a single post
+curl -X POST http://localhost:8000/pipeline/runs \
   -H "Content-Type: application/json" \
-  -d '{"custom_topic": "how I cut LLM costs 10x with Ollama"}'
+  -d '{"custom_topic": "Why DeepSeek V3 cut our inference costs by 73% — with real numbers from 30 days of production logs"}'
+
+# 6. Generate a series
+curl -X POST http://localhost:8000/series \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "LLM cost optimization guide for agent developers", "num_posts": 3}'
 ```
 
----
-
-## Docker Compose
+### Alternative LLM backends
 
 ```bash
-# Full stack — backend + frontend (MongoDB must be running)
-docker compose up
+# Local (zero API cost) via Ollama
+USE_LOCAL_LLM=true LOCAL_LLM_MODEL=llama3.2 uvicorn app.main:app
 
-# With Ollama — zero Anthropic API cost
-docker compose --profile local-llm up
-docker compose exec ollama ollama pull llama3.2
-# Set USE_LOCAL_LLM=true in .env and restart backend
+# DeepSeek V3 (cheap cloud inference)
+USE_DEEPSEEK=true DEEPSEEK_API_KEY=sk-... uvicorn app.main:app
 ```
 
 ---
 
-## Development
+## Environment Variables
 
-### Backend
-
-```bash
-cd backend
-
-black .                                   # format
-ruff check .                              # lint
-mypy app/                                 # type check (strict)
-pytest tests/ -v --timeout=30            # unit tests (31 tests, no LLM calls)
-pytest evals/ -v -m "not eval_deep"      # eval gate — Layer 1 + 2
-pytest evals/ -v -m eval_deep            # nightly LLM-as-judge
-python -m evals.langsmith_eval "v1"      # visual diff in LangSmith
-```
-
-### Frontend
-
-```bash
-cd frontend
-
-npx tsc --noEmit                          # type check
-npm run lint                              # ESLint
-npm run test:unit                         # Jest + RTL (15 tests, mocked API)
-npm run test:e2e                          # Playwright — requires built app running
-npm run build                             # production build (catches runtime errors)
-```
-
----
-
-## Eval Pipeline
-
-Quality regressions are caught in CI before they merge.
-
-| Layer | What it checks | Cost | When |
-|---|---|---|---|
-| Score direction | Good posts ≥ 0.70, bad posts ≤ 0.55 per case | ~$0.002/case | Every PR |
-| Cohort mean | Score distribution doesn't drift from baseline | ~$0.04 total | Every PR |
-| LLM-as-judge | Revision prompts are specific and actionable | ~$0.005/case | Nightly only |
-
-The CI path filter only triggers eval when these paths change:
-
-```
-backend/app/agents/**    backend/prompts/**
-backend/evals/**         backend/pyproject.toml
-```
-
----
-
-## Deployment
-
-Production stack: **Railway** (backend Docker) + **Vercel** (Next.js) + **MongoDB Atlas** (free M0).
-
-### Required GitHub secrets
-
-| Secret | Source |
-|---|---|
-| `ANTHROPIC_API_KEY` | console.anthropic.com |
-| `LANGCHAIN_API_KEY` | smith.langchain.com |
-| `RAILWAY_TOKEN` | railway.app → Account Settings → Tokens |
-| `VERCEL_TOKEN` | vercel.com → Account Settings → Tokens |
-
-### Required GitHub variables
-
-| Variable | Value |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | Your Railway service URL |
-| `BACKEND_URL` | Your Railway service URL |
-| `FRONTEND_URL` | Your Vercel project URL |
-| `VERCEL_ORG_ID` | Vercel → Account Settings → General |
-| `VERCEL_PROJECT_ID` | Vercel → Project Settings → General |
-
-Once all secrets and variables are set, every push to `master` deploys automatically.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | — | Required unless `USE_LOCAL_LLM=true` or `USE_DEEPSEEK=true` |
+| `TAVILY_API_KEY` | — | Web research + fact-checking (skips gracefully when absent) |
+| `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection |
+| `MIN_QUALITY_SCORE` | `0.70` | G-Eval content score gate |
+| `MIN_READ_RATIO` | `0.65` | Predicted 30-sec read rate gate |
+| `MIN_WORD_COUNT` | `1300` | Partner Program word count minimum |
+| `MAX_REVISION_CYCLES` | `6` | Max revisions before forced finalize |
+| `USE_LOCAL_LLM` | `false` | Route all LLM calls to Ollama |
+| `USE_DEEPSEEK` | `false` | Route all LLM calls to DeepSeek |
+| `FACT_CHECK_ENABLED` | `true` | Run claim verification (Sprint 7) |
 
 ---
 
@@ -467,119 +362,31 @@ medium-agent-factory/
 ├── backend/
 │   ├── app/
 │   │   ├── agents/
-│   │   │   ├── orchestrator.py      ← LangGraph StateGraph — nodes, edges, routing
-│   │   │   ├── content_generator.py ← Claude writer — cheapest-first model strategy
-│   │   │   ├── quality_analyzer.py  ← Claude scorer — structured QualityReport output
-│   │   │   ├── llm_factory.py       ← get_llm(role) — Anthropic ↔ Ollama via env var
-│   │   │   ├── retry.py             ← with_langchain_retry() + @retryable_llm_call
-│   │   │   └── base.py              ← AgentTokenTracker (cost + latency → MongoDB)
-│   │   ├── api/
-│   │   │   ├── pipeline.py          ← trigger + SSE stream endpoint
-│   │   │   ├── posts.py
-│   │   │   └── analytics.py
-│   │   ├── prompt_loader.py         ← loads prompts/ at startup, fail-fast cache
-│   │   └── config.py                ← all settings via pydantic-settings
-│   ├── prompts/                     ← all LLM prompts as .txt files — git-versioned
+│   │   │   ├── orchestrator.py        ← LangGraph pipeline definition
+│   │   │   ├── content_generator.py   ← writer agent
+│   │   │   ├── quality_analyzer.py    ← G-Eval rubric (Layer B)
+│   │   │   ├── structural_checker.py  ← deterministic checks (Layer A)
+│   │   │   ├── fact_checker.py        ← Sprint 7 · claim verification
+│   │   │   ├── series_planner.py      ← series outline + hook seeds
+│   │   │   ├── web_researcher.py      ← Tavily trend research
+│   │   │   ├── read_ratio_analyzer.py ← predicted read rate
+│   │   │   ├── exemplar_store.py      ← few-shot exemplars
+│   │   │   └── llm_factory.py         ← get_llm(role) — single config point
+│   │   ├── models/post.py             ← QualityReport, QualityIssue, AtomicClaim
+│   │   ├── routers/
+│   │   │   ├── pipeline.py            ← POST /pipeline/runs + SSE stream
+│   │   │   ├── posts.py               ← GET /posts
+│   │   │   ├── series.py              ← POST /series
+│   │   │   └── analytics.py           ← quality_snapshots aggregations
+│   │   ├── config.py                  ← Pydantic Settings
+│   │   ├── database.py                ← Motor async client
+│   │   └── prompt_loader.py           ← git-versioned prompt cache
+│   ├── prompts/
 │   │   ├── quality_analyzer_system.txt
-│   │   ├── quality_analyzer_human.txt
 │   │   ├── content_generator_system.txt
-│   │   ├── content_generator_human_initial.txt
-│   │   └── content_generator_human_revision.txt
-│   ├── evals/
-│   │   ├── datasets/quality_analyzer.jsonl  ← curated test cases (good + bad posts)
-│   │   ├── conftest.py              ← dataset fixtures + MongoDB mock (autouse)
-│   │   ├── test_quality_analyzer.py ← Layer 1 + 2 + 3 eval tests
-│   │   └── langsmith_eval.py        ← visual experiment runner for LangSmith UI
-│   ├── tests/                       ← 31 unit tests — no LLM calls, no MongoDB
-│   │   ├── test_routing.py          ← route_after_quality pure function
-│   │   ├── test_validators.py       ← JSON coerce + curly quote normalization
-│   │   ├── test_prompt_loader.py    ← fail-fast + template variable injection
-│   │   └── test_llm_factory.py      ← model name selection + USE_LOCAL_LLM
-│   └── Dockerfile
-├── frontend/
-│   └── src/app/
-│       ├── pipeline/
-│       │   ├── page.tsx             ← SSE EventSource live log terminal
-│       │   └── page.test.tsx        ← 6 RTL unit tests (fake EventSource)
-│       ├── posts/
-│       │   ├── page.tsx             ← post list with ScoreBar + copy_markdown
-│       │   └── page.test.tsx        ← 9 RTL unit tests (mocked api module)
-│       └── analytics/page.tsx       ← per-agent token + cost Recharts
-├── docs/
-│   └── langgraph_explained.md       ← deep architecture walkthrough
-├── .github/workflows/
-│   ├── ci.yml                       ← lint · typecheck · jest · playwright · docker
-│   ├── eval.yml                     ← eval gate (path-filtered, PR only)
-│   └── deploy.yml                   ← GHCR → Railway + Vercel (master push)
-├── docker-compose.yml               ← backend + frontend + Ollama (opt-in profile)
-└── .env.example
+│   │   ├── reviser_system.txt
+│   │   └── claim_extractor_system.txt ← Sprint 7
+│   └── tests/                         ← 116 tests · TDD throughout
+├── frontend/                          ← Next.js 14 dashboard
+└── README.md
 ```
-
----
-
-## Configuration Reference
-
-| Variable | Default | Description |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | **required** | Anthropic API key |
-| `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
-| `MONGODB_DATABASE` | `medium_agent_factory` | Database name |
-| `SUPERVISOR_MODEL` | `claude-sonnet-4-6` | Model used on the final revision attempt |
-| `WORKER_MODEL` | `claude-haiku-4-5-20251001` | Model for initial generation and first revision |
-| `MIN_QUALITY_SCORE` | `0.75` | Minimum score to approve without revision |
-| `MAX_REVISION_CYCLES` | `2` | Max revision attempts before forced approval |
-| `USE_LOCAL_LLM` | `false` | Route entire pipeline to Ollama |
-| `LOCAL_LLM_MODEL` | `llama3.2` | Ollama model name |
-| `LOCAL_LLM_BASE_URL` | `http://ollama:11434` | Ollama endpoint (`localhost:11434` outside Docker) |
-| `LANGCHAIN_TRACING_V2` | `false` | Enable LangSmith tracing |
-| `LANGCHAIN_API_KEY` | — | LangSmith API key |
-| `LANGCHAIN_PROJECT` | `medium-agent-factory` | LangSmith project name |
-
----
-
-## API Reference
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/pipeline/run` | Trigger async pipeline, returns `run_id` immediately |
-| `POST` | `/pipeline/run/sync` | Trigger blocking pipeline, waits for completion |
-| `GET` | `/pipeline/runs` | List all pipeline runs |
-| `GET` | `/pipeline/runs/{id}` | Get run status and metadata |
-| `GET` | `/pipeline/runs/{id}/logs` | Get all log entries for a run |
-| `GET` | `/pipeline/runs/{id}/stream` | SSE live log stream (closes with `__done__` event) |
-| `GET` | `/posts` | List posts, optional `?status=` filter |
-| `GET` | `/posts/{run_id}` | Get post with full quality report |
-| `GET` | `/analytics/token-usage` | Per-agent token and cost breakdown |
-| `GET` | `/analytics/summary` | Aggregate pipeline statistics |
-
-Full interactive docs: `http://localhost:8000/docs`
-
----
-
-## The Posts This Pipeline Wrote About Itself
-
-After all four LLMOps weeks were complete, the pipeline was given topics about what it had just built:
-
-| Title | Score | Revisions |
-|---|---|---|
-| How I Built a Self-Evaluating LLM Pipeline That Blocks Bad AI Writing | 0.82 | 0 |
-| LLMOps Skills That Will Actually Get You Hired in 2025 | 0.82 | 0 |
-| One Environment Variable Killed My LLM API Bills | 0.82 | 0 |
-
-All three passed on the first attempt. The QualityAnalyzer's consistent feedback across all three: section headers were slightly too formulaic. The pipeline correctly diagnosed its own writing patterns.
-
----
-
-## Roadmap
-
-- [ ] Production deploy (Railway + Vercel + MongoDB Atlas)
-- [ ] Redis response cache — skip API call for identical prompts
-- [ ] Prompt A/B testing — run two versions against the eval set, promote the winner
-- [ ] LangGraph human-in-the-loop — pause before approval for manual review
-- [ ] LangGraph checkpointing (PostgresSaver) — resume interrupted runs
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
