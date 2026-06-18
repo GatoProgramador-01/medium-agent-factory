@@ -273,6 +273,7 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
                 "$set": {
                     "quality_report": {
                         "score": report.score,
+                        "word_count": report.word_count,
                         "read_ratio_prediction": report.read_ratio_prediction,
                         "medium_boost_eligible": report.medium_boost_eligible,
                         "issues": [

@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     min_quality_score: float = 0.70      # mean of 4 G-Eval content axes (hook/spec/voice/insight)
     min_read_ratio: float = 0.65         # predicted 30-sec read rate (65% = Medium "Strong")
     block_high_ai_patterns: bool = True  # any HIGH-severity AI pattern issue blocks the post
-    min_word_count: int = 1000           # under 1,000 words = too short for Partner Program
+    min_word_count: int = 1300           # under 1,300 words misses peak Partner Program earnings
     max_revision_cycles: int = 6
 
 
