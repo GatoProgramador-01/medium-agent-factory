@@ -53,7 +53,13 @@ from app.agents.exemplar_store import (
     format_exemplar_injection,
     save_exemplar,
 )
-from app.agents.fact_checker import run_fact_check
+from app.agents.fact_checker import (
+    extract_claims,
+    inject_hyperlinks,
+    results_to_issues,
+    run_fact_check,
+    verify_claims,
+)
 from app.agents.read_ratio_analyzer import format_factors_breakdown
 from app.agents.formatter import format_post
 from app.agents.logger import log_step
@@ -63,7 +69,7 @@ from app.agents.series_planner import plan_series
 from app.agents.web_researcher import research_topic
 from app.config import settings
 from app.database import get_db
-from app.models.post import PostStatus, QualityIssue, QualityReport
+from app.models.post import PostStatus, QualityIssue, QualityReport, VerificationResult
 
 
 class PipelineState(TypedDict):
@@ -80,7 +86,8 @@ class PipelineState(TypedDict):
     format_changes: Annotated[list[str], operator.add]
     revision_count: int
     quality_history: Annotated[list[dict[str, Any]], operator.add]  # score per cycle
-    fact_check_issues: list[QualityIssue]  # unverifiable claims from fact_checker_node
+    fact_check_issues: list[QualityIssue]      # unverifiable claims from fact_checker_node
+    fact_check_results: list[VerificationResult]  # all results; re-injected in format_node
     errors: Annotated[list[str], operator.add]
     completed_steps: Annotated[list[str], operator.add]
 
@@ -180,10 +187,14 @@ async def fact_check_node(state: PipelineState) -> dict[str, Any]:
     run_id = state["run_id"]
     post = state["post"]
     if not post:
-        return {"fact_check_issues": []}
+        return {"fact_check_issues": [], "fact_check_results": []}
 
     if not settings.fact_check_enabled:
-        return {"fact_check_issues": [], "completed_steps": ["fact_check_skipped"]}
+        return {
+            "fact_check_issues": [],
+            "fact_check_results": [],
+            "completed_steps": ["fact_check_skipped"],
+        }
 
     await log_step(
         run_id,
@@ -191,11 +202,19 @@ async def fact_check_node(state: PipelineState) -> dict[str, Any]:
         "Extracting and verifying factual claims (parallel Tavily searches)...",
     )
     try:
-        annotated_content, issues = await run_fact_check(post.content)
-        verified = sum(1 for i in issues if i.category != "unattributed_claim")
+        claims = await extract_claims(post.content)
+        if not claims:
+            await log_step(run_id, "fact_checker", "No verifiable claims found — skipping", level="info")
+            return {"fact_check_issues": [], "fact_check_results": [], "completed_steps": ["fact_check"]}
+
+        all_results = await verify_claims(claims)
+        annotated = inject_hyperlinks(post.content, all_results)
+        issues = results_to_issues(all_results)
+
+        hyperlinks = annotated.count("](http") - post.content.count("](http")
         unverifiable = len(issues)
-        hyperlinks = annotated_content.count("](http") - post.content.count("](http")
-        post.content = annotated_content
+        post.content = annotated
+
         await log_step(
             run_id,
             "fact_checker",
@@ -206,11 +225,12 @@ async def fact_check_node(state: PipelineState) -> dict[str, Any]:
         return {
             "post": post,
             "fact_check_issues": issues,
+            "fact_check_results": all_results,  # stored for re-injection in format_node
             "completed_steps": ["fact_check"],
         }
     except Exception as e:
         await log_step(run_id, "fact_checker", f"Fact check skipped: {e}", level="warning")
-        return {"fact_check_issues": [], "completed_steps": ["fact_check_skipped"]}
+        return {"fact_check_issues": [], "fact_check_results": [], "completed_steps": ["fact_check_skipped"]}
 
 
 async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
@@ -499,6 +519,13 @@ async def format_node(state: PipelineState) -> dict[str, Any]:
         "Formatting final approved version: splitting long paragraphs, adding separator, extracting pull quote...",
     )
     try:
+        # Re-inject source hyperlinks into the final approved content.
+        # Hyperlinks were injected into the initial draft by fact_check_node but revision
+        # cycles rewrite those phrases. Re-applying here ensures sources survive.
+        fc_results: list[VerificationResult] = state.get("fact_check_results") or []
+        if fc_results:
+            post.content = inject_hyperlinks(post.content, fc_results)
+
         result = await format_post(run_id=run_id, title=post.title, content=post.content)
 
         # Patch the post content in-place so finalize_node sees the formatted version
@@ -723,6 +750,7 @@ async def run_pipeline(
         "revision_count": 0,
         "quality_history": [],
         "fact_check_issues": [],
+        "fact_check_results": [],
         "errors": [],
         "completed_steps": [],
     }
