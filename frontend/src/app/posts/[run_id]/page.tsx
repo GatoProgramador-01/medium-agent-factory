@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, type Post } from "@/lib/api";
+import { api, type Post, type SeriesDetail } from "@/lib/api";
 import { PostContent } from "@/components/PostContent";
 import { SourcesPanel } from "@/components/SourcesPanel";
 import { RevisionHistoryPanel } from "@/components/RevisionHistoryPanel";
+import { SeriesNav } from "@/components/SeriesNav";
 
 function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
   const pct = Math.round(qr.score * 100);
@@ -110,13 +111,19 @@ function CopyButton({ content, title }: { content: string; title: string }) {
 export default function PostReaderPage() {
   const params = useParams();
   const runId  = params.run_id as string;
-  const [post, setPost]       = useState<Post | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [post, setPost]           = useState<Post | null>(null);
+  const [series, setSeries]       = useState<SeriesDetail | null>(null);
+  const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
     if (!runId) return;
     api.getPost(runId)
-      .then(setPost)
+      .then((p) => {
+        setPost(p);
+        if (p.series_id) {
+          api.getSeries(p.series_id).then(setSeries).catch(() => null);
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [runId]);
@@ -161,6 +168,15 @@ export default function PostReaderPage() {
       <div className="flex gap-10 items-start">
         {/* Article */}
         <article className="flex-1 min-w-0 reading-wrapper">
+          {/* Series navigation */}
+          {series && (
+            <SeriesNav
+              posts={series.posts}
+              currentRunId={runId}
+              theme={series.theme}
+            />
+          )}
+
           {/* Meta */}
           <div className="flex flex-wrap items-center gap-2 mb-4 text-xs" style={{ color: "var(--text-dim)" }}>
             <span

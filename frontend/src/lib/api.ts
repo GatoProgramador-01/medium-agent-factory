@@ -63,6 +63,23 @@ export type Post = {
   created_at: string;
 };
 
+export type SeriesPost = {
+  run_id: string;
+  title: string;
+  series_position: number;
+  status: string;
+  quality_score?: number;
+  word_count?: number;
+};
+
+export type SeriesDetail = {
+  series_id: string;
+  theme: string;
+  status: string;
+  created_at: string;
+  posts: SeriesPost[];
+};
+
 export type AgentUsage = {
   agent_name: string;
   total_tokens_in: number;
@@ -110,6 +127,9 @@ export const api = {
   summary: () => request<Summary>("/analytics/summary"),
 
   getLogs: (runId: string) => request<AgentLog[]>(`/pipeline/runs/${runId}/logs`),
+
+  listSeries: () => request<SeriesDetail[]>("/series"),
+  getSeries: (id: string) => request<SeriesDetail>(`/series/${id}`),
 
   /** Open an SSE connection to the live log stream for a run. */
   streamLogs: (runId: string): EventSource =>
