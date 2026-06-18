@@ -98,6 +98,7 @@ class TestQualitySnapshotPersistence:
 
         with (
             patch("app.agents.orchestrator.run_quality_analysis", return_value=report),
+            patch("app.agents.orchestrator.run_structural_checks", return_value=[]),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator.get_db", return_value=mock_db),
         ):
@@ -123,6 +124,7 @@ class TestQualitySnapshotPersistence:
 
         with (
             patch("app.agents.orchestrator.run_quality_analysis", return_value=report),
+            patch("app.agents.orchestrator.run_structural_checks", return_value=[]),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator.get_db", return_value=mock_db),
         ):
@@ -156,6 +158,7 @@ class TestQualitySnapshotPersistence:
 
         with (
             patch("app.agents.orchestrator.run_quality_analysis", return_value=report),
+            patch("app.agents.orchestrator.run_structural_checks", return_value=[]),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator.get_db", return_value=mock_db),
         ):
@@ -178,6 +181,7 @@ class TestQualitySnapshotPersistence:
 
         with (
             patch("app.agents.orchestrator.run_quality_analysis", return_value=report),
+            patch("app.agents.orchestrator.run_structural_checks", return_value=[]),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator.get_db", return_value=mock_db),
         ):
@@ -206,6 +210,7 @@ class TestQualitySnapshotPersistence:
 
         with (
             patch("app.agents.orchestrator.run_quality_analysis", return_value=report),
+            patch("app.agents.orchestrator.run_structural_checks", return_value=[]),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator.get_db", return_value=mock_db),
         ):
@@ -232,6 +237,7 @@ class TestQualitySnapshotPersistence:
 
         with (
             patch("app.agents.orchestrator.run_quality_analysis", return_value=report),
+            patch("app.agents.orchestrator.run_structural_checks", return_value=[]),
             patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
             patch("app.agents.orchestrator.get_db", return_value=mock_db),
         ):
@@ -250,3 +256,125 @@ class TestMaxRevisionCycles:
         assert s.max_revision_cycles == 6, (
             "max_revision_cycles default must be 6 — was 2, not enough for structural fixes"
         )
+
+
+# ── Structural checker integration ───────────────────────────────────────────
+
+class TestStructuralCheckerIntegration:
+    """Structural issues are prepended to LLM issues in quality_analysis_node."""
+
+    @pytest.mark.asyncio
+    async def test_structural_issues_prepended_to_llm_issues(self) -> None:
+        """Structural checker runs first; its issues appear before LLM content issues."""
+        from app.agents.orchestrator import quality_analysis_node
+
+        llm_report = _make_report(issues=[
+            QualityIssue(severity="HIGH", category="ai_pattern", location="para 1", suggestion="Remove 'Moreover'"),
+        ])
+        struct_issue = QualityIssue(
+            severity="HIGH", category="paragraph_length",
+            location="para 2", suggestion="Split paragraph",
+        )
+        mock_collection = AsyncMock()
+        mock_db = MagicMock()
+        mock_db.quality_snapshots = mock_collection
+        mock_db.posts = AsyncMock()
+        mock_db.posts.update_one = AsyncMock()
+
+        with (
+            patch("app.agents.orchestrator.run_quality_analysis", return_value=llm_report),
+            patch("app.agents.orchestrator.run_structural_checks", return_value=[struct_issue]),
+            patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
+            patch("app.agents.orchestrator.get_db", return_value=mock_db),
+        ):
+            await quality_analysis_node(_base_state())
+
+        snapshot = mock_collection.insert_one.call_args[0][0]
+        assert len(snapshot["issues"]) == 2
+        assert snapshot["issues"][0]["category"] == "paragraph_length"
+        assert snapshot["issues"][1]["category"] == "ai_pattern"
+
+    @pytest.mark.asyncio
+    async def test_structural_checker_called_with_post_content(self) -> None:
+        """Structural checker must receive the actual post content string."""
+        from app.agents.orchestrator import quality_analysis_node
+
+        llm_report = _make_report()
+        mock_structural = MagicMock(return_value=[])
+        mock_collection = AsyncMock()
+        mock_db = MagicMock()
+        mock_db.quality_snapshots = mock_collection
+        mock_db.posts = AsyncMock()
+        mock_db.posts.update_one = AsyncMock()
+
+        post_content = "The actual post content for this test."
+        state = _base_state()
+        state["post"] = _make_post_mock(content=post_content)
+
+        with (
+            patch("app.agents.orchestrator.run_quality_analysis", return_value=llm_report),
+            patch("app.agents.orchestrator.run_structural_checks", mock_structural),
+            patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
+            patch("app.agents.orchestrator.get_db", return_value=mock_db),
+        ):
+            await quality_analysis_node(state)
+
+        mock_structural.assert_called_once_with(post_content)
+
+    @pytest.mark.asyncio
+    async def test_no_structural_issues_report_unchanged(self) -> None:
+        """When structural checker finds nothing, only LLM issues appear in snapshot."""
+        from app.agents.orchestrator import quality_analysis_node
+
+        llm_report = _make_report(issues=[
+            QualityIssue(severity="HIGH", category="ai_pattern", location="p1", suggestion="fix"),
+        ])
+        mock_collection = AsyncMock()
+        mock_db = MagicMock()
+        mock_db.quality_snapshots = mock_collection
+        mock_db.posts = AsyncMock()
+        mock_db.posts.update_one = AsyncMock()
+
+        with (
+            patch("app.agents.orchestrator.run_quality_analysis", return_value=llm_report),
+            patch("app.agents.orchestrator.run_structural_checks", return_value=[]),
+            patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
+            patch("app.agents.orchestrator.get_db", return_value=mock_db),
+        ):
+            await quality_analysis_node(_base_state())
+
+        snapshot = mock_collection.insert_one.call_args[0][0]
+        assert len(snapshot["issues"]) == 1
+        assert snapshot["issues"][0]["category"] == "ai_pattern"
+
+    @pytest.mark.asyncio
+    async def test_merged_issue_summary_counts_structural_issues(self) -> None:
+        """issue_summary counts must reflect merged (structural + LLM) issues."""
+        from app.agents.orchestrator import quality_analysis_node
+
+        llm_report = _make_report(issues=[
+            QualityIssue(severity="MEDIUM", category="ai_pattern", location="p1", suggestion="fix"),
+        ])
+        structural_issues = [
+            QualityIssue(severity="HIGH", category="paragraph_length", location="s1", suggestion="split"),
+            QualityIssue(severity="HIGH", category="word_count", location="s2", suggestion="expand"),
+        ]
+        mock_collection = AsyncMock()
+        mock_db = MagicMock()
+        mock_db.quality_snapshots = mock_collection
+        mock_db.posts = AsyncMock()
+        mock_db.posts.update_one = AsyncMock()
+
+        with (
+            patch("app.agents.orchestrator.run_quality_analysis", return_value=llm_report),
+            patch("app.agents.orchestrator.run_structural_checks", return_value=structural_issues),
+            patch("app.agents.orchestrator.log_step", new_callable=AsyncMock),
+            patch("app.agents.orchestrator.get_db", return_value=mock_db),
+        ):
+            await quality_analysis_node(_base_state())
+
+        snapshot = mock_collection.insert_one.call_args[0][0]
+        summary = snapshot["issue_summary"]
+        assert summary["high"] == 2
+        assert summary["medium"] == 1
+        assert summary["total"] == 3

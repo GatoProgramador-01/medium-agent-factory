@@ -57,6 +57,7 @@ from app.agents.read_ratio_analyzer import format_factors_breakdown
 from app.agents.formatter import format_post
 from app.agents.logger import log_step
 from app.agents.quality_analyzer import run_quality_analysis
+from app.agents.structural_checker import run_structural_checks
 from app.agents.series_planner import plan_series
 from app.agents.web_researcher import research_topic
 from app.config import settings
@@ -183,12 +184,16 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
     await log_step(
         run_id,
         "quality_analyzer",
-        "Analyzing post for AI patterns and readability issues...",
+        "Analyzing post quality (structural checks + content rubric)...",
     )
     try:
         report = await run_quality_analysis(
             run_id=run_id, title=post.title, content=post.content
         )
+
+        structural_issues = run_structural_checks(post.content)
+        if structural_issues:
+            report.issues = structural_issues + report.issues
 
         passed, gate_failures = _gate_check(report)
         level = "success" if passed else "warning"
@@ -198,10 +203,10 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
         med_count = sum(1 for i in report.issues if i.severity.lower() == "medium")
         low_count = sum(1 for i in report.issues if i.severity.lower() == "low")
         score_breakdown = (
-            f"{high_count}×HIGH(-{high_count * 0.07:.2f}) "
-            f"{med_count}×MED(-{med_count * 0.03:.2f}) "
-            f"{low_count}×LOW(-{low_count * 0.01:.2f}) "
-            f"readratio({report.read_ratio_prediction:.0%})"
+            f"hook={report.hook_strength:.2f} "
+            f"spec={report.specificity_score:.2f} "
+            f"voice={report.voice_authenticity:.2f} "
+            f"insight={report.insight_value:.2f}"
         )
         rr_breakdown = (
             " | ".join(

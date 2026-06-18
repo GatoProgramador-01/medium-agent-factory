@@ -43,15 +43,20 @@ class ReadRatioFactor:
 
 @dataclass
 class QualityReport:
-    score: float  # 0.0 – 1.0, computed from issues + read_ratio
+    score: float  # 0.0–1.0, mean of 4 G-Eval content axes
     read_ratio_prediction: float  # from read_ratio_analyzer formula
-    medium_boost_eligible: bool   # meets all 6 Medium Boost criteria
+    medium_boost_eligible: bool   # meets all Medium Boost criteria
     issues: list[QualityIssue]
     strengths: list[str]
     revision_prompt: str  # injected into next content-gen pass
     word_count: int = 0   # computed from content, not LLM
     read_ratio_factors: list[ReadRatioFactor] = field(default_factory=list)
     read_ratio_hook_score: float = 0.0
+    # G-Eval content axes (Layer B rubric scores)
+    hook_strength: float = 0.0
+    specificity_score: float = 0.0
+    voice_authenticity: float = 0.0
+    insight_value: float = 0.0
 
 
 @dataclass

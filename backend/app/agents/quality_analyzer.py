@@ -1,18 +1,18 @@
 """
-QualityAnalyzerAgent
+QualityAnalyzerAgent — G-Eval style 4-axis content quality scoring.
 
-Reads a post draft and scores it on human-likeness and readability.
-Returns a structured QualityReport with specific, actionable corrections.
+Scores ONLY content quality on 4 axes (0.0–1.0 each):
+  hook_strength, specificity, voice_authenticity, insight_value
 
-Detects:
-  - AI writing patterns (transition word overuse, generic openings)
-  - Non-human rhythm (uniform sentence length, no voice variation)
-  - Formatting issues (bullet hell, excessive headers)
-  - Readability problems (passive voice, jargon without explanation)
-  - Missing human elements (no anecdote, no personal take, no specificity)
+content_score = mean(4 axes) — no magic penalty weights.
+
+Structural issues (paragraph_length, heading_cadence, intro_length, word_count,
+image_missing) are detected deterministically by structural_checker.py and merged
+in the orchestrator before the revision step.
 """
 
 import json
+from statistics import mean
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -33,51 +33,45 @@ class _Issue(BaseModel):
     suggestion: str
 
 
-_HIGH_PENALTY = 0.07
-_MEDIUM_PENALTY = 0.03
-_LOW_PENALTY = 0.01
-
-
-def _compute_score(issues: list["_Issue"], read_ratio: float) -> float:
-    """
-    Deterministic score from issues + read ratio.
-
-    LLMs are good at finding which issues exist (qualitative).
-    They are bad at calibrating a continuous 0–1 float.
-    Deductions are fixed so the same post always produces the same score
-    (modulo variance in which issues the LLM identifies).
-
-    Read ratio is a direct input: improving the intro raises read_ratio,
-    which directly raises the score — one unified signal for the reviser.
-    """
-    issue_deduction = sum(
-        _HIGH_PENALTY if i.severity.lower() == "high" else
-        _MEDIUM_PENALTY if i.severity.lower() == "medium" else
-        _LOW_PENALTY
-        for i in issues
-    )
-    if read_ratio >= 0.75:
-        ratio_deduction = 0.0
-    elif read_ratio >= 0.65:
-        ratio_deduction = 0.03
-    elif read_ratio >= 0.50:
-        ratio_deduction = 0.07
-    else:
-        ratio_deduction = 0.12
-
-    return round(max(0.0, min(1.0, 1.0 - issue_deduction - ratio_deduction)), 2)
+def _compute_content_score(
+    hook_strength: float,
+    specificity: float,
+    voice_authenticity: float,
+    insight_value: float,
+) -> float:
+    return round(mean([hook_strength, specificity, voice_authenticity, insight_value]), 2)
 
 
 class _AnalysisOutput(BaseModel):
+    hook_strength: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Hook quality: 1.0 = specific outcome in sentence 1, 0.0 = no hook",
+    )
+    specificity: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Named data points: 1.0 = 3+ concrete anchors, 0.0 = fully abstract",
+    )
+    voice_authenticity: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Human voice: 1.0 = contractions + anecdote + varied rhythm, 0.0 = AI slop",
+    )
+    insight_value: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Original insight: 1.0 = non-obvious claim + concession + prediction, 0.0 = zero insight",
+    )
     medium_boost_eligible: bool = Field(
         description=(
-            "True only if ALL six Medium Boost criteria are met: "
-            "English language, original insight, non-clickbait title, "
-            "at least one image with alt text, no self-promotion, no AI patterns."
+            "True only if ALL Medium Boost criteria are met: "
+            "English, original insight, non-clickbait title, "
+            "image with alt text, no self-promotion, no AI patterns, 3+ concrete anchors."
         )
     )
     issues: list[_Issue] = Field(
-        description="Specific problems ordered by earnings impact (platform violations first)"
+        description="Content issues ordered by earnings impact (AI patterns first)"
     )
     strengths: list[str] = Field(description="What the post does well — preserve in revision")
     revision_prompt: str = Field(
@@ -95,21 +89,19 @@ class _AnalysisOutput(BaseModel):
         try:
             return json.loads(v)
         except json.JSONDecodeError:
-            # LLMs sometimes embed smart-quotes or em-dashes in JSON strings,
-            # breaking strict parsing. Normalize the most common offenders.
             cleaned = (
                 v.replace("‘", "'")
-                .replace("’", "'")  # curly single quotes
+                .replace("’", "'")
                 .replace("“", '"')
-                .replace("”", '"')  # curly double quotes
+                .replace("”", '"')
                 .replace("—", "-")
-                .replace("–", "-")  # em/en dashes
-                .replace("…", "...")  # ellipsis char
+                .replace("–", "-")
+                .replace("…", "...")
             )
             try:
                 return json.loads(cleaned)
             except json.JSONDecodeError:
-                return []  # last resort: empty list, don't crash the pipeline
+                return []
 
 
 async def run_quality_analysis(
@@ -142,7 +134,6 @@ async def run_quality_analysis(
     if output is None:
         raise ValueError("quality_analyzer: LLM returned None — structured output failed")
 
-    # Read ratio is computed by the dedicated analyzer — not guessed by this LLM.
     rr = await analyze_read_ratio(run_id=run_id, content=content)
 
     issues = [
@@ -155,7 +146,12 @@ async def run_quality_analysis(
         for i in output.issues
     ]
 
-    score = _compute_score(output.issues, rr.predicted_ratio)
+    score = _compute_content_score(
+        output.hook_strength,
+        output.specificity,
+        output.voice_authenticity,
+        output.insight_value,
+    )
 
     rr_factors: list[ReadRatioFactor] = [
         ReadRatioFactor(
@@ -177,4 +173,8 @@ async def run_quality_analysis(
         word_count=len(content.split()),
         read_ratio_factors=rr_factors,
         read_ratio_hook_score=rr.hook_score,
+        hook_strength=output.hook_strength,
+        specificity_score=output.specificity,
+        voice_authenticity=output.voice_authenticity,
+        insight_value=output.insight_value,
     )

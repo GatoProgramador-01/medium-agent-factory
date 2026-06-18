@@ -6,6 +6,8 @@ Each test is tied to a specific structural pattern the 1.0 post used that was
 not yet codified in the prompts.
 """
 
+import pytest
+
 from app.prompt_loader import load_prompt, load_template
 
 
@@ -126,16 +128,6 @@ class TestContentReviserHumanTemplate:
 
 
 class TestQualityAnalyzerSystemPrompt:
-    def test_suboptimal_word_count_flagged(self) -> None:
-        """Quality analyzer must flag 1000-1299 word posts as LOW severity."""
-        system = load_prompt("quality_analyzer_system")
-        assert "1,000" in system and "1,299" in system or "1000" in system and "1299" in system or (
-            "LOW" in system and "word" in system.lower() and "1,3" in system
-        ), (
-            "quality_analyzer_system.txt must flag posts in 1,000-1,299 word range as LOW — "
-            "they pass the gate but earn less than the 1,300-1,700 optimal range"
-        )
-
     def test_missing_table_flagged_as_medium(self) -> None:
         """Quality analyzer must flag missing data table on quantitative posts as MEDIUM."""
         system = load_prompt("quality_analyzer_system")
@@ -166,23 +158,24 @@ class TestQualityAnalyzerSystemPrompt:
     def test_canonical_snake_case_category_names_enforced(self) -> None:
         """Quality analyzer must output issue categories from a fixed snake_case list."""
         system = load_prompt("quality_analyzer_system")
-        assert "paragraph_length" in system and "heading_cadence" in system and "ai_pattern" in system, (
+        assert "ai_pattern" in system and "missing_data_point" in system and "generic_close" in system, (
             "quality_analyzer_system.txt must specify canonical snake_case category names "
-            "so quality_snapshots aggregation works correctly — "
-            "data showed Platform Compliance/platform_compliance/Platform compliance as 3 different keys"
+            "for content-quality issues (ai_pattern, missing_data_point, generic_close)"
         )
 
-    def test_all_required_category_names_present(self) -> None:
-        """All canonical categories must be listed so the LLM doesn't invent new ones."""
+    def test_all_required_content_category_names_present(self) -> None:
+        """Content-quality categories must be listed so the LLM doesn't invent new ones.
+        Structural categories (paragraph_length, heading_cadence, intro_length, word_count,
+        image_missing) are handled by structural_checker.py — they are NOT in the LLM prompt."""
         system = load_prompt("quality_analyzer_system")
         required = [
-            "paragraph_length", "heading_cadence", "intro_length",
-            "word_count", "ai_pattern", "missing_data_point",
-            "generic_close", "missing_table", "missing_code_block",
+            "ai_pattern", "missing_data_point", "generic_close",
+            "missing_table", "missing_code_block", "specificity",
+            "pattern_interrupt", "unattributed_claim",
         ]
         missing = [c for c in required if c not in system]
         assert not missing, (
-            f"quality_analyzer_system.txt is missing canonical categories: {missing}"
+            f"quality_analyzer_system.txt is missing content-quality categories: {missing}"
         )
 
 
@@ -277,3 +270,69 @@ class TestContentGeneratorWordCountTarget:
             "all 11 snapshots from 3-case test landed under 1,300 when targeting 1,300–1,700; "
             "raise the floor target so natural landing zone shifts to 1,400-1,500"
         )
+
+
+# ── Quality Analyzer — G-Eval rubric ─────────────────────────────────────────
+
+class TestQualityAnalyzerRubric:
+    """G-Eval 4-axis rubric replaces magic penalty scoring."""
+
+    def test_prompt_has_hook_strength_axis(self) -> None:
+        system = load_prompt("quality_analyzer_system")
+        assert "hook_strength" in system, (
+            "quality_analyzer_system.txt must define hook_strength axis for G-Eval scoring"
+        )
+
+    def test_prompt_has_specificity_axis(self) -> None:
+        system = load_prompt("quality_analyzer_system")
+        assert "specificity" in system, (
+            "quality_analyzer_system.txt must define specificity axis"
+        )
+
+    def test_prompt_has_voice_authenticity_axis(self) -> None:
+        system = load_prompt("quality_analyzer_system")
+        assert "voice_authenticity" in system, (
+            "quality_analyzer_system.txt must define voice_authenticity axis"
+        )
+
+    def test_prompt_has_insight_value_axis(self) -> None:
+        system = load_prompt("quality_analyzer_system")
+        assert "insight_value" in system, (
+            "quality_analyzer_system.txt must define insight_value axis"
+        )
+
+    def test_each_axis_has_scale_boundaries(self) -> None:
+        """G-Eval CoT rubric must define what 0.0 and 1.0 mean for each axis."""
+        system = load_prompt("quality_analyzer_system")
+        assert "1.0" in system and "0.0" in system, (
+            "quality_analyzer_system.txt must have 0.0/1.0 boundary definitions per axis "
+            "(G-Eval style CoT)"
+        )
+
+    def test_structural_sections_removed_from_llm_prompt(self) -> None:
+        """Structural checks belong to Python (structural_checker.py) — not the LLM."""
+        system = load_prompt("quality_analyzer_system")
+        for removed in ["PARAGRAPH LENGTH —", "HEADING CADENCE —", "WORD COUNT —"]:
+            assert removed not in system, (
+                f"'{removed}' should be removed from quality_analyzer_system.txt — "
+                "structural checks are deterministic Python now (run_structural_checks)"
+            )
+
+
+# ── Quality Analyzer — score computation ─────────────────────────────────────
+
+class TestQualityAnalyzerScoring:
+    """content_score = mean(hook_strength, specificity, voice_authenticity, insight_value)."""
+
+    def test_score_is_mean_of_four_axes(self) -> None:
+        from app.agents.quality_analyzer import _compute_content_score
+        assert _compute_content_score(1.0, 0.8, 0.6, 0.4) == pytest.approx(0.7)
+        assert _compute_content_score(1.0, 1.0, 1.0, 1.0) == pytest.approx(1.0)
+        assert _compute_content_score(0.0, 0.0, 0.0, 0.0) == pytest.approx(0.0)
+        assert _compute_content_score(0.8, 0.6, 0.8, 0.6) == pytest.approx(0.7)
+
+    def test_no_magic_penalty_weights_in_module(self) -> None:
+        import app.agents.quality_analyzer as qa
+        assert not hasattr(qa, "_HIGH_PENALTY"), "_HIGH_PENALTY must be removed — use 4-axis mean"
+        assert not hasattr(qa, "_MEDIUM_PENALTY"), "_MEDIUM_PENALTY must be removed"
+        assert not hasattr(qa, "_LOW_PENALTY"), "_LOW_PENALTY must be removed"
