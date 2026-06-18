@@ -457,13 +457,49 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
             )
             prior_cycle_summary = "\n".join(lines) + "\n"
 
+    # When ONLY word count fails, inject a mandatory expansion protocol.
+    # Without this, the reviser adds ~30-50 words per cycle (diminishing returns)
+    # because "add ~88 words" gives no structural mandate. Force one big addition.
+    word_count_only = (
+        len(gate_failures) == 1
+        and "word count" in gate_failures[0]
+    )
+    if word_count_only:
+        deficit = settings.min_word_count - report.word_count
+        target = settings.min_word_count + 150
+        expansion_protocol = (
+            f"━━━ MANDATORY EXPANSION PROTOCOL — WORD COUNT IS THE ONLY FAILING GATE ━━━\n"
+            f"Content quality score is {report.score:.2f}/1.0 — PERFECT. Nothing needs fixing except length.\n"
+            f"Current word count: {report.word_count}. Minimum required: {settings.min_word_count}. "
+            f"Deficit: {deficit} words.\n"
+            f"Your target for this revision: {target} words (150-word buffer above the gate floor).\n\n"
+            f"⚠ DO NOT make small additions. Previous revision cycles already tried adding {deficit} words\n"
+            f"in small increments and failed to clear the gate. Incremental padding will not work.\n\n"
+            f"REQUIRED — make ONE substantial structural addition:\n"
+            f"  1. Find the 2 shortest body sections (after the intro, after the first ##).\n"
+            f"  2. Pick the section where a concrete example, numbered walkthrough, or comparison\n"
+            f"     table would fit most naturally.\n"
+            f"  3. Add that sub-section now — minimum 100 words of specific, nameable content:\n"
+            f"     • A numbered step-by-step (e.g. 'Here is exactly how I configured it:')\n"
+            f"     • A mini case study ('In my agent, this looked like...')\n"
+            f"     • A comparison table if the section makes a quantitative claim\n"
+            f"     • A 'what I tried first and why it failed' paragraph with named tools/costs\n"
+            f"  4. If no existing section can absorb 100 words naturally, add a new ## section\n"
+            f"     on the most obvious follow-up question a reader would ask after the current ending.\n\n"
+            f"DO NOT add filler sentences, transition summaries, or closing encouragement.\n"
+            f"Every added sentence must carry a fact, a number, or a named example.\n"
+        )
+        final_revision_prompt = expansion_protocol + "\n" + report.revision_prompt
+    else:
+        final_revision_prompt = report.revision_prompt
+
     try:
         revised = await revise_post(
             run_id=run_id,
             title=post.title,
             content=post.content,
             score=report.score,
-            revision_prompt=report.revision_prompt,
+            revision_prompt=final_revision_prompt,
             issues=[
                 {
                     "category": i.category,
