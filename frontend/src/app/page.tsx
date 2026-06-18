@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, type Summary } from "@/lib/api";
+import { api, type Post, type Summary } from "@/lib/api";
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
@@ -14,12 +14,25 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   );
 }
 
+function scoreColor(score: number) {
+  if (score >= 0.90) return "var(--green)";
+  if (score >= 0.75) return "var(--amber)";
+  return "var(--red)";
+}
+
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [summary, setSummary]   = useState<Summary | null>(null);
+  const [posts, setPosts]       = useState<Post[]>([]);
+  const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
-    api.summary().then(setSummary).catch(console.error).finally(() => setLoading(false));
+    Promise.all([
+      api.summary(),
+      api.listPosts(),
+    ])
+      .then(([s, p]) => { setSummary(s); setPosts(p); })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -78,6 +91,70 @@ export default function DashboardPage() {
           View Posts
         </Link>
       </div>
+
+      {/* Recent Posts */}
+      {!loading && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold" style={{ color: "var(--text-muted)" }}>
+              Recent Posts
+            </h2>
+            <Link
+              href="/posts"
+              className="text-xs"
+              style={{ color: "var(--orange)", textDecoration: "none" }}
+            >
+              View all →
+            </Link>
+          </div>
+
+          {posts.length === 0 ? (
+            <div
+              className="card p-6 text-center text-sm"
+              data-testid="recent-posts-empty"
+              style={{ color: "var(--text-muted)" }}
+            >
+              No posts yet — run the pipeline to get started.
+            </div>
+          ) : (
+            <div className="space-y-2" data-testid="recent-posts">
+              {posts.slice(0, 3).map((p) => {
+                const score = p.quality_report?.score ?? null;
+                return (
+                  <Link
+                    key={p.run_id}
+                    href={`/posts/${p.run_id}`}
+                    data-testid={`recent-post-${p.run_id}`}
+                    className="card p-4 flex items-center justify-between gap-4 group block"
+                    style={{ textDecoration: "none" }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-sm font-medium truncate group-hover:text-white transition-colors"
+                        style={{ color: "var(--text)" }}
+                      >
+                        {p.title}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-dim)" }}>
+                        {new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        {" · "}{p.status}
+                      </p>
+                    </div>
+                    {score !== null && (
+                      <span
+                        className="shrink-0 text-sm font-bold tabular-nums"
+                        style={{ color: scoreColor(score) }}
+                      >
+                        {Math.round(score * 100)}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
