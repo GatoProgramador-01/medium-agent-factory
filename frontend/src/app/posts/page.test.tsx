@@ -32,6 +32,7 @@ const DRAFT_POST = {
   ...MOCK_POST,
   run_id: "run-2",
   title: "Draft Post",
+  tags: ["writing"],
   status: "draft",
   quality_report: null,
 };
@@ -255,6 +256,64 @@ describe("PostsPage", () => {
       await user.type(screen.getByTestId("search-input"), "Another");
       expect(screen.getAllByTestId("post-card")).toHaveLength(1);
       expect(screen.getByText("Another Boost Post")).toBeInTheDocument();
+    });
+  });
+
+  describe("Tag filter", () => {
+    const AI_POST   = { ...MOCK_POST, run_id: "run-ai",   title: "AI Post",   tags: ["ai", "llm"]       };
+    const COST_POST = { ...MOCK_POST, run_id: "run-cost",  title: "Cost Post",  tags: ["cost", "llm"]     };
+    const MISC_POST = { ...MOCK_POST, run_id: "run-misc",  title: "Misc Post",  tags: ["writing"]          };
+
+    it("clicking a tag pill filters posts to those sharing that tag", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([AI_POST, COST_POST, MISC_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(3));
+      await user.click(screen.getAllByTestId("tag-llm")[0]);
+      expect(screen.getAllByTestId("post-card")).toHaveLength(2);
+      expect(screen.getByText("AI Post")).toBeInTheDocument();
+      expect(screen.getByText("Cost Post")).toBeInTheDocument();
+    });
+
+    it("hides posts that do not have the selected tag", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([AI_POST, MISC_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(2));
+      await user.click(screen.getByTestId("tag-ai"));
+      expect(screen.queryByText("Misc Post")).not.toBeInTheDocument();
+    });
+
+    it("shows active tag chip in the filter bar", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([AI_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getByTestId("post-card")).toBeInTheDocument());
+      await user.click(screen.getByTestId("tag-ai"));
+      expect(screen.getByTestId("active-tag-filter")).toBeInTheDocument();
+    });
+
+    it("clicking the clear-tag button removes the tag filter", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([AI_POST, MISC_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(2));
+      await user.click(screen.getByTestId("tag-ai"));
+      expect(screen.getAllByTestId("post-card")).toHaveLength(1);
+      await user.click(screen.getByTestId("clear-tag-filter"));
+      expect(screen.getAllByTestId("post-card")).toHaveLength(2);
+    });
+
+    it("tag filter combines with title search", async () => {
+      const user = userEvent.setup();
+      const SECOND_LLM = { ...MOCK_POST, run_id: "run-llm2", title: "Second LLM Post", tags: ["llm"] };
+      (api.listPosts as jest.Mock).mockResolvedValue([AI_POST, COST_POST, SECOND_LLM]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(3));
+      await user.click(screen.getAllByTestId("tag-llm")[0]);
+      await user.type(screen.getByTestId("search-input"), "Cost");
+      expect(screen.getAllByTestId("post-card")).toHaveLength(1);
+      expect(screen.getByText("Cost Post")).toBeInTheDocument();
     });
   });
 });

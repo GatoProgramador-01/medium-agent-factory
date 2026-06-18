@@ -47,7 +47,7 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-function PostCard({ post }: { post: Post }) {
+function PostCard({ post, onTagClick }: { post: Post; onTagClick: (tag: string) => void }) {
   const qr = post.quality_report;
   const wordCount = post.content ? post.content.split(/\s+/).length : 0;
   const readMin = Math.ceil(wordCount / 220);
@@ -109,19 +109,22 @@ function PostCard({ post }: { post: Post }) {
 
           {/* Tags */}
           {post.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-3">
+            <div className="flex flex-wrap gap-1.5 mt-3" onClick={(e) => e.preventDefault()}>
               {post.tags.map((t) => (
-                <span
+                <button
                   key={t}
-                  className="text-xs px-2 py-0.5 rounded-full"
+                  data-testid={`tag-${t}`}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTagClick(t); }}
+                  className="text-xs px-2 py-0.5 rounded-full transition-colors"
                   style={{
                     background: "rgba(249,115,22,0.07)",
                     color: "var(--text-muted)",
                     border: "1px solid rgba(249,115,22,0.14)",
+                    cursor: "pointer",
                   }}
                 >
                   {t}
-                </span>
+                </button>
               ))}
             </div>
           )}
@@ -165,11 +168,12 @@ function PostCard({ post }: { post: Post }) {
 }
 
 export default function PostsPage() {
-  const [posts, setPosts]       = useState<Post[]>([]);
-  const [filter, setFilter]     = useState("");
-  const [search, setSearch]     = useState("");
+  const [posts, setPosts]         = useState<Post[]>([]);
+  const [filter, setFilter]       = useState("");
+  const [search, setSearch]       = useState("");
   const [boostOnly, setBoostOnly] = useState(false);
-  const [loading, setLoading]   = useState(true);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
     setLoading(true);
@@ -182,6 +186,7 @@ export default function PostsPage() {
   const visible = posts.filter((p) => {
     if (boostOnly && !p.quality_report?.medium_boost_eligible) return false;
     if (search.trim() && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
+    if (tagFilter && !p.tags.includes(tagFilter)) return false;
     return true;
   });
 
@@ -231,6 +236,27 @@ export default function PostsPage() {
         >
           Boost eligible
         </button>
+        {tagFilter && (
+          <div
+            data-testid="active-tag-filter"
+            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md"
+            style={{
+              background: "rgba(139,92,246,0.1)",
+              border: "1px solid rgba(139,92,246,0.3)",
+              color: "#a78bfa",
+            }}
+          >
+            #{tagFilter}
+            <button
+              data-testid="clear-tag-filter"
+              onClick={() => setTagFilter(null)}
+              className="ml-1 leading-none"
+              style={{ color: "#a78bfa", cursor: "pointer" }}
+            >
+              ×
+            </button>
+          </div>
+        )}
         <input
           data-testid="search-input"
           type="text"
@@ -276,7 +302,7 @@ export default function PostsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {visible.map((p) => <PostCard key={p.run_id} post={p} />)}
+          {visible.map((p) => <PostCard key={p.run_id} post={p} onTagClick={setTagFilter} />)}
         </div>
       )}
     </div>
