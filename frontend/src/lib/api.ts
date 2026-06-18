@@ -130,6 +130,11 @@ export const api = {
 
   listSeries: () => request<SeriesDetail[]>("/series"),
   getSeries: (id: string) => request<SeriesDetail>(`/series/${id}`),
+  triggerSeries: (theme: string, context?: string) =>
+    request<{ series_id: string; message: string }>("/series/run", {
+      method: "POST",
+      body: JSON.stringify({ theme, context: context ?? "" }),
+    }),
 
   /** Open an SSE connection to the live log stream for a run. */
   streamLogs: (runId: string): EventSource =>

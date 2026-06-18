@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api, type AgentLog, type Post } from "@/lib/api";
 
 type RunPhase = "idle" | "running" | "done";
+type Mode = "single" | "series";
 
 const STEP_ICON: Record<string, string> = {
   orchestrator:      "◈",
@@ -123,7 +124,36 @@ function ResultCard({ post }: { post: Post }) {
   );
 }
 
+function SeriesResultCard({ seriesId }: { seriesId: string }) {
+  return (
+    <div className="card p-6 space-y-4" data-testid="series-result-card">
+      <div className="flex items-center gap-2">
+        <span style={{ color: "var(--green)", fontSize: 18 }}>✓</span>
+        <span className="font-semibold" style={{ color: "var(--green)" }}>Series started</span>
+      </div>
+      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+        The pipeline is generating your series in the background. Each post is processed
+        sequentially — check back in a few minutes.
+      </p>
+      <div className="text-xs font-mono" style={{ color: "var(--text-dim)" }}>
+        series_id: {seriesId}
+      </div>
+      <Link
+        href="/series"
+        data-testid="view-series-link"
+        className="inline-block btn btn-primary text-sm"
+        style={{ textDecoration: "none" }}
+      >
+        View Series →
+      </Link>
+    </div>
+  );
+}
+
 export default function PipelinePage() {
+  const [mode,  setMode]  = useState<Mode>("single");
+
+  // Single-post state
   const [topic, setTopic] = useState("");
   const [phase, setPhase] = useState<RunPhase>("idle");
   const [runId, setRunId] = useState<string | null>(null);
@@ -132,6 +162,13 @@ export default function PipelinePage() {
   const [error, setError] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const esRef     = useRef<EventSource | null>(null);
+
+  // Series state
+  const [theme,       setTheme]       = useState("");
+  const [context,     setContext]     = useState("");
+  const [seriesPhase, setSeriesPhase] = useState<"idle" | "running" | "done">("idle");
+  const [seriesId,    setSeriesId]    = useState<string | null>(null);
+  const [seriesError, setSeriesError] = useState<string | null>(null);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -171,6 +208,17 @@ export default function PipelinePage() {
     setPhase("idle"); setLogs([]); setPost(null); setError(null); setRunId(null);
   }
 
+  async function handleSeriesRun() {
+    setSeriesPhase("running"); setSeriesId(null); setSeriesError(null);
+    try {
+      const { series_id } = await api.triggerSeries(theme.trim() || "AI trends", context.trim());
+      setSeriesId(series_id);
+      setSeriesPhase("done");
+    } catch (e) {
+      setSeriesError(String(e)); setSeriesPhase("idle");
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
@@ -182,8 +230,28 @@ export default function PipelinePage() {
         </p>
       </div>
 
-      {/* Input card */}
-      <div className="card p-5 space-y-4">
+      {/* Mode tabs */}
+      <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: "var(--surface-hover)" }}>
+        {(["single", "series"] as Mode[]).map((m) => (
+          <button
+            key={m}
+            data-testid={`tab-${m}`}
+            onClick={() => setMode(m)}
+            className="px-4 py-1.5 rounded-md text-sm transition-colors"
+            style={{
+              background: mode === m ? "var(--bg)" : "transparent",
+              color:      mode === m ? "var(--text)" : "var(--text-muted)",
+              fontWeight: mode === m ? 500 : 400,
+              border:     mode === m ? "1px solid var(--border)" : "1px solid transparent",
+            }}
+          >
+            {m === "single" ? "Single Post" : "Series"}
+          </button>
+        ))}
+      </div>
+
+      {/* Single-post input card */}
+      {mode === "single" && <div className="card p-5 space-y-4">
         <label className="block">
           <span className="text-xs font-medium block mb-2" style={{ color: "var(--text-muted)" }}>Topic</span>
           <input
@@ -227,7 +295,86 @@ export default function PipelinePage() {
             ) : "Generate Post"}
           </button>
         )}
-      </div>
+      </div>}
+
+      {/* Series form */}
+      {mode === "series" && (
+        <div className="card p-5 space-y-4">
+          <label className="block">
+            <span className="text-xs font-medium block mb-2" style={{ color: "var(--text-muted)" }}>Series Theme</span>
+            <input
+              data-testid="theme-input"
+              value={theme}
+              onChange={(e) => setTheme(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && seriesPhase === "idle" && handleSeriesRun()}
+              disabled={seriesPhase === "running"}
+              placeholder="e.g. The real cost of running LLMs in production"
+              className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
+              style={{
+                background: "var(--bg)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+                fontFamily: "inherit",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "var(--orange)")}
+              onBlur={(e)  => (e.target.style.borderColor = "var(--border)")}
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-medium block mb-2" style={{ color: "var(--text-muted)" }}>
+              Context <span style={{ color: "var(--text-dim)" }}>(optional — extra background for the planner)</span>
+            </span>
+            <textarea
+              data-testid="context-input"
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              disabled={seriesPhase === "running"}
+              placeholder="e.g. Focus on Anthropic, OpenAI and DeepSeek; avoid Gemini"
+              rows={3}
+              className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors resize-none"
+              style={{
+                background: "var(--bg)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+                fontFamily: "inherit",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "var(--orange)")}
+              onBlur={(e)  => (e.target.style.borderColor = "var(--border)")}
+            />
+          </label>
+
+          <button
+            data-testid="run-series-button"
+            onClick={handleSeriesRun}
+            disabled={seriesPhase === "running"}
+            className="btn btn-primary w-full flex items-center justify-center gap-2"
+          >
+            {seriesPhase === "running" ? (
+              <>
+                <span
+                  className="inline-block w-3.5 h-3.5 rounded-full border-2 animate-spin"
+                  style={{ borderColor: "rgba(15,17,23,0.3)", borderTopColor: "#0f1117" }}
+                />
+                Planning Series…
+              </>
+            ) : "Generate Series"}
+          </button>
+        </div>
+      )}
+
+      {seriesError && mode === "series" && (
+        <div
+          className="rounded-lg p-4 text-sm"
+          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid var(--red)", color: "var(--red)" }}
+        >
+          {seriesError}
+        </div>
+      )}
+
+      {seriesPhase === "done" && seriesId && mode === "series" && (
+        <SeriesResultCard seriesId={seriesId} />
+      )}
 
       {/* Live log */}
       {(logs.length > 0 || phase === "running") && (

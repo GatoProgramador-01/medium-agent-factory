@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 jest.mock("@/lib/api", () => ({
   api: {
     triggerPipeline: jest.fn(),
+    triggerSeries: jest.fn(),
     streamLogs: jest.fn(),
     getPost: jest.fn(),
   },
@@ -96,6 +97,66 @@ describe("PipelinePage", () => {
       expect(screen.getByTestId("log-terminal")).toBeInTheDocument()
     );
     expect(screen.getByTestId("log-terminal")).toHaveTextContent("Pipeline started.");
+  });
+
+  describe("Series tab", () => {
+    it("renders a Single Post tab button", () => {
+      render(<PipelinePage />);
+      expect(screen.getByTestId("tab-single")).toBeInTheDocument();
+    });
+
+    it("renders a Series tab button", () => {
+      render(<PipelinePage />);
+      expect(screen.getByTestId("tab-series")).toBeInTheDocument();
+    });
+
+    it("clicking Series tab shows the theme input", async () => {
+      const user = userEvent.setup();
+      render(<PipelinePage />);
+      await user.click(screen.getByTestId("tab-series"));
+      expect(screen.getByTestId("theme-input")).toBeInTheDocument();
+    });
+
+    it("theme input accepts text", async () => {
+      const user = userEvent.setup();
+      render(<PipelinePage />);
+      await user.click(screen.getByTestId("tab-series"));
+      const input = screen.getByTestId("theme-input");
+      await user.type(input, "LLM cost breakdown");
+      expect(input).toHaveValue("LLM cost breakdown");
+    });
+
+    it("submitting series form calls triggerSeries with theme", async () => {
+      const user = userEvent.setup();
+      (api.triggerSeries as jest.Mock).mockReturnValue(new Promise(() => {}));
+      render(<PipelinePage />);
+      await user.click(screen.getByTestId("tab-series"));
+      await user.type(screen.getByTestId("theme-input"), "LLM cost breakdown");
+      await user.click(screen.getByTestId("run-series-button"));
+      expect(api.triggerSeries).toHaveBeenCalledWith("LLM cost breakdown", "");
+    });
+
+    it("shows series result card after successful submit", async () => {
+      const user = userEvent.setup();
+      (api.triggerSeries as jest.Mock).mockResolvedValue({ series_id: "s-abc", message: "Series started" });
+      render(<PipelinePage />);
+      await user.click(screen.getByTestId("tab-series"));
+      await user.type(screen.getByTestId("theme-input"), "AI agents");
+      await user.click(screen.getByTestId("run-series-button"));
+      await waitFor(() => screen.getByTestId("series-result-card"));
+      expect(screen.getByTestId("series-result-card")).toBeInTheDocument();
+    });
+
+    it("series result card links to /series page", async () => {
+      const user = userEvent.setup();
+      (api.triggerSeries as jest.Mock).mockResolvedValue({ series_id: "s-abc", message: "Series started" });
+      render(<PipelinePage />);
+      await user.click(screen.getByTestId("tab-series"));
+      await user.type(screen.getByTestId("theme-input"), "AI agents");
+      await user.click(screen.getByTestId("run-series-button"));
+      await waitFor(() => screen.getByTestId("view-series-link"));
+      expect(screen.getByTestId("view-series-link")).toHaveAttribute("href", "/series");
+    });
   });
 
   it("__done__ event transitions phase to done and shows run-again button", async () => {
