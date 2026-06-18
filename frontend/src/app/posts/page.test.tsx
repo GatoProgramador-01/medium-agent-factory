@@ -132,4 +132,54 @@ describe("PostsPage", () => {
       expect.stringContaining(MOCK_POST.title)
     );
   });
+
+  describe("Search", () => {
+    it("renders a search input", async () => {
+      (api.listPosts as jest.Mock).mockResolvedValue([MOCK_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getByTestId("post-card")).toBeInTheDocument());
+      expect(screen.getByTestId("search-input")).toBeInTheDocument();
+    });
+
+    it("filters post cards by title substring", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([MOCK_POST, DRAFT_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(2));
+      await user.type(screen.getByTestId("search-input"), "Draft");
+      expect(screen.getAllByTestId("post-card")).toHaveLength(1);
+      expect(screen.getByText("Draft Post")).toBeInTheDocument();
+    });
+
+    it("search is case-insensitive", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([MOCK_POST, DRAFT_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(2));
+      await user.type(screen.getByTestId("search-input"), "pipeline");
+      expect(screen.getAllByTestId("post-card")).toHaveLength(1);
+      expect(screen.getByText(MOCK_POST.title)).toBeInTheDocument();
+    });
+
+    it("shows empty state when search matches no posts", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([MOCK_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getByTestId("post-card")).toBeInTheDocument());
+      await user.type(screen.getByTestId("search-input"), "xyznotfound");
+      expect(screen.queryByTestId("post-card")).not.toBeInTheDocument();
+      expect(screen.getByTestId("empty-state")).toBeInTheDocument();
+    });
+
+    it("clearing search restores all posts", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([MOCK_POST, DRAFT_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(2));
+      await user.type(screen.getByTestId("search-input"), "Draft");
+      expect(screen.getAllByTestId("post-card")).toHaveLength(1);
+      await user.clear(screen.getByTestId("search-input"));
+      expect(screen.getAllByTestId("post-card")).toHaveLength(2);
+    });
+  });
 });

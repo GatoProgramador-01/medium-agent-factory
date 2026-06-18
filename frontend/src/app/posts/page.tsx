@@ -167,6 +167,7 @@ function PostCard({ post }: { post: Post }) {
 export default function PostsPage() {
   const [posts, setPosts]     = useState<Post[]>([]);
   const [filter, setFilter]   = useState("");
+  const [search, setSearch]   = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -176,6 +177,10 @@ export default function PostsPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [filter]);
+
+  const visible = search.trim()
+    ? posts.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()))
+    : posts;
 
   return (
     <div className="space-y-6">
@@ -189,25 +194,42 @@ export default function PostsPage() {
         </p>
       </div>
 
-      {/* Filter bar */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs" style={{ color: "var(--text-dim)" }}>Status:</span>
-        {STATUSES.map((s) => (
-          <button
-            key={s}
-            data-testid={`filter-${s || "all"}`}
-            onClick={() => setFilter(s)}
-            className="text-xs px-3 py-1.5 rounded-md transition-colors"
-            style={{
-              background: filter === s ? "var(--orange-dim)" : "transparent",
-              color:      filter === s ? "var(--orange)"     : "var(--text-muted)",
-              border:     `1px solid ${filter === s ? "var(--orange)" : "var(--border)"}`,
-              fontWeight: filter === s ? 500 : 400,
-            }}
-          >
-            {s || "All"}
-          </button>
-        ))}
+      {/* Filter + search bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs" style={{ color: "var(--text-dim)" }}>Status:</span>
+          {STATUSES.map((s) => (
+            <button
+              key={s}
+              data-testid={`filter-${s || "all"}`}
+              onClick={() => setFilter(s)}
+              className="text-xs px-3 py-1.5 rounded-md transition-colors"
+              style={{
+                background: filter === s ? "var(--orange-dim)" : "transparent",
+                color:      filter === s ? "var(--orange)"     : "var(--text-muted)",
+                border:     `1px solid ${filter === s ? "var(--orange)" : "var(--border)"}`,
+                fontWeight: filter === s ? 500 : 400,
+              }}
+            >
+              {s || "All"}
+            </button>
+          ))}
+        </div>
+        <input
+          data-testid="search-input"
+          type="text"
+          placeholder="Search titles…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="text-xs px-3 py-1.5 rounded-md"
+          style={{
+            background: "var(--card-bg)",
+            border: "1px solid var(--border)",
+            color: "var(--text)",
+            outline: "none",
+            minWidth: 180,
+          }}
+        />
       </div>
 
       {/* Post list */}
@@ -221,11 +243,11 @@ export default function PostsPage() {
             </div>
           ))}
         </div>
-      ) : posts.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="card p-12 text-center space-y-4" data-testid="empty-state">
           <p className="text-lg" style={{ color: "var(--text-muted)" }}>No posts yet</p>
           <p className="text-sm" style={{ color: "var(--text-dim)" }}>
-            {filter ? `No posts with status "${filter}"` : "Run the pipeline to generate your first post."}
+            {search ? `No posts matching "${search}"` : filter ? `No posts with status "${filter}"` : "Run the pipeline to generate your first post."}
           </p>
           <Link
             href="/pipeline"
@@ -238,7 +260,7 @@ export default function PostsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {posts.map((p) => <PostCard key={p.run_id} post={p} />)}
+          {visible.map((p) => <PostCard key={p.run_id} post={p} />)}
         </div>
       )}
     </div>
