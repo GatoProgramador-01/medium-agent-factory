@@ -82,6 +82,46 @@ describe("SeriesPage", () => {
     expect(api.deleteSeries).toHaveBeenCalledWith("series-abc");
   });
 
+  it("shows quality score for each post part", async () => {
+    mockListSeries.mockResolvedValue(fakeSeries);
+    render(<SeriesPage />);
+    await waitFor(() => screen.getByTestId("series-part-run-1"));
+    // quality_score: 0.93 → 93; 0.97 → 97
+    expect(screen.getByTestId("series-part-run-1")).toHaveTextContent("93");
+    expect(screen.getByTestId("series-part-run-2")).toHaveTextContent("97");
+  });
+
+  it("shows series position number (#1, #2) for each post part", async () => {
+    mockListSeries.mockResolvedValue(fakeSeries);
+    render(<SeriesPage />);
+    await waitFor(() => screen.getByTestId("series-part-run-1"));
+    expect(screen.getByTestId("series-part-run-1")).toHaveTextContent("#1");
+    expect(screen.getByTestId("series-part-run-2")).toHaveTextContent("#2");
+  });
+
+  it("shows the series status badge text", async () => {
+    mockListSeries.mockResolvedValue(fakeSeries);
+    render(<SeriesPage />);
+    await waitFor(() => screen.getByTestId("series-card-series-abc"));
+    expect(screen.getByTestId("series-card-series-abc")).toHaveTextContent("completed");
+  });
+
+  it("shows '1 part' (singular) when series has exactly one post", async () => {
+    const singlePostSeries = [{ ...fakeSeries[0], posts: [fakeSeries[0].posts[0]] }];
+    mockListSeries.mockResolvedValue(singlePostSeries);
+    render(<SeriesPage />);
+    await waitFor(() => screen.getByTestId("series-card-series-abc"));
+    expect(screen.getByTestId("series-card-series-abc")).toHaveTextContent("1 part");
+    expect(screen.getByTestId("series-card-series-abc")).not.toHaveTextContent("1 parts");
+  });
+
+  it("shows loading skeletons before data arrives", () => {
+    mockListSeries.mockReturnValue(new Promise(() => {}));
+    render(<SeriesPage />);
+    const skeletons = document.querySelectorAll(".skeleton");
+    expect(skeletons.length).toBeGreaterThan(0);
+  });
+
   it("deleted series card disappears from the list", async () => {
     const user = userEvent.setup();
     const twoSeries = [

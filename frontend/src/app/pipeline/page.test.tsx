@@ -159,6 +159,32 @@ describe("PipelinePage", () => {
       await waitFor(() => screen.getByTestId("view-series-link"));
       expect(screen.getByTestId("view-series-link")).toHaveAttribute("href", "/series");
     });
+
+    it("shows context textarea in the series tab", async () => {
+      const user = userEvent.setup();
+      render(<PipelinePage />);
+      await user.click(screen.getByTestId("tab-series"));
+      expect(screen.getByTestId("context-input")).toBeInTheDocument();
+    });
+
+    it("context textarea accepts text", async () => {
+      const user = userEvent.setup();
+      render(<PipelinePage />);
+      await user.click(screen.getByTestId("tab-series"));
+      await user.type(screen.getByTestId("context-input"), "Focus on Anthropic and OpenAI");
+      expect(screen.getByTestId("context-input")).toHaveValue("Focus on Anthropic and OpenAI");
+    });
+
+    it("submitting with context passes context value to triggerSeries", async () => {
+      const user = userEvent.setup();
+      (api.triggerSeries as jest.Mock).mockReturnValue(new Promise(() => {}));
+      render(<PipelinePage />);
+      await user.click(screen.getByTestId("tab-series"));
+      await user.type(screen.getByTestId("theme-input"), "LLM costs 2026");
+      await user.type(screen.getByTestId("context-input"), "Focus on Claude");
+      await user.click(screen.getByTestId("run-series-button"));
+      expect(api.triggerSeries).toHaveBeenCalledWith("LLM costs 2026", "Focus on Claude");
+    });
   });
 
   describe("Run History", () => {

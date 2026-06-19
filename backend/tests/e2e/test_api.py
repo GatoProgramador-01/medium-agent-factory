@@ -137,6 +137,23 @@ class TestPipelineRunsE2E:
         assert logs[0]["message"] == "started"
         assert logs[1]["message"] == "done"
 
+    async def test_list_runs_returns_newest_first(self, client: AsyncClient) -> None:
+        from datetime import timedelta
+
+        db = get_db()
+        base = datetime.now(UTC)
+        await db.pipeline_runs.insert_many(
+            [
+                {"run_id": "pr-newest", "status": "completed", "created_at": base},
+                {"run_id": "pr-oldest", "status": "completed", "created_at": base - timedelta(seconds=1)},
+            ]
+        )
+        r = await client.get("/pipeline/runs?limit=10")
+        assert r.status_code == 200
+        run_ids = [run["run_id"] for run in r.json()]
+        positions = {rid: run_ids.index(rid) for rid in ["pr-newest", "pr-oldest"] if rid in run_ids}
+        assert positions["pr-newest"] < positions["pr-oldest"]
+
     async def test_list_runs_offset_skips_records(self, client: AsyncClient) -> None:
         from datetime import timedelta
 
@@ -231,6 +248,25 @@ class TestPostsE2E:
         assert r.status_code == 200
         assert r.json()["run_id"] == "e2e-p5"
         assert r.json()["title"] == "Specific Post"
+
+    async def test_list_posts_returns_newest_first(self, client: AsyncClient) -> None:
+        from datetime import timedelta
+
+        db = get_db()
+        base = datetime.now(UTC)
+        await db.posts.insert_many(
+            [
+                {"run_id": "so-newest", "status": "draft", "created_at": base},
+                {"run_id": "so-middle", "status": "draft", "created_at": base - timedelta(seconds=1)},
+                {"run_id": "so-oldest", "status": "draft", "created_at": base - timedelta(seconds=2)},
+            ]
+        )
+        r = await client.get("/posts?limit=10")
+        assert r.status_code == 200
+        run_ids = [p["run_id"] for p in r.json()]
+        # Find relative order of our inserted docs (other docs may exist in slice)
+        positions = {rid: run_ids.index(rid) for rid in ["so-newest", "so-middle", "so-oldest"] if rid in run_ids}
+        assert positions["so-newest"] < positions["so-middle"] < positions["so-oldest"]
 
     @pytest.mark.parametrize("limit,expected", [(1, 1), (5, 3)])
     async def test_list_posts_respects_limit(
@@ -450,6 +486,65 @@ class TestAnalyticsE2E:
         assert body["completed_runs"] == 1
         assert body["total_posts"] == 2
         assert body["published_posts"] == 1
+
+    async def test_summary_includes_cost_and_tokens_from_agent_runs(
+        self, client: AsyncClient
+    ) -> None:
+        db = get_db()
+        await db.agent_runs.insert_many(
+            [
+                {
+                    "run_id": "cost-s1",
+                    "agent_name": "research",
+                    "tokens_in": 100,
+                    "tokens_out": 50,
+                    "cost_usd": 0.001,
+                    "duration_ms": 200,
+                },
+                {
+                    "run_id": "cost-s1",
+                    "agent_name": "content",
+                    "tokens_in": 200,
+                    "tokens_out": 80,
+                    "cost_usd": 0.002,
+                    "duration_ms": 300,
+                },
+            ]
+        )
+        r = await client.get("/analytics/summary")
+        assert r.status_code == 200
+        body = r.json()
+        # total_cost_usd = 0.001 + 0.002 = 0.003
+        assert body["total_cost_usd"] == round(0.003, 4)
+        # total_tokens = tokens_in + tokens_out = (100+50) + (200+80) = 430
+        assert body["total_tokens"] == 430
+
+    async def test_series_list_returns_newest_first(self, client: AsyncClient) -> None:
+        from datetime import timedelta
+
+        db = get_db()
+        base = datetime.now(UTC)
+        await db.series.insert_many(
+            [
+                {
+                    "series_id": "sl-newest",
+                    "theme": "New Series",
+                    "status": "completed",
+                    "created_at": base,
+                },
+                {
+                    "series_id": "sl-oldest",
+                    "theme": "Old Series",
+                    "status": "completed",
+                    "created_at": base - timedelta(seconds=1),
+                },
+            ]
+        )
+        r = await client.get("/series")
+        assert r.status_code == 200
+        series_ids = [s["series_id"] for s in r.json()]
+        positions = {sid: series_ids.index(sid) for sid in ["sl-newest", "sl-oldest"] if sid in series_ids}
+        assert positions["sl-newest"] < positions["sl-oldest"]
 
     async def test_token_usage_aggregates_by_agent(self, client: AsyncClient) -> None:
         db = get_db()
@@ -778,6 +873,23 @@ class TestExemplarsE2E:
     async def test_patch_tags_not_found_returns_404(self, client: AsyncClient) -> None:
         r = await client.patch("/posts/no-such/tags", json={"tags": ["ai"]})
         assert r.status_code == 404
+
+    async def test_patch_tags_empty_array_clears_all_tags(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {
+                "run_id": "e2e-tags4",
+                "status": "draft",
+                "tags": ["ai", "cost", "llm"],
+                "created_at": datetime.now(UTC),
+            }
+        )
+        r = await client.patch("/posts/e2e-tags4/tags", json={"tags": []})
+        assert r.status_code == 200
+        assert r.json()["tags"] == []
+        doc = await db.posts.find_one({"run_id": "e2e-tags4"})
+        assert doc is not None
+        assert doc["tags"] == []
 
 
 class TestSeriesE2E:
