@@ -62,6 +62,13 @@ describe("SourcesPanel", () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it("shows singular '1 Verified Source' (not Sources) for a single source", () => {
+    const single = [SOURCES[0]];
+    render(<SourcesPanel sources={single} />);
+    expect(screen.getByTestId("sources-heading")).toHaveTextContent("1 Verified Source");
+    expect(screen.getByTestId("sources-heading")).not.toHaveTextContent("1 Verified Sources");
+  });
+
   it("returns null when sources is undefined", () => {
     // @ts-expect-error testing undefined path
     const { container } = render(<SourcesPanel sources={undefined} />);

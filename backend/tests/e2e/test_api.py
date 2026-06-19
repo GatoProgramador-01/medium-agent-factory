@@ -394,6 +394,19 @@ class TestPostsE2E:
         assert r.status_code == 200
         assert r.json()["word_count"] == 1750
 
+    async def test_patch_status_returns_document_with_run_id_field(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {"run_id": "e2e-st-full", "status": "draft", "title": "Full Doc Test", "created_at": datetime.now(UTC)}
+        )
+        r = await client.patch("/posts/e2e-st-full/status", json={"status": "approved"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["run_id"] == "e2e-st-full"
+        assert body["title"] == "Full Doc Test"
+        assert body["status"] == "approved"
+        assert "_id" not in body
+
     async def test_patch_status_returns_updated_doc(self, client: AsyncClient) -> None:
         db = get_db()
         await db.posts.insert_one(
@@ -913,6 +926,28 @@ class TestExemplarsE2E:
         r = await client.patch("/posts/no-such/tags", json={"tags": ["ai"]})
         assert r.status_code == 404
 
+    async def test_list_exemplars_excludes_intro_and_code_block_fields(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.exemplars.insert_one(
+            {
+                "run_id": "ex-proj",
+                "score": 0.95,
+                "intro": "This is the intro text that should not appear.",
+                "code_block": "```python\nprint('hidden')\n```",
+                "hook": "Great hook sentence.",
+                "word_count": 1500,
+                "created_at": datetime.now(UTC),
+            }
+        )
+        r = await client.get("/posts/exemplars/list")
+        assert r.status_code == 200
+        items = [ex for ex in r.json() if ex.get("run_id") == "ex-proj"]
+        assert len(items) == 1
+        ex = items[0]
+        assert "intro" not in ex
+        assert "code_block" not in ex
+        assert ex["hook"] == "Great hook sentence."
+
     async def test_list_exemplars_sorted_by_score_desc(self, client: AsyncClient) -> None:
         db = get_db()
         await db.exemplars.insert_many(
@@ -1043,6 +1078,25 @@ class TestSeriesE2E:
     async def test_delete_series_not_found_returns_404(self, client: AsyncClient) -> None:
         r = await client.delete("/series/no-such-series")
         assert r.status_code == 404
+
+    async def test_delete_series_does_not_remove_associated_posts(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.series.insert_one(
+            {"series_id": "s-cascade", "theme": "Cascade Test", "status": "completed", "created_at": datetime.now(UTC)}
+        )
+        await db.posts.insert_many(
+            [
+                {"run_id": "p-cas1", "series_id": "s-cascade", "series_position": 1, "status": "draft", "created_at": datetime.now(UTC)},
+                {"run_id": "p-cas2", "series_id": "s-cascade", "series_position": 2, "status": "draft", "created_at": datetime.now(UTC)},
+            ]
+        )
+        await client.delete("/series/s-cascade")
+        # series is gone
+        remaining_series = await db.series.find_one({"series_id": "s-cascade"})
+        assert remaining_series is None
+        # but posts remain
+        remaining_posts = await db.posts.find({"series_id": "s-cascade"}, {"_id": 0}).to_list(length=10)
+        assert len(remaining_posts) == 2
 
     async def test_list_series_respects_limit_param(self, client: AsyncClient) -> None:
         db = get_db()

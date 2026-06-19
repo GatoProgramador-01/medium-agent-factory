@@ -74,6 +74,12 @@ describe("RevisionHistoryPanel", () => {
     expect(passingRow).not.toHaveTextContent("below");
   });
 
+  it("shows cycle number with # prefix in each row", () => {
+    render(<RevisionHistoryPanel history={twoEntries} />);
+    expect(screen.getByTestId("cycle-item-0")).toHaveTextContent("#0");
+    expect(screen.getByTestId("cycle-item-1")).toHaveTextContent("#1");
+  });
+
   it("shows the score value for each cycle", () => {
     render(<RevisionHistoryPanel history={twoEntries} />);
     expect(screen.getByTestId("cycle-item-0")).toHaveTextContent("85");

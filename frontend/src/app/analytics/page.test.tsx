@@ -91,6 +91,14 @@ describe("AnalyticsPage", () => {
     await waitFor(() => expect(screen.getByText("2 agents")).toBeInTheDocument());
   });
 
+  it("shows avg_duration_ms with ms suffix in agent breakdown row", async () => {
+    (api.tokenUsage as jest.Mock).mockResolvedValue(MOCK_USAGE);
+    render(<AnalyticsPage />);
+    // MOCK_USAGE[0].avg_duration_ms = 8200, MOCK_USAGE[1].avg_duration_ms = 3100
+    await waitFor(() => expect(screen.getByText("8200ms")).toBeInTheDocument());
+    expect(screen.getByText("3100ms")).toBeInTheDocument();
+  });
+
   it("shows no-data message when usage list is empty", async () => {
     (api.tokenUsage as jest.Mock).mockResolvedValue([]);
     render(<AnalyticsPage />);

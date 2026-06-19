@@ -115,6 +115,21 @@ describe("SeriesPage", () => {
     expect(screen.getByTestId("series-card-series-abc")).not.toHaveTextContent("1 parts");
   });
 
+  it("shows '2 parts' plural for a series with 2 posts", async () => {
+    mockListSeries.mockResolvedValue(fakeSeries);
+    render(<SeriesPage />);
+    await waitFor(() => screen.getByTestId("series-card-series-abc"));
+    expect(screen.getByTestId("series-card-series-abc")).toHaveTextContent("2 parts");
+  });
+
+  it("shows '0 parts' for a series with no posts", async () => {
+    const emptySeries = [{ ...fakeSeries[0], posts: [] }];
+    mockListSeries.mockResolvedValue(emptySeries);
+    render(<SeriesPage />);
+    await waitFor(() => screen.getByTestId("series-card-series-abc"));
+    expect(screen.getByTestId("series-card-series-abc")).toHaveTextContent("0 parts");
+  });
+
   it("shows loading skeletons before data arrives", () => {
     mockListSeries.mockReturnValue(new Promise(() => {}));
     render(<SeriesPage />);

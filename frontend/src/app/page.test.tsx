@@ -139,6 +139,34 @@ describe("DashboardPage", () => {
     expect(screen.getByTestId("stat-published")).toHaveTextContent("3");
   });
 
+  it("cta-run-pipeline link points to /pipeline", () => {
+    render(<DashboardPage />);
+    expect(screen.getByTestId("cta-run-pipeline")).toHaveAttribute("href", "/pipeline");
+  });
+
+  it("cta-view-posts link points to /posts", () => {
+    render(<DashboardPage />);
+    expect(screen.getByTestId("cta-view-posts")).toHaveAttribute("href", "/posts");
+  });
+
+  it("View all link in recent posts section points to /posts", async () => {
+    render(<DashboardPage />);
+    await waitFor(() => screen.getByTestId("recent-posts"));
+    const viewAllLink = screen.getByRole("link", { name: /view all/i });
+    expect(viewAllLink).toHaveAttribute("href", "/posts");
+  });
+
+  it("caps recent posts at 3 even when API returns more", async () => {
+    const FIVE_POSTS = Array.from({ length: 5 }, (_, i) => ({
+      ...MOCK_POSTS[0],
+      run_id: `run-many-${i}`,
+      title: `Post ${i}`,
+    }));
+    (api.listPosts as jest.Mock).mockResolvedValue(FIVE_POSTS);
+    render(<DashboardPage />);
+    await waitFor(() => expect(screen.getAllByTestId(/recent-post-/)).toHaveLength(3));
+  });
+
   it("shows loading skeletons in stats grid before data arrives", () => {
     (api.summary as jest.Mock).mockReturnValue(new Promise(() => {}));
     (api.listPosts as jest.Mock).mockReturnValue(new Promise(() => {}));
