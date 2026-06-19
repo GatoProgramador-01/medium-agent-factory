@@ -79,7 +79,7 @@ function PostCard({ post, onTagClick }: { post: Post; onTagClick: (tag: string) 
               {post.status}
             </span>
             {post.series_position && (
-              <span className="badge badge-purple">Part {post.series_position}</span>
+              <span data-testid={`series-badge-${post.run_id}`} className="badge badge-purple">Part {post.series_position}</span>
             )}
           </div>
 

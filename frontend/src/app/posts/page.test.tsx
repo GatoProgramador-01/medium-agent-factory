@@ -387,6 +387,65 @@ describe("PostsPage", () => {
     });
   });
 
+  it("shows loading skeletons before data arrives", () => {
+    (api.listPosts as jest.Mock).mockReturnValue(new Promise(() => {}));
+    render(<PostsPage />);
+    const skeletons = document.querySelectorAll(".skeleton");
+    expect(skeletons.length).toBeGreaterThan(0);
+  });
+
+  it("shows '1 revision' singular when revision_count is 1", async () => {
+    (api.listPosts as jest.Mock).mockResolvedValue([{ ...MOCK_POST, revision_count: 1 }]);
+    render(<PostsPage />);
+    await waitFor(() => expect(screen.getByTestId("post-card")).toBeInTheDocument());
+    expect(screen.getByTestId("post-card")).toHaveTextContent("1 revision");
+    expect(screen.getByTestId("post-card")).not.toHaveTextContent("1 revisions");
+  });
+
+  it("shows '2 revisions' plural when revision_count is 2", async () => {
+    (api.listPosts as jest.Mock).mockResolvedValue([{ ...MOCK_POST, revision_count: 2 }]);
+    render(<PostsPage />);
+    await waitFor(() => expect(screen.getByTestId("post-card")).toBeInTheDocument());
+    expect(screen.getByTestId("post-card")).toHaveTextContent("2 revisions");
+  });
+
+  it("shows Part N badge when post has series_position", async () => {
+    const seriesPost = { ...MOCK_POST, run_id: "run-series", series_position: 3 };
+    (api.listPosts as jest.Mock).mockResolvedValue([seriesPost]);
+    render(<PostsPage />);
+    await waitFor(() => screen.getByTestId("series-badge-run-series"));
+    expect(screen.getByTestId("series-badge-run-series")).toHaveTextContent("Part 3");
+  });
+
+  it("shows pull quote text in post card", async () => {
+    const post = { ...MOCK_POST, pull_quote: "The future belongs to those who ship." };
+    (api.listPosts as jest.Mock).mockResolvedValue([post]);
+    render(<PostsPage />);
+    await waitFor(() => expect(screen.getByTestId("post-card")).toBeInTheDocument());
+    expect(screen.getByTestId("post-card")).toHaveTextContent("The future belongs to those who ship.");
+  });
+
+  it("shows '1 source' singular when exactly one verified_source", async () => {
+    const post = {
+      ...MOCK_POST,
+      verified_sources: [{ claim_text: "Fact", source_url: "https://example.com", source_title: "Example", claim_type: "other" }],
+    };
+    (api.listPosts as jest.Mock).mockResolvedValue([post]);
+    render(<PostsPage />);
+    await waitFor(() => expect(screen.getByTestId("post-card")).toBeInTheDocument());
+    expect(screen.getByTestId("post-card")).toHaveTextContent("1 source");
+    expect(screen.getByTestId("post-card")).not.toHaveTextContent("1 sources");
+  });
+
+  it("shows '2 sources' plural for multiple verified_sources", async () => {
+    const makeSource = (n: number) => ({ claim_text: `Fact ${n}`, source_url: `https://example.com/${n}`, source_title: `Source ${n}`, claim_type: "other" });
+    const post = { ...MOCK_POST, verified_sources: [makeSource(1), makeSource(2)] };
+    (api.listPosts as jest.Mock).mockResolvedValue([post]);
+    render(<PostsPage />);
+    await waitFor(() => expect(screen.getByTestId("post-card")).toBeInTheDocument());
+    expect(screen.getByTestId("post-card")).toHaveTextContent("2 sources");
+  });
+
   describe("Word count badge", () => {
     const wcPost = (wordCount: number) => ({
       ...MOCK_POST,

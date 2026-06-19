@@ -185,6 +185,18 @@ class TestPipelineRunsE2E:
         assert r_offset.status_code == 200
         assert len(r_offset.json()) == 2
 
+    async def test_list_runs_respects_limit_param(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.pipeline_runs.insert_many(
+            [
+                {"run_id": f"e2e-lim{i}", "status": "completed", "created_at": datetime.now(UTC)}
+                for i in range(5)
+            ]
+        )
+        r = await client.get("/pipeline/runs?limit=3")
+        assert r.status_code == 200
+        assert len(r.json()) == 3
+
 
 class TestPostsE2E:
     async def test_list_posts_empty(self, client: AsyncClient) -> None:
@@ -1031,6 +1043,40 @@ class TestSeriesE2E:
     async def test_delete_series_not_found_returns_404(self, client: AsyncClient) -> None:
         r = await client.delete("/series/no-such-series")
         assert r.status_code == 404
+
+    async def test_list_series_respects_limit_param(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.series.insert_many(
+            [
+                {"series_id": f"s-lim{i}", "theme": f"Theme {i}", "status": "completed", "created_at": datetime.now(UTC)}
+                for i in range(3)
+            ]
+        )
+        r = await client.get("/series?limit=2")
+        assert r.status_code == 200
+        assert len(r.json()) == 2
+
+    async def test_get_series_excludes_content_from_posts(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.series.insert_one(
+            {"series_id": "s-nocon", "theme": "Content Test", "status": "completed", "created_at": datetime.now(UTC)}
+        )
+        await db.posts.insert_one(
+            {
+                "run_id": "p-nocon",
+                "series_id": "s-nocon",
+                "series_position": 1,
+                "title": "Part One",
+                "content": "This is long post content that should be excluded.",
+                "created_at": datetime.now(UTC),
+            }
+        )
+        r = await client.get("/series/s-nocon")
+        assert r.status_code == 200
+        posts = r.json()["posts"]
+        assert len(posts) == 1
+        assert "content" not in posts[0]
+        assert posts[0]["title"] == "Part One"
 
     async def test_get_series_attaches_posts_in_order(self, client: AsyncClient) -> None:
         db = get_db()

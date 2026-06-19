@@ -324,6 +324,25 @@ describe("PostReaderPage", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/posts"));
   });
 
+  it("clicking Cancel on delete confirmation returns to idle state", async () => {
+    const user = userEvent.setup();
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+    expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(screen.getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /confirm/i })).not.toBeInTheDocument();
+  });
+
+  it("calls api.getSeries with the series_id when post has series_id", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST_WITH_SERIES);
+    (api.getSeries as jest.Mock).mockResolvedValue({ series_id: "series-abc", theme: "AI Series", status: "completed", posts: [] });
+    render(<PostReaderPage />);
+    await waitFor(() => expect(api.getSeries).toHaveBeenCalledWith("series-abc"));
+  });
+
   describe("QualityPanel content", () => {
     it("shows read_ratio_prediction in the sidebar", async () => {
       (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
