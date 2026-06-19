@@ -10,7 +10,7 @@ function scoreColor(score: number) {
   return "var(--red)";
 }
 
-function ExemplarCard({ ex }: { ex: Exemplar }) {
+function ExemplarCard({ ex, onRemove }: { ex: Exemplar; onRemove: () => void }) {
   const pct = Math.round(ex.score * 100);
   const color = scoreColor(ex.score);
 
@@ -18,6 +18,7 @@ function ExemplarCard({ ex }: { ex: Exemplar }) {
     <div className="card p-5 space-y-3" data-testid={`exemplar-card-${ex.run_id}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0 space-y-1">
+
           <Link
             href={`/posts/${ex.run_id}`}
             data-testid={`exemplar-link-${ex.run_id}`}
@@ -83,6 +84,17 @@ function ExemplarCard({ ex }: { ex: Exemplar }) {
           />
         </div>
       </div>
+
+      <div className="flex justify-end pt-1" style={{ borderTop: "1px solid var(--border)" }}>
+        <button
+          data-testid={`remove-exemplar-${ex.run_id}`}
+          onClick={async () => { await api.deleteExemplar(ex.run_id); onRemove(); }}
+          className="text-xs px-2 py-0.5 rounded transition-colors"
+          style={{ color: "var(--text-dim)", border: "1px solid var(--border)", cursor: "pointer" }}
+        >
+          Remove
+        </button>
+      </div>
     </div>
   );
 }
@@ -140,7 +152,13 @@ export default function ExemplarsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {exemplars.map((ex) => <ExemplarCard key={ex.run_id} ex={ex} />)}
+          {exemplars.map((ex) => (
+            <ExemplarCard
+              key={ex.run_id}
+              ex={ex}
+              onRemove={() => setExemplars((prev) => prev.filter((e) => e.run_id !== ex.run_id))}
+            />
+          ))}
         </div>
       )}
     </div>

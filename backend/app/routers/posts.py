@@ -69,6 +69,14 @@ async def promote_exemplar(run_id: str) -> dict[str, Any]:
     return {"run_id": run_id, "status": "saved_as_exemplar"}
 
 
+@router.delete("/exemplars/{run_id}", status_code=204)
+async def delete_exemplar(run_id: str) -> None:
+    db = get_db()
+    result = await db.exemplars.delete_one({"run_id": run_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Exemplar not found")
+
+
 @router.get("/exemplars/list")
 async def list_exemplars() -> list[dict[str, Any]]:
     """List all stored exemplars."""

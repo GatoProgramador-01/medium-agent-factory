@@ -49,6 +49,7 @@ def _clean_and_reset() -> None:
     db.agent_runs.delete_many({})
     db.agent_logs.delete_many({})
     db.series.delete_many({})
+    db.exemplars.delete_many({})
     mongo.close()
     _db_module._client = None
 

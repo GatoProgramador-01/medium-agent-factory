@@ -158,6 +158,10 @@ export const api = {
   listExemplars: () => request<Exemplar[]>("/posts/exemplars/list"),
   promoteExemplar: (runId: string) =>
     request<{ run_id: string; status: string }>(`/posts/${runId}/exemplar`, { method: "POST" }),
+  deleteExemplar: async (runId: string): Promise<void> => {
+    const res = await fetch(`${BASE}/posts/exemplars/${runId}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  },
 
   listSeries: () => request<SeriesDetail[]>("/series"),
   getSeries: (id: string) => request<SeriesDetail>(`/series/${id}`),

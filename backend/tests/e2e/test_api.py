@@ -387,6 +387,42 @@ class TestAnalyticsE2E:
         assert rows["content_generator"]["call_count"] == 1
 
 
+class TestExemplarsE2E:
+    async def test_list_exemplars_empty(self, client: AsyncClient) -> None:
+        r = await client.get("/posts/exemplars/list")
+        assert r.status_code == 200
+        assert r.json() == []
+
+    async def test_list_exemplars_returns_all(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.exemplars.insert_many(
+            [
+                {"run_id": "e1", "title": "Exemplar One",  "score": 0.97, "created_at": datetime.now(UTC)},
+                {"run_id": "e2", "title": "Exemplar Two",  "score": 0.95, "created_at": datetime.now(UTC)},
+            ]
+        )
+        r = await client.get("/posts/exemplars/list")
+        assert r.status_code == 200
+        assert len(r.json()) == 2
+
+    async def test_delete_exemplar_returns_204(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.exemplars.insert_one({"run_id": "e-del1", "score": 0.97, "created_at": datetime.now(UTC)})
+        r = await client.delete("/posts/exemplars/e-del1")
+        assert r.status_code == 204
+
+    async def test_delete_exemplar_removes_from_db(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.exemplars.insert_one({"run_id": "e-del2", "score": 0.96, "created_at": datetime.now(UTC)})
+        await client.delete("/posts/exemplars/e-del2")
+        remaining = await db.exemplars.find_one({"run_id": "e-del2"})
+        assert remaining is None
+
+    async def test_delete_exemplar_not_found_returns_404(self, client: AsyncClient) -> None:
+        r = await client.delete("/posts/exemplars/no-such-exemplar")
+        assert r.status_code == 404
+
+
 class TestSeriesE2E:
     async def test_trigger_series_returns_series_id(self, client: AsyncClient) -> None:
         with patch("app.routers.series.run_series", new=AsyncMock(return_value={})):
