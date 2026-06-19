@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, type Post, type SeriesDetail } from "@/lib/api";
 import { PostContent } from "@/components/PostContent";
@@ -91,6 +91,53 @@ function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
         </div>
       )}
     </aside>
+  );
+}
+
+function DeleteButton({ runId }: { runId: string }) {
+  const router = useRouter();
+  type Phase = "idle" | "confirming" | "deleting";
+  const [phase, setPhase] = useState<Phase>("idle");
+
+  async function handleConfirm() {
+    setPhase("deleting");
+    await api.deletePost(runId);
+    router.push("/posts");
+  }
+
+  if (phase === "idle") {
+    return (
+      <button
+        onClick={() => setPhase("confirming")}
+        className="btn text-sm"
+        style={{ color: "var(--red)", borderColor: "var(--red)" }}
+      >
+        Delete
+      </button>
+    );
+  }
+
+  if (phase === "confirming") {
+    return (
+      <span className="flex items-center gap-2">
+        <button
+          onClick={handleConfirm}
+          className="btn text-sm"
+          style={{ color: "var(--red)", borderColor: "var(--red)" }}
+        >
+          Confirm
+        </button>
+        <button onClick={() => setPhase("idle")} className="btn text-sm">
+          Cancel
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <button disabled className="btn text-sm" style={{ opacity: 0.5 }}>
+      Deleting…
+    </button>
   );
 }
 
@@ -260,6 +307,7 @@ export default function PostReaderPage() {
             <CopyButton content={post.content} title={post.title} />
             <DownloadButton title={post.title} content={post.content} />
             <PromoteExemplarButton runId={runId} />
+            <DeleteButton runId={runId} />
             {post.medium_url && (
               <a
                 href={post.medium_url}

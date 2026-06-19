@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { useParams } from "next/navigation";
+import userEvent from "@testing-library/user-event";
+import { useParams, useRouter } from "next/navigation";
 import PostReaderPage from "./page";
 import { api } from "@/lib/api";
 
@@ -7,6 +8,7 @@ jest.mock("@/lib/api", () => ({
   api: {
     getPost: jest.fn(),
     getSeries: jest.fn(),
+    deletePost: jest.fn(),
   },
 }));
 
@@ -54,6 +56,7 @@ describe("PostReaderPage", () => {
     jest.clearAllMocks();
     (useParams as jest.Mock).mockReturnValue({ run_id: "run-1" });
     (api.getSeries as jest.Mock).mockResolvedValue(null);
+    (api.deletePost as jest.Mock).mockResolvedValue(undefined);
   });
 
   it("shows a loading skeleton before data arrives", () => {
@@ -148,5 +151,44 @@ describe("PostReaderPage", () => {
     await waitFor(() =>
       expect(screen.getByText(/post not found/i)).toBeInTheDocument()
     );
+  });
+
+  it("shows Delete button in footer", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
+  });
+
+  it("clicking Delete shows confirmation UI", async () => {
+    const user = userEvent.setup();
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+    expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+  });
+
+  it("confirming Delete calls api.deletePost with the run_id", async () => {
+    const user = userEvent.setup();
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    expect(api.deletePost).toHaveBeenCalledWith("run-1");
+  });
+
+  it("after successful delete redirects to /posts", async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push, replace: jest.fn(), back: jest.fn() });
+    const user = userEvent.setup();
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/posts"));
   });
 });

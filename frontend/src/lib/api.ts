@@ -133,6 +133,10 @@ export const api = {
   listPosts: (status?: string) =>
     request<Post[]>(`/posts${status ? `?status=${status}` : ""}`),
   getPost: (runId: string) => request<Post>(`/posts/${runId}`),
+  deletePost: async (runId: string): Promise<void> => {
+    const res = await fetch(`${BASE}/posts/${runId}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  },
 
   tokenUsage: (runId?: string) =>
     request<AgentUsage[]>(`/analytics/token-usage${runId ? `?run_id=${runId}` : ""}`),
