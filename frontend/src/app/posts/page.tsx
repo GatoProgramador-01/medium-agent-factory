@@ -168,11 +168,14 @@ function PostCard({ post, onTagClick }: { post: Post; onTagClick: (tag: string) 
 }
 
 export default function PostsPage() {
+  type SortKey = "newest" | "oldest" | "score-desc" | "score-asc";
+
   const [posts, setPosts]         = useState<Post[]>([]);
   const [filter, setFilter]       = useState("");
   const [search, setSearch]       = useState("");
   const [boostOnly, setBoostOnly] = useState(false);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [sort, setSort]           = useState<SortKey>("newest");
   const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
@@ -183,12 +186,22 @@ export default function PostsPage() {
       .finally(() => setLoading(false));
   }, [filter]);
 
-  const visible = posts.filter((p) => {
-    if (boostOnly && !p.quality_report?.medium_boost_eligible) return false;
-    if (search.trim() && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
-    if (tagFilter && !p.tags.includes(tagFilter)) return false;
-    return true;
-  });
+  const visible = posts
+    .filter((p) => {
+      if (boostOnly && !p.quality_report?.medium_boost_eligible) return false;
+      if (search.trim() && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
+      if (tagFilter && !p.tags.includes(tagFilter)) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sort === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      const sa = a.quality_report?.score ?? -1;
+      const sb = b.quality_report?.score ?? -1;
+      if (sort === "score-desc") return sb - sa;
+      if (sort === "score-asc")  return sa - sb;
+      return 0;
+    });
 
   return (
     <div className="space-y-6">
@@ -272,6 +285,24 @@ export default function PostsPage() {
             minWidth: 180,
           }}
         />
+        <select
+          data-testid="sort-select"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortKey)}
+          className="text-xs px-3 py-1.5 rounded-md ml-auto"
+          style={{
+            background: "var(--card-bg)",
+            border: "1px solid var(--border)",
+            color: "var(--text-muted)",
+            outline: "none",
+            cursor: "pointer",
+          }}
+        >
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="score-desc">Best score</option>
+          <option value="score-asc">Worst score</option>
+        </select>
       </div>
 
       {/* Post list */}

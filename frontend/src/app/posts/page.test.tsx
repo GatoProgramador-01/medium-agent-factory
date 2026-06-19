@@ -316,4 +316,74 @@ describe("PostsPage", () => {
       expect(screen.getByText("Cost Post")).toBeInTheDocument();
     });
   });
+
+  describe("Sort", () => {
+    const OLD_POST  = { ...MOCK_POST, run_id: "run-old",  title: "Oldest Post",       created_at: "2026-05-01T00:00:00Z", quality_report: { ...MOCK_POST.quality_report, score: 0.72 } };
+    const MID_POST  = { ...MOCK_POST, run_id: "run-mid",  title: "Middle Post",        created_at: "2026-05-15T00:00:00Z", quality_report: { ...MOCK_POST.quality_report, score: 0.88 } };
+    const NEW_POST  = { ...MOCK_POST, run_id: "run-new",  title: "Newest Post",        created_at: "2026-06-01T00:00:00Z", quality_report: { ...MOCK_POST.quality_report, score: 0.95 } };
+
+    it("renders a sort select control", async () => {
+      (api.listPosts as jest.Mock).mockResolvedValue([]);
+      render(<PostsPage />);
+      expect(screen.getByTestId("sort-select")).toBeInTheDocument();
+    });
+
+    it("default order is newest first", async () => {
+      (api.listPosts as jest.Mock).mockResolvedValue([OLD_POST, NEW_POST, MID_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(3));
+      const cards = screen.getAllByTestId("post-card");
+      expect(cards[0]).toHaveTextContent("Newest Post");
+      expect(cards[2]).toHaveTextContent("Oldest Post");
+    });
+
+    it("sort oldest shows oldest post first", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([OLD_POST, NEW_POST, MID_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(3));
+      await user.selectOptions(screen.getByTestId("sort-select"), "oldest");
+      const cards = screen.getAllByTestId("post-card");
+      expect(cards[0]).toHaveTextContent("Oldest Post");
+      expect(cards[2]).toHaveTextContent("Newest Post");
+    });
+
+    it("sort score-desc shows highest score first", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([OLD_POST, NEW_POST, MID_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(3));
+      await user.selectOptions(screen.getByTestId("sort-select"), "score-desc");
+      const cards = screen.getAllByTestId("post-card");
+      expect(cards[0]).toHaveTextContent("Newest Post");   // score 0.95
+      expect(cards[2]).toHaveTextContent("Oldest Post");   // score 0.72
+    });
+
+    it("sort score-asc shows lowest score first", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock).mockResolvedValue([OLD_POST, NEW_POST, MID_POST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(3));
+      await user.selectOptions(screen.getByTestId("sort-select"), "score-asc");
+      const cards = screen.getAllByTestId("post-card");
+      expect(cards[0]).toHaveTextContent("Oldest Post");   // score 0.72
+      expect(cards[2]).toHaveTextContent("Newest Post");   // score 0.95
+    });
+
+    it("sort composes with boost filter", async () => {
+      const user = userEvent.setup();
+      const BOOST_A = { ...OLD_POST, run_id: "ba", title: "Boost Old",  quality_report: { ...OLD_POST.quality_report,  score: 0.72, medium_boost_eligible: true } };
+      const BOOST_B = { ...NEW_POST, run_id: "bb", title: "Boost New",  quality_report: { ...NEW_POST.quality_report,  score: 0.95, medium_boost_eligible: true } };
+      const NO_BOOST = { ...MID_POST, run_id: "nb", title: "No Boost",  quality_report: { ...MID_POST.quality_report, score: 0.88, medium_boost_eligible: false } };
+      (api.listPosts as jest.Mock).mockResolvedValue([BOOST_A, BOOST_B, NO_BOOST]);
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(3));
+      await user.click(screen.getByTestId("filter-boost"));
+      await user.selectOptions(screen.getByTestId("sort-select"), "score-asc");
+      const cards = screen.getAllByTestId("post-card");
+      expect(cards).toHaveLength(2);
+      expect(cards[0]).toHaveTextContent("Boost Old");
+      expect(cards[1]).toHaveTextContent("Boost New");
+    });
+  });
 });
