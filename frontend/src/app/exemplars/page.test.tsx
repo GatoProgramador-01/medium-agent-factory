@@ -139,4 +139,18 @@ describe("ExemplarsPage", () => {
     const skeletons = document.querySelectorAll(".skeleton");
     expect(skeletons.length).toBeGreaterThan(0);
   });
+
+  it("score badge has data-testid exemplar-score-{run_id}", async () => {
+    (api.listExemplars as jest.Mock).mockResolvedValue([fakeExemplar]);
+    render(<ExemplarsPage />);
+    await waitFor(() => screen.getByTestId("exemplar-score-run-abc"));
+    expect(screen.getByTestId("exemplar-score-run-abc")).toHaveTextContent("97");
+  });
+
+  it("read ratio badge has data-testid exemplar-ratio-{run_id}", async () => {
+    (api.listExemplars as jest.Mock).mockResolvedValue([fakeExemplar]);
+    render(<ExemplarsPage />);
+    await waitFor(() => screen.getByTestId("exemplar-ratio-run-abc"));
+    expect(screen.getByTestId("exemplar-ratio-run-abc")).toHaveTextContent("81%");
+  });
 });

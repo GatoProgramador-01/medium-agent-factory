@@ -270,4 +270,43 @@ describe("PipelinePage", () => {
       expect(screen.getByTestId("result-card")).toBeInTheDocument()
     );
   });
+
+  describe("result-card content after __done__", () => {
+    const fakePost = {
+      run_id: "run-done",
+      title: "Generated Title",
+      content: "...",
+      tags: [],
+      status: "approved",
+      revision_count: 0,
+      created_at: new Date().toISOString(),
+      image_suggestions: [],
+      quality_report: { score: 0.82, read_ratio_prediction: 0.7, issues: [], strengths: [], revision_prompt: "" },
+    };
+
+    async function renderAndFinish(fakeEsRef: ReturnType<typeof makeFakeEventSource>) {
+      (api.triggerPipeline as jest.Mock).mockResolvedValue({ run_id: "run-done" });
+      (api.getPost as jest.Mock).mockResolvedValue(fakePost);
+      render(<PipelinePage />);
+      await userEvent.click(screen.getByTestId("run-button"));
+      await waitFor(() => expect(api.streamLogs).toHaveBeenCalled());
+      fakeEsRef._emit({ __done__: true });
+      await waitFor(() => screen.getByTestId("result-card"));
+    }
+
+    it("shows quality score", async () => {
+      await renderAndFinish(fakeEs);
+      expect(screen.getByTestId("result-score")).toHaveTextContent("82");
+    });
+
+    it("shows read ratio percentage", async () => {
+      await renderAndFinish(fakeEs);
+      expect(screen.getByTestId("result-ratio")).toHaveTextContent("70%");
+    });
+
+    it("view post link has correct href", async () => {
+      await renderAndFinish(fakeEs);
+      expect(screen.getByTestId("view-post-link")).toHaveAttribute("href", "/posts/run-done");
+    });
+  });
 });

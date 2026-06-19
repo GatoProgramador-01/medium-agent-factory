@@ -38,4 +38,23 @@ describe("PromoteExemplarButton", () => {
     await user.click(screen.getByRole("button", { name: /save as exemplar/i }));
     expect(screen.getByRole("button")).toBeDisabled();
   });
+
+  it("shows Saving… label while request is in flight", async () => {
+    const user = userEvent.setup();
+    (api.promoteExemplar as jest.Mock).mockReturnValue(new Promise(() => {}));
+    render(<PromoteExemplarButton runId="run-1" />);
+    await user.click(screen.getByRole("button", { name: /save as exemplar/i }));
+    expect(screen.getByRole("button")).toHaveTextContent("Saving…");
+  });
+
+  it("returns to idle state after API error", async () => {
+    const user = userEvent.setup();
+    (api.promoteExemplar as jest.Mock).mockRejectedValue(new Error("Network error"));
+    render(<PromoteExemplarButton runId="run-1" />);
+    await user.click(screen.getByRole("button", { name: /save as exemplar/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button")).toHaveTextContent(/save as exemplar/i)
+    );
+    expect(screen.getByRole("button")).toBeEnabled();
+  });
 });

@@ -57,6 +57,15 @@ class TestPipelineRunsE2E:
         assert run["status"] == "queued"
         assert run["custom_topic"] == "AI agents 2025"
 
+    async def test_trigger_pipeline_sync_calls_run_pipeline(self, client: AsyncClient) -> None:
+        with patch(
+            "app.routers.pipeline.run_pipeline",
+            new=AsyncMock(return_value={"run_id": "sync-1", "message": "done"}),
+        ) as mock_run:
+            r = await client.post("/pipeline/run/sync", json={"custom_topic": "sync topic"})
+        assert r.status_code == 200
+        mock_run.assert_called_once_with(custom_topic="sync topic")
+
     async def test_list_runs_empty(self, client: AsyncClient) -> None:
         r = await client.get("/pipeline/runs")
         assert r.status_code == 200
@@ -317,6 +326,24 @@ class TestPostsE2E:
         all_ids = {p["run_id"] for p in r_all.json()}
         assert returned_ids.issubset(all_ids)
         assert len(returned_ids) == 2
+
+    async def test_list_posts_status_and_offset_combined(self, client: AsyncClient) -> None:
+        from datetime import timedelta
+
+        db = get_db()
+        base = datetime.now(UTC)
+        await db.posts.insert_many(
+            [
+                {"run_id": "so-ap1", "status": "approved", "created_at": base},
+                {"run_id": "so-ap2", "status": "approved", "created_at": base - timedelta(seconds=1)},
+                {"run_id": "so-dr1", "status": "draft",    "created_at": base - timedelta(seconds=2)},
+            ]
+        )
+        r = await client.get("/posts?status=approved&offset=1&limit=1")
+        assert r.status_code == 200
+        posts = r.json()
+        assert len(posts) == 1
+        assert posts[0]["run_id"] == "so-ap2"
 
     async def test_delete_post_returns_204(self, client: AsyncClient) -> None:
         db = get_db()
@@ -873,6 +900,48 @@ class TestExemplarsE2E:
     async def test_patch_tags_not_found_returns_404(self, client: AsyncClient) -> None:
         r = await client.patch("/posts/no-such/tags", json={"tags": ["ai"]})
         assert r.status_code == 404
+
+    async def test_list_exemplars_sorted_by_score_desc(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.exemplars.insert_many(
+            [
+                {"run_id": "ex-low",  "score": 0.91, "created_at": datetime.now(UTC)},
+                {"run_id": "ex-high", "score": 0.97, "created_at": datetime.now(UTC)},
+                {"run_id": "ex-mid",  "score": 0.95, "created_at": datetime.now(UTC)},
+            ]
+        )
+        r = await client.get("/posts/exemplars/list")
+        assert r.status_code == 200
+        rows = [ex for ex in r.json() if ex["run_id"] in {"ex-low", "ex-high", "ex-mid"}]
+        scores = [row["score"] for row in rows]
+        assert scores == sorted(scores, reverse=True)
+
+    async def test_promote_exemplar_copies_score_and_tags(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {
+                "run_id": "promo-fields",
+                "title": "LLM Cost Tips",
+                "content": "word " * 200,
+                "tags": ["ai", "cost"],
+                "status": "approved",
+                "quality_report": {
+                    "score": 0.96,
+                    "read_ratio_prediction": 0.82,
+                    "medium_boost_eligible": True,
+                    "issues": [],
+                    "strengths": [],
+                },
+                "created_at": datetime.now(UTC),
+            }
+        )
+        await client.post("/posts/promo-fields/exemplar")
+        ex = await db.exemplars.find_one({"run_id": "promo-fields"})
+        assert ex is not None
+        assert ex["score"] == 0.96
+        assert ex["tags"] == ["ai", "cost"]
+        assert "hook" in ex
+        assert "word_count" in ex
 
     async def test_patch_tags_empty_array_clears_all_tags(self, client: AsyncClient) -> None:
         db = get_db()

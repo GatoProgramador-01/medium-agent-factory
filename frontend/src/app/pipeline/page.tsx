@@ -79,11 +79,11 @@ function ResultCard({ post }: { post: Post }) {
       <div className="grid grid-cols-3 gap-4">
         <div>
           <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Quality</div>
-          <div className="text-2xl font-bold tabular-nums" style={{ color: scoreColor }}>{scorePct}</div>
+          <div data-testid="result-score" className="text-2xl font-bold tabular-nums" style={{ color: scoreColor }}>{scorePct}</div>
         </div>
         <div>
           <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Read ratio</div>
-          <div className="text-2xl font-bold tabular-nums" style={{ color: "var(--green)" }}>
+          <div data-testid="result-ratio" className="text-2xl font-bold tabular-nums" style={{ color: "var(--green)" }}>
             {Math.round(ratio * 100)}%
           </div>
         </div>

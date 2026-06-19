@@ -34,8 +34,8 @@ function ExemplarCard({ ex, onRemove }: { ex: Exemplar; onRemove: () => void }) 
         </div>
 
         <div className="shrink-0 text-right space-y-1">
-          <div className="text-2xl font-bold tabular-nums" style={{ color }}>{pct}</div>
-          <div className="text-xs" style={{ color: "var(--text-dim)" }}>
+          <div data-testid={`exemplar-score-${ex.run_id}`} className="text-2xl font-bold tabular-nums" style={{ color }}>{pct}</div>
+          <div data-testid={`exemplar-ratio-${ex.run_id}`} className="text-xs" style={{ color: "var(--text-dim)" }}>
             {Math.round(ex.read_ratio * 100)}% ratio
           </div>
         </div>
