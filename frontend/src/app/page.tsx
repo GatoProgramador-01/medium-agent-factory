@@ -61,13 +61,13 @@ export default function DashboardPage() {
         </div>
       ) : summary ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <StatCard label="Pipeline runs"    value={summary.pipeline_runs} />
-          <StatCard label="Completed"        value={summary.completed_runs} />
-          <StatCard label="Posts generated"  value={summary.total_posts} />
-          <StatCard label="Published"        value={summary.published_posts} />
-          <StatCard label="Total tokens"     value={summary.total_tokens.toLocaleString()} />
-          <StatCard label="Total cost"       value={`$${summary.total_cost_usd.toFixed(4)}`} sub="USD" />
-          <StatCard label="Exemplars saved"  value={exemplars.length} testId="stat-exemplars" />
+          <StatCard label="Pipeline runs"    value={summary.pipeline_runs}                        testId="stat-pipeline-runs" />
+          <StatCard label="Completed"        value={summary.completed_runs}                       testId="stat-completed" />
+          <StatCard label="Posts generated"  value={summary.total_posts}                          testId="stat-total-posts" />
+          <StatCard label="Published"        value={summary.published_posts}                      testId="stat-published" />
+          <StatCard label="Total tokens"     value={summary.total_tokens.toLocaleString()}        testId="stat-total-tokens" />
+          <StatCard label="Total cost"       value={`$${summary.total_cost_usd.toFixed(4)}`} sub="USD" testId="stat-total-cost" />
+          <StatCard label="Exemplars saved"  value={exemplars.length}                             testId="stat-exemplars" />
         </div>
       ) : (
         <div className="card p-8 text-center" style={{ color: "var(--text-muted)" }}>

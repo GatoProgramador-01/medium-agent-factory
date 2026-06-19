@@ -38,14 +38,14 @@ function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
 
       <div className="space-y-1">
         <div className="text-xs" style={{ color: "var(--text-muted)" }}>Predicted read ratio</div>
-        <div className="font-semibold" style={{ color: "var(--green)" }}>
+        <div className="font-semibold" data-testid="quality-read-ratio" style={{ color: "var(--green)" }}>
           {Math.round(qr.read_ratio_prediction * 100)}%
         </div>
       </div>
 
       <div className="space-y-1">
         <div className="text-xs" style={{ color: "var(--text-muted)" }}>Boost eligible</div>
-        <div>
+        <div data-testid="quality-boost-eligible">
           {qr.medium_boost_eligible ? (
             <span className="badge badge-green">Yes</span>
           ) : (
@@ -58,7 +58,7 @@ function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
         <div className="space-y-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
           <div className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Issues</div>
           {qr.issues.slice(0, 4).map((iss, i) => (
-            <div key={i} className="space-y-0.5">
+            <div key={i} data-testid={`quality-issue-${i}`} className="space-y-0.5">
               <span
                 className="badge"
                 style={{
@@ -84,7 +84,7 @@ function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
         <div className="space-y-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
           <div className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Strengths</div>
           {qr.strengths.slice(0, 2).map((s, i) => (
-            <p key={i} className="text-xs leading-snug" style={{ color: "var(--text-muted)" }}>
+            <p key={i} data-testid={`quality-strength-${i}`} className="text-xs leading-snug" style={{ color: "var(--text-muted)" }}>
               {s.slice(0, 120)}{s.length > 120 ? "…" : ""}
             </p>
           ))}
@@ -380,12 +380,12 @@ export default function PostReaderPage() {
               onChange={(s) => setPost((p) => p ? { ...p, status: s } : p)}
             />
             {post.series_position && (
-              <span className="badge badge-purple">Series Part {post.series_position}</span>
+              <span className="badge badge-purple" data-testid="series-position-badge">Series Part {post.series_position}</span>
             )}
             <span>·</span>
-            <span>{readMin} min read</span>
+            <span data-testid="read-time">{readMin} min read</span>
             <span>·</span>
-            <span>{wordCount.toLocaleString()} words</span>
+            <span data-testid="word-count">{wordCount.toLocaleString()} words</span>
             <span>·</span>
             <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
           </div>

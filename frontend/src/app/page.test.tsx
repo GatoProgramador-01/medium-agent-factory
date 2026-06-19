@@ -117,4 +117,34 @@ describe("DashboardPage", () => {
     await waitFor(() => screen.getByTestId("stat-exemplars"));
     expect(screen.getByTestId("stat-exemplars")).toHaveTextContent("2");
   });
+
+  it("shows total tokens stat card after data loads", async () => {
+    render(<DashboardPage />);
+    // MOCK_SUMMARY.total_tokens = 450000 → "450,000"
+    await waitFor(() => expect(screen.getByTestId("stat-total-tokens")).toBeInTheDocument());
+    expect(screen.getByTestId("stat-total-tokens")).toHaveTextContent("450,000");
+  });
+
+  it("shows total cost stat card after data loads", async () => {
+    render(<DashboardPage />);
+    // MOCK_SUMMARY.total_cost_usd = 0.0842 → "$0.0842"
+    await waitFor(() => expect(screen.getByTestId("stat-total-cost")).toBeInTheDocument());
+    expect(screen.getByTestId("stat-total-cost")).toHaveTextContent("$0.0842");
+  });
+
+  it("shows published posts stat card after data loads", async () => {
+    render(<DashboardPage />);
+    // MOCK_SUMMARY.published_posts = 3
+    await waitFor(() => expect(screen.getByTestId("stat-published")).toBeInTheDocument());
+    expect(screen.getByTestId("stat-published")).toHaveTextContent("3");
+  });
+
+  it("shows loading skeletons in stats grid before data arrives", () => {
+    (api.summary as jest.Mock).mockReturnValue(new Promise(() => {}));
+    (api.listPosts as jest.Mock).mockReturnValue(new Promise(() => {}));
+    (api.listExemplars as jest.Mock).mockReturnValue(new Promise(() => {}));
+    render(<DashboardPage />);
+    const skeletons = document.querySelectorAll(".skeleton");
+    expect(skeletons.length).toBeGreaterThan(0);
+  });
 });

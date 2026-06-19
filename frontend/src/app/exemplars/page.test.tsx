@@ -99,4 +99,44 @@ describe("ExemplarsPage", () => {
     await waitFor(() => expect(screen.queryByTestId("exemplar-card-run-abc")).not.toBeInTheDocument());
     expect(screen.getByTestId("exemplar-card-run-xyz")).toBeInTheDocument();
   });
+
+  it("shows word count in exemplar card", async () => {
+    (api.listExemplars as jest.Mock).mockResolvedValue([fakeExemplar]);
+    render(<ExemplarsPage />);
+    await waitFor(() => screen.getByTestId("exemplar-card-run-abc"));
+    // word_count: 1720 → "1,720 words"
+    expect(screen.getByTestId("exemplar-card-run-abc")).toHaveTextContent("1,720 words");
+  });
+
+  it("shows read ratio in exemplar card", async () => {
+    (api.listExemplars as jest.Mock).mockResolvedValue([fakeExemplar]);
+    render(<ExemplarsPage />);
+    await waitFor(() => screen.getByTestId("exemplar-card-run-abc"));
+    // read_ratio: 0.81 → "81% ratio"
+    expect(screen.getByTestId("exemplar-card-run-abc")).toHaveTextContent("81% ratio");
+  });
+
+  it("shows tags in exemplar card", async () => {
+    (api.listExemplars as jest.Mock).mockResolvedValue([fakeExemplar]);
+    render(<ExemplarsPage />);
+    await waitFor(() => screen.getByTestId("exemplar-card-run-abc"));
+    expect(screen.getByTestId("exemplar-card-run-abc")).toHaveTextContent("ai");
+    expect(screen.getByTestId("exemplar-card-run-abc")).toHaveTextContent("cost");
+    expect(screen.getByTestId("exemplar-card-run-abc")).toHaveTextContent("llm");
+  });
+
+  it("shows hook score text in exemplar card", async () => {
+    (api.listExemplars as jest.Mock).mockResolvedValue([fakeExemplar]);
+    render(<ExemplarsPage />);
+    await waitFor(() => screen.getByTestId("exemplar-card-run-abc"));
+    // hook_score: 0.95 → "Hook score: 95%"
+    expect(screen.getByTestId("exemplar-card-run-abc")).toHaveTextContent("Hook score: 95%");
+  });
+
+  it("shows loading skeletons before data arrives", () => {
+    (api.listExemplars as jest.Mock).mockReturnValue(new Promise(() => {}));
+    render(<ExemplarsPage />);
+    const skeletons = document.querySelectorAll(".skeleton");
+    expect(skeletons.length).toBeGreaterThan(0);
+  });
 });

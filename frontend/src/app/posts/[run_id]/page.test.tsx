@@ -54,6 +54,26 @@ const POST_NO_QUALITY = {
   quality_history: [],
 };
 
+const MOCK_POST_WITH_ISSUES = {
+  ...MOCK_POST,
+  quality_report: {
+    score: 0.78,
+    read_ratio_prediction: 0.65,
+    medium_boost_eligible: false,
+    issues: [
+      { category: "Hook Weakness", severity: "HIGH",   suggestion: "Rewrite the hook" },
+      { category: "Structure",     severity: "MEDIUM", suggestion: "Add subheadings" },
+    ],
+    strengths: ["Clear data points"],
+  },
+};
+
+const MOCK_POST_WITH_SERIES = {
+  ...MOCK_POST,
+  series_id: "series-abc",
+  series_position: 2,
+};
+
 describe("PostReaderPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -302,5 +322,70 @@ describe("PostReaderPage", () => {
     await user.click(screen.getByRole("button", { name: /^delete$/i }));
     await user.click(screen.getByRole("button", { name: /confirm/i }));
     await waitFor(() => expect(push).toHaveBeenCalledWith("/posts"));
+  });
+
+  describe("QualityPanel content", () => {
+    it("shows read_ratio_prediction in the sidebar", async () => {
+      (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+      render(<PostReaderPage />);
+      // read_ratio_prediction: 0.84 → 84%
+      await waitFor(() => expect(screen.getByTestId("quality-read-ratio")).toBeInTheDocument());
+      expect(screen.getByTestId("quality-read-ratio")).toHaveTextContent("84%");
+    });
+
+    it("shows boost_eligible Yes badge when eligible", async () => {
+      (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+      render(<PostReaderPage />);
+      await waitFor(() => expect(screen.getByTestId("quality-boost-eligible")).toBeInTheDocument());
+      expect(screen.getByTestId("quality-boost-eligible")).toHaveTextContent("Yes");
+    });
+
+    it("shows boost_eligible No badge when not eligible", async () => {
+      (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST_WITH_ISSUES);
+      render(<PostReaderPage />);
+      await waitFor(() => expect(screen.getByTestId("quality-boost-eligible")).toBeInTheDocument());
+      expect(screen.getByTestId("quality-boost-eligible")).toHaveTextContent("No");
+    });
+
+    it("renders quality issue items with category and severity", async () => {
+      (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST_WITH_ISSUES);
+      render(<PostReaderPage />);
+      await waitFor(() => expect(screen.getByTestId("quality-issue-0")).toBeInTheDocument());
+      expect(screen.getByTestId("quality-issue-0")).toHaveTextContent("HIGH");
+      expect(screen.getByTestId("quality-issue-0")).toHaveTextContent("Hook Weakness");
+      expect(screen.getByTestId("quality-issue-1")).toHaveTextContent("MEDIUM");
+      expect(screen.getByTestId("quality-issue-1")).toHaveTextContent("Structure");
+    });
+
+    it("renders quality strengths text", async () => {
+      (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+      render(<PostReaderPage />);
+      await waitFor(() => expect(screen.getByTestId("quality-strength-0")).toBeInTheDocument());
+      expect(screen.getByTestId("quality-strength-0")).toHaveTextContent("Strong hook");
+      expect(screen.getByTestId("quality-strength-1")).toHaveTextContent("Clear takeaways");
+    });
+  });
+
+  describe("post meta row", () => {
+    it("shows word count in the meta row", async () => {
+      (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+      render(<PostReaderPage />);
+      await waitFor(() => expect(screen.getByTestId("word-count")).toBeInTheDocument());
+      expect(screen.getByTestId("word-count")).toHaveTextContent("words");
+    });
+
+    it("shows reading time estimate in the meta row", async () => {
+      (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+      render(<PostReaderPage />);
+      await waitFor(() => expect(screen.getByTestId("read-time")).toBeInTheDocument());
+      expect(screen.getByTestId("read-time")).toHaveTextContent("min read");
+    });
+
+    it("shows series position badge when post is part of a series", async () => {
+      (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST_WITH_SERIES);
+      render(<PostReaderPage />);
+      await waitFor(() => expect(screen.getByTestId("series-position-badge")).toBeInTheDocument());
+      expect(screen.getByTestId("series-position-badge")).toHaveTextContent("Series Part 2");
+    });
   });
 });
