@@ -102,6 +102,16 @@ export type AgentUsage = {
   call_count: number;
 };
 
+export type RunUsage = {
+  run_id: string;
+  total_cost_usd: number;
+  total_tokens_in: number;
+  total_tokens_out: number;
+  total_duration_ms: number;
+  agent_calls: number;
+  first_call?: string;
+};
+
 export type AgentLog = {
   run_id: string;
   step: string;
@@ -160,7 +170,7 @@ export const api = {
 
   tokenUsage: (runId?: string) =>
     request<AgentUsage[]>(`/analytics/token-usage${runId ? `?run_id=${runId}` : ""}`),
-  tokenUsageByRun: () => request<AgentUsage[]>("/analytics/token-usage/by-run"),
+  tokenUsageByRun: () => request<RunUsage[]>("/analytics/token-usage/by-run"),
   summary: () => request<Summary>("/analytics/summary"),
 
   getLogs: (runId: string) => request<AgentLog[]>(`/pipeline/runs/${runId}/logs`),

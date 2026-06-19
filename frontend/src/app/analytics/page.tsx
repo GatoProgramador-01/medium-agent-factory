@@ -2,16 +2,20 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { api, type AgentUsage } from "@/lib/api";
+import { api, type AgentUsage, type RunUsage } from "@/lib/api";
 
 const AgentCharts = dynamic(() => import("@/components/AgentCharts"), { ssr: false });
 
 export default function AnalyticsPage() {
   const [usage, setUsage]   = useState<AgentUsage[]>([]);
+  const [byRun, setByRun]   = useState<RunUsage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.tokenUsage().then(setUsage).catch(console.error).finally(() => setLoading(false));
+    Promise.all([api.tokenUsage(), api.tokenUsageByRun()])
+      .then(([u, r]) => { setUsage(u); setByRun(r); })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
   const totalCost  = usage.reduce((a, u) => a + u.total_cost_usd, 0);
@@ -88,6 +92,54 @@ export default function AnalyticsPage() {
                     <td className="px-4 py-2 tabular-nums">{u.total_tokens_out.toLocaleString()}</td>
                     <td className="px-4 py-2 tabular-nums">{u.avg_duration_ms}ms</td>
                     <td className="px-4 py-2 tabular-nums text-[var(--orange)]">${u.total_cost_usd.toFixed(6)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {/* By-run breakdown */}
+      <div className="term-box overflow-hidden" data-testid="by-run-table">
+        <div className="term-box-header">
+          <span>cost by run</span>
+          {!loading && <span className="ml-auto text-[var(--orange)]">{byRun.length} runs</span>}
+        </div>
+
+        {loading ? (
+          <div className="p-4 space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex gap-6">
+                <div className="skeleton h-3 w-32" />
+                <div className="skeleton h-3 w-12" />
+                <div className="skeleton h-3 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : byRun.length === 0 ? (
+          <p className="p-4 text-xs text-[var(--text-muted)]">no data — run a pipeline to see per-run costs</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[var(--border)] text-[var(--text-muted)]">
+                  {["run_id", "agent_calls", "tok_in", "tok_out", "cost_usd"].map((h) => (
+                    <th key={h} className="px-4 py-2 text-left font-normal tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {byRun.map((r) => (
+                  <tr
+                    key={r.run_id}
+                    data-testid={`by-run-row-${r.run_id}`}
+                    className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)] transition-colors"
+                  >
+                    <td className="px-4 py-2 font-mono text-[var(--text-dim)] truncate max-w-[8rem]">{r.run_id}</td>
+                    <td className="px-4 py-2 tabular-nums">{r.agent_calls}</td>
+                    <td className="px-4 py-2 tabular-nums">{r.total_tokens_in.toLocaleString()}</td>
+                    <td className="px-4 py-2 tabular-nums">{r.total_tokens_out.toLocaleString()}</td>
+                    <td className="px-4 py-2 tabular-nums text-[var(--orange)]">${r.total_cost_usd.toFixed(6)}</td>
                   </tr>
                 ))}
               </tbody>

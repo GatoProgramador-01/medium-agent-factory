@@ -137,6 +137,28 @@ class TestPipelineRunsE2E:
         assert logs[0]["message"] == "started"
         assert logs[1]["message"] == "done"
 
+    async def test_list_runs_offset_skips_records(self, client: AsyncClient) -> None:
+        from datetime import timedelta
+
+        db = get_db()
+        base = datetime.now(UTC)
+        await db.pipeline_runs.insert_many(
+            [
+                {
+                    "run_id": f"e2e-poff{i}",
+                    "status": "completed",
+                    "created_at": base - timedelta(seconds=i),
+                }
+                for i in range(4)
+            ]
+        )
+        r_all = await client.get("/pipeline/runs?limit=10")
+        assert len(r_all.json()) == 4
+
+        r_offset = await client.get("/pipeline/runs?limit=10&offset=2")
+        assert r_offset.status_code == 200
+        assert len(r_offset.json()) == 2
+
 
 class TestPostsE2E:
     async def test_list_posts_empty(self, client: AsyncClient) -> None:
@@ -230,6 +252,35 @@ class TestPostsE2E:
         assert r.status_code == 200
         assert len(r.json()) == expected
 
+    async def test_list_posts_offset_skips_records(self, client: AsyncClient) -> None:
+        db = get_db()
+        # Insert 3 posts with deterministic ordering via created_at
+        from datetime import timedelta
+        base = datetime.now(UTC)
+        await db.posts.insert_many(
+            [
+                {
+                    "run_id": f"e2e-off{i}",
+                    "status": "draft",
+                    "title": f"Post {i}",
+                    "created_at": base - timedelta(seconds=i),
+                }
+                for i in range(3)
+            ]
+        )
+        # Without offset: returns all 3
+        r_all = await client.get("/posts?limit=10")
+        assert len(r_all.json()) == 3
+
+        # With offset=1: skips the newest, returns 2
+        r_offset = await client.get("/posts?limit=10&offset=1")
+        assert r_offset.status_code == 200
+        assert len(r_offset.json()) == 2
+        # The skipped record should not appear
+        returned_ids = {p["run_id"] for p in r_offset.json()}
+        all_ids = {p["run_id"] for p in r_all.json()}
+        assert returned_ids.issubset(all_ids)
+        assert len(returned_ids) == 2
 
     async def test_delete_post_returns_204(self, client: AsyncClient) -> None:
         db = get_db()
@@ -476,6 +527,129 @@ class TestAnalyticsE2E:
         rows = r.json()
         assert len(rows) == 1
         assert rows[0]["total_tokens_in"] == 10
+
+    async def test_token_usage_by_run_aggregates_across_agents(
+        self, client: AsyncClient
+    ) -> None:
+        db = get_db()
+        await db.agent_runs.insert_many(
+            [
+                {
+                    "run_id": "br1",
+                    "agent_name": "research",
+                    "tokens_in": 100,
+                    "tokens_out": 50,
+                    "cost_usd": 0.001,
+                    "duration_ms": 300,
+                    "created_at": datetime.now(UTC),
+                },
+                {
+                    "run_id": "br1",
+                    "agent_name": "content_generator",
+                    "tokens_in": 200,
+                    "tokens_out": 80,
+                    "cost_usd": 0.002,
+                    "duration_ms": 400,
+                    "created_at": datetime.now(UTC),
+                },
+            ]
+        )
+        r = await client.get("/analytics/token-usage/by-run")
+        assert r.status_code == 200
+        rows = r.json()
+        assert len(rows) == 1
+        assert rows[0]["run_id"] == "br1"
+        assert rows[0]["agent_calls"] == 2
+        assert rows[0]["total_tokens_in"] == 300
+        assert rows[0]["total_tokens_out"] == 130
+
+    async def test_token_usage_by_run_sorted_newest_first(
+        self, client: AsyncClient
+    ) -> None:
+        db = get_db()
+        old_time = datetime(2026, 1, 1, tzinfo=UTC)
+        new_time = datetime(2026, 6, 1, tzinfo=UTC)
+        await db.agent_runs.insert_many(
+            [
+                {
+                    "run_id": "old-run",
+                    "agent_name": "a",
+                    "tokens_in": 10,
+                    "tokens_out": 5,
+                    "cost_usd": 0.0001,
+                    "duration_ms": 100,
+                    "created_at": old_time,
+                },
+                {
+                    "run_id": "new-run",
+                    "agent_name": "a",
+                    "tokens_in": 20,
+                    "tokens_out": 10,
+                    "cost_usd": 0.0002,
+                    "duration_ms": 200,
+                    "created_at": new_time,
+                },
+            ]
+        )
+        r = await client.get("/analytics/token-usage/by-run")
+        assert r.status_code == 200
+        rows = r.json()
+        assert rows[0]["run_id"] == "new-run"
+        assert rows[1]["run_id"] == "old-run"
+
+    async def test_token_usage_by_run_multiple_runs_separate_rows(
+        self, client: AsyncClient
+    ) -> None:
+        db = get_db()
+        await db.agent_runs.insert_many(
+            [
+                {
+                    "run_id": "sep-r1",
+                    "agent_name": "q",
+                    "tokens_in": 50,
+                    "tokens_out": 25,
+                    "cost_usd": 0.0005,
+                    "duration_ms": 150,
+                    "created_at": datetime.now(UTC),
+                },
+                {
+                    "run_id": "sep-r2",
+                    "agent_name": "q",
+                    "tokens_in": 80,
+                    "tokens_out": 40,
+                    "cost_usd": 0.0008,
+                    "duration_ms": 200,
+                    "created_at": datetime.now(UTC),
+                },
+            ]
+        )
+        r = await client.get("/analytics/token-usage/by-run")
+        assert r.status_code == 200
+        rows = {row["run_id"]: row for row in r.json()}
+        assert "sep-r1" in rows
+        assert "sep-r2" in rows
+        assert rows["sep-r1"]["total_tokens_in"] == 50
+        assert rows["sep-r2"]["total_tokens_in"] == 80
+
+    async def test_token_usage_by_run_cost_rounded_to_six_places(
+        self, client: AsyncClient
+    ) -> None:
+        db = get_db()
+        await db.agent_runs.insert_one(
+            {
+                "run_id": "cost-round",
+                "agent_name": "a",
+                "tokens_in": 100,
+                "tokens_out": 50,
+                "cost_usd": 0.0012345678,
+                "duration_ms": 100,
+                "created_at": datetime.now(UTC),
+            }
+        )
+        r = await client.get("/analytics/token-usage/by-run")
+        assert r.status_code == 200
+        rows = r.json()
+        assert rows[0]["total_cost_usd"] == round(0.0012345678, 6)
 
 
 class TestExemplarsE2E:
