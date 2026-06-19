@@ -137,6 +137,11 @@ export const api = {
     const res = await fetch(`${BASE}/posts/${runId}`, { method: "DELETE" });
     if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
   },
+  updateStatus: (runId: string, status: string) =>
+    request<Post>(`/posts/${runId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
 
   tokenUsage: (runId?: string) =>
     request<AgentUsage[]>(`/analytics/token-usage${runId ? `?run_id=${runId}` : ""}`),

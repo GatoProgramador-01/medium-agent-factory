@@ -1,11 +1,18 @@
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from app.agents.exemplar_store import promote_post_to_exemplar
 from app.database import get_db
+from app.models.post import PostStatus
 
 router = APIRouter(prefix="/posts", tags=["posts"])
+
+
+class StatusUpdate(BaseModel):
+    status: PostStatus
 
 
 @router.get("")
@@ -37,6 +44,20 @@ async def delete_post(run_id: str) -> None:
     result = await db.posts.delete_one({"run_id": run_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Post not found")
+
+
+@router.patch("/{run_id}/status")
+async def update_post_status(run_id: str, body: StatusUpdate) -> dict[str, Any]:
+    db = get_db()
+    result = await db.posts.find_one_and_update(
+        {"run_id": run_id},
+        {"$set": {"status": str(body.status), "updated_at": datetime.now(UTC)}},
+        projection={"_id": 0},
+        return_document=True,
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return cast(dict[str, Any], result)
 
 
 @router.post("/{run_id}/exemplar")

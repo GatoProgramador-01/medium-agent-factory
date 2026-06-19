@@ -9,6 +9,7 @@ jest.mock("@/lib/api", () => ({
     getPost: jest.fn(),
     getSeries: jest.fn(),
     deletePost: jest.fn(),
+    updateStatus: jest.fn(),
   },
 }));
 
@@ -57,6 +58,7 @@ describe("PostReaderPage", () => {
     (useParams as jest.Mock).mockReturnValue({ run_id: "run-1" });
     (api.getSeries as jest.Mock).mockResolvedValue(null);
     (api.deletePost as jest.Mock).mockResolvedValue(undefined);
+    (api.updateStatus as jest.Mock).mockResolvedValue({ ...MOCK_POST, status: "approved" });
   });
 
   it("shows a loading skeleton before data arrives", () => {
@@ -151,6 +153,29 @@ describe("PostReaderPage", () => {
     await waitFor(() =>
       expect(screen.getByText(/post not found/i)).toBeInTheDocument()
     );
+  });
+
+  it("shows a status select in the meta row", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByTestId("status-picker")).toBeInTheDocument();
+  });
+
+  it("status select shows the current post status", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByTestId("status-picker")).toHaveValue("approved");
+  });
+
+  it("changing status calls api.updateStatus with run_id and new status", async () => {
+    const user = userEvent.setup();
+    (api.getPost as jest.Mock).mockResolvedValue({ ...MOCK_POST, status: "draft" });
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    await user.selectOptions(screen.getByTestId("status-picker"), "approved");
+    expect(api.updateStatus).toHaveBeenCalledWith("run-1", "approved");
   });
 
   it("shows Delete button in footer", async () => {

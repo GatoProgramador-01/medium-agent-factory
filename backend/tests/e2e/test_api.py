@@ -263,6 +263,37 @@ class TestPostsE2E:
         assert r.status_code == 200
         assert r.json()["word_count"] == 1750
 
+    async def test_patch_status_returns_updated_doc(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {"run_id": "e2e-st1", "status": "draft", "title": "Draft", "created_at": datetime.now(UTC)}
+        )
+        r = await client.patch("/posts/e2e-st1/status", json={"status": "approved"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "approved"
+
+    async def test_patch_status_persists_to_db(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {"run_id": "e2e-st2", "status": "revised", "title": "Revised", "created_at": datetime.now(UTC)}
+        )
+        await client.patch("/posts/e2e-st2/status", json={"status": "published"})
+        doc = await db.posts.find_one({"run_id": "e2e-st2"})
+        assert doc is not None
+        assert doc["status"] == "published"
+
+    async def test_patch_status_not_found_returns_404(self, client: AsyncClient) -> None:
+        r = await client.patch("/posts/no-such/status", json={"status": "approved"})
+        assert r.status_code == 404
+
+    async def test_patch_status_invalid_value_returns_422(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {"run_id": "e2e-st3", "status": "draft", "created_at": datetime.now(UTC)}
+        )
+        r = await client.patch("/posts/e2e-st3/status", json={"status": "banana"})
+        assert r.status_code == 422
+
 
 class TestAnalyticsE2E:
     async def test_token_usage_empty(self, client: AsyncClient) -> None:

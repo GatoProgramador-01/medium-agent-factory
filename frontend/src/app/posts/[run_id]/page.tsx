@@ -157,6 +157,35 @@ function CopyButton({ content, title }: { content: string; title: string }) {
   );
 }
 
+const VALID_STATUSES = ["draft", "revised", "approved", "published"] as const;
+
+function StatusPicker({ runId, status, onChange }: { runId: string; status: string; onChange: (s: string) => void }) {
+  async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const next = e.target.value;
+    await api.updateStatus(runId, next);
+    onChange(next);
+  }
+
+  return (
+    <select
+      data-testid="status-picker"
+      value={status}
+      onChange={handleChange}
+      className="text-xs px-2 py-0.5 rounded"
+      style={{
+        background: status === "approved" ? "rgba(16,185,129,0.12)" : "rgba(124,133,162,0.12)",
+        color: status === "approved" ? "var(--green)" : "var(--text-muted)",
+        border: "1px solid var(--border)",
+        cursor: "pointer",
+      }}
+    >
+      {VALID_STATUSES.map((s) => (
+        <option key={s} value={s}>{s}</option>
+      ))}
+    </select>
+  );
+}
+
 export default function PostReaderPage() {
   const params = useParams();
   const runId  = params.run_id as string;
@@ -228,15 +257,11 @@ export default function PostReaderPage() {
 
           {/* Meta */}
           <div className="flex flex-wrap items-center gap-2 mb-4 text-xs" style={{ color: "var(--text-dim)" }}>
-            <span
-              className="badge"
-              style={{
-                background: post.status === "approved" ? "rgba(16,185,129,0.12)" : "rgba(124,133,162,0.12)",
-                color:      post.status === "approved" ? "var(--green)" : "var(--text-muted)",
-              }}
-            >
-              {post.status}
-            </span>
+            <StatusPicker
+              runId={runId}
+              status={post.status}
+              onChange={(s) => setPost((p) => p ? { ...p, status: s } : p)}
+            />
             {post.series_position && (
               <span className="badge badge-purple">Series Part {post.series_position}</span>
             )}
