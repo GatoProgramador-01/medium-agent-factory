@@ -93,6 +93,7 @@ class PostDocument:
     series_position: int | None = None
     medium_url: str | None = None
     revision_count: int = 0
+    word_count: int = 0
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
@@ -106,6 +107,7 @@ class PostDocument:
             "tags": self.tags,
             "status": str(self.status),
             "revision_count": self.revision_count,
+            "word_count": len(self.content.split()) if self.content else 0,
             "medium_url": self.medium_url,
             "created_at": self.created_at,
             "updated_at": self.updated_at,

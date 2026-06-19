@@ -31,6 +31,14 @@ async def get_post(run_id: str) -> dict[str, Any]:
     return cast(dict[str, Any], post)
 
 
+@router.delete("/{run_id}", status_code=204)
+async def delete_post(run_id: str) -> None:
+    db = get_db()
+    result = await db.posts.delete_one({"run_id": run_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+
 @router.post("/{run_id}/exemplar")
 async def promote_exemplar(run_id: str) -> dict[str, Any]:
     """Promote an existing post to exemplar status for few-shot injection."""

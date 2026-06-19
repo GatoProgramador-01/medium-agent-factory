@@ -226,6 +226,44 @@ class TestPostsE2E:
         assert len(r.json()) == expected
 
 
+    async def test_delete_post_returns_204(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {"run_id": "e2e-del1", "status": "draft", "title": "To Delete", "created_at": datetime.now(UTC)}
+        )
+        r = await client.delete("/posts/e2e-del1")
+        assert r.status_code == 204
+
+    async def test_delete_post_removes_from_db(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {"run_id": "e2e-del2", "status": "draft", "title": "Delete Me", "created_at": datetime.now(UTC)}
+        )
+        await client.delete("/posts/e2e-del2")
+        remaining = await db.posts.find_one({"run_id": "e2e-del2"})
+        assert remaining is None
+
+    async def test_delete_post_not_found_returns_404(self, client: AsyncClient) -> None:
+        r = await client.delete("/posts/does-not-exist")
+        assert r.status_code == 404
+
+    async def test_get_post_returns_word_count_field(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {
+                "run_id": "e2e-wc1",
+                "status": "approved",
+                "title": "Word Count Post",
+                "content": "word " * 1750,
+                "word_count": 1750,
+                "created_at": datetime.now(UTC),
+            }
+        )
+        r = await client.get("/posts/e2e-wc1")
+        assert r.status_code == 200
+        assert r.json()["word_count"] == 1750
+
+
 class TestAnalyticsE2E:
     async def test_token_usage_empty(self, client: AsyncClient) -> None:
         r = await client.get("/analytics/token-usage")
