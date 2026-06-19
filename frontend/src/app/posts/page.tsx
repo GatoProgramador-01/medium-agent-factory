@@ -47,9 +47,15 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
+function wcColor(n: number) {
+  if (n >= 1700) return "var(--green)";
+  if (n >= 1300) return "var(--amber)";
+  return "var(--red)";
+}
+
 function PostCard({ post, onTagClick }: { post: Post; onTagClick: (tag: string) => void }) {
   const qr = post.quality_report;
-  const wordCount = post.content ? post.content.split(/\s+/).length : 0;
+  const wordCount = post.word_count ?? (post.content ? post.content.split(/\s+/).length : 0);
   const readMin = Math.ceil(wordCount / 220);
 
   return (
@@ -97,6 +103,13 @@ function PostCard({ post, onTagClick }: { post: Post; onTagClick: (tag: string) 
             <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
             <span>·</span>
             <span>{readMin} min read</span>
+            <span>·</span>
+            <span
+              data-testid={`word-count-${post.run_id}`}
+              style={{ color: wcColor(wordCount), fontWeight: 500 }}
+            >
+              {wordCount.toLocaleString()} words
+            </span>
             <span>·</span>
             <span>{post.revision_count} revision{post.revision_count !== 1 ? "s" : ""}</span>
             {qr?.medium_boost_eligible && (

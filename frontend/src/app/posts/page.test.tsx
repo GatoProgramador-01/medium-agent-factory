@@ -386,4 +386,57 @@ describe("PostsPage", () => {
       expect(cards[1]).toHaveTextContent("Boost New");
     });
   });
+
+  describe("Word count badge", () => {
+    const wcPost = (wordCount: number) => ({
+      ...MOCK_POST,
+      run_id: "run-wc",
+      word_count: wordCount,
+    });
+
+    it("displays word count on a post card", async () => {
+      (api.listPosts as jest.Mock).mockResolvedValue([wcPost(1700)]);
+      render(<PostsPage />);
+      await waitFor(() => screen.getByTestId("word-count-run-wc"));
+      expect(screen.getByTestId("word-count-run-wc")).toHaveTextContent("1,700");
+    });
+
+    it("shows green when word count >= 1700", async () => {
+      (api.listPosts as jest.Mock).mockResolvedValue([wcPost(1700)]);
+      render(<PostsPage />);
+      await waitFor(() => screen.getByTestId("word-count-run-wc"));
+      expect(screen.getByTestId("word-count-run-wc")).toHaveStyle({ color: "var(--green)" });
+    });
+
+    it("shows amber when word count is 1300–1699", async () => {
+      (api.listPosts as jest.Mock).mockResolvedValue([wcPost(1450)]);
+      render(<PostsPage />);
+      await waitFor(() => screen.getByTestId("word-count-run-wc"));
+      expect(screen.getByTestId("word-count-run-wc")).toHaveStyle({ color: "var(--amber)" });
+    });
+
+    it("shows red when word count < 1300", async () => {
+      (api.listPosts as jest.Mock).mockResolvedValue([wcPost(1100)]);
+      render(<PostsPage />);
+      await waitFor(() => screen.getByTestId("word-count-run-wc"));
+      expect(screen.getByTestId("word-count-run-wc")).toHaveStyle({ color: "var(--red)" });
+    });
+
+    it("prefers post.word_count over content-computed count", async () => {
+      const post = { ...wcPost(1800), content: "just five words here" };
+      (api.listPosts as jest.Mock).mockResolvedValue([post]);
+      render(<PostsPage />);
+      await waitFor(() => screen.getByTestId("word-count-run-wc"));
+      expect(screen.getByTestId("word-count-run-wc")).toHaveTextContent("1,800");
+      expect(screen.getByTestId("word-count-run-wc")).toHaveStyle({ color: "var(--green)" });
+    });
+
+    it("falls back to computed count when word_count field is absent", async () => {
+      const post = { ...MOCK_POST, run_id: "run-wc", content: Array(1700).fill("word").join(" "), word_count: undefined };
+      (api.listPosts as jest.Mock).mockResolvedValue([post]);
+      render(<PostsPage />);
+      await waitFor(() => screen.getByTestId("word-count-run-wc"));
+      expect(screen.getByTestId("word-count-run-wc")).toHaveTextContent("1,700");
+    });
+  });
 });
