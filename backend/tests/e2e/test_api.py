@@ -9,6 +9,11 @@ Coverage:
   GET  /pipeline/runs/{id}/logs
   GET  /posts
   GET  /posts/{id}
+  DELETE /posts/{id}
+  PATCH  /posts/{id}/status
+  POST   /series/run          (background task patched)
+  GET    /series
+  GET    /series/{id}
   GET  /analytics/token-usage
   GET  /analytics/token-usage/by-run
   GET  /analytics/summary
@@ -380,3 +385,74 @@ class TestAnalyticsE2E:
         assert rows["quality_analyzer"]["total_tokens_in"] == 300
         assert rows["quality_analyzer"]["call_count"] == 2
         assert rows["content_generator"]["call_count"] == 1
+
+
+class TestSeriesE2E:
+    async def test_trigger_series_returns_series_id(self, client: AsyncClient) -> None:
+        with patch("app.routers.series.run_series", new=AsyncMock(return_value={})):
+            r = await client.post("/series/run", json={"theme": "LLM Cost Breakdown"})
+        assert r.status_code == 200
+        body = r.json()
+        assert "series_id" in body
+        assert body["message"] == "Series started"
+
+    async def test_trigger_series_creates_db_document(self, client: AsyncClient) -> None:
+        with patch("app.routers.series.run_series", new=AsyncMock(return_value={})):
+            r = await client.post("/series/run", json={"theme": "Agent Patterns", "context": "2025 trends"})
+        series_id = r.json()["series_id"]
+        db = get_db()
+        doc = await db.series.find_one({"series_id": series_id})
+        assert doc is not None
+        assert doc["theme"] == "Agent Patterns"
+        assert doc["status"] == "queued"
+
+    async def test_list_series_empty(self, client: AsyncClient) -> None:
+        r = await client.get("/series")
+        assert r.status_code == 200
+        assert r.json() == []
+
+    async def test_list_series_returns_all(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.series.insert_many(
+            [
+                {"series_id": "s1", "theme": "Theme A", "status": "completed", "created_at": datetime.now(UTC)},
+                {"series_id": "s2", "theme": "Theme B", "status": "running",   "created_at": datetime.now(UTC)},
+            ]
+        )
+        r = await client.get("/series")
+        assert r.status_code == 200
+        assert len(r.json()) == 2
+
+    async def test_get_series_not_found(self, client: AsyncClient) -> None:
+        r = await client.get("/series/does-not-exist")
+        assert r.status_code == 404
+
+    async def test_get_series_found(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.series.insert_one(
+            {"series_id": "s3", "theme": "AI Agents", "status": "completed", "created_at": datetime.now(UTC)}
+        )
+        r = await client.get("/series/s3")
+        assert r.status_code == 200
+        assert r.json()["series_id"] == "s3"
+        assert r.json()["theme"] == "AI Agents"
+
+    async def test_get_series_attaches_posts_in_order(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.series.insert_one(
+            {"series_id": "s4", "theme": "Cost Series", "status": "completed", "created_at": datetime.now(UTC)}
+        )
+        await db.posts.insert_many(
+            [
+                {"run_id": "p2", "series_id": "s4", "series_position": 2, "title": "Part Two",   "created_at": datetime.now(UTC)},
+                {"run_id": "p1", "series_id": "s4", "series_position": 1, "title": "Part One",   "created_at": datetime.now(UTC)},
+                {"run_id": "p3", "series_id": "s4", "series_position": 3, "title": "Part Three", "created_at": datetime.now(UTC)},
+            ]
+        )
+        r = await client.get("/series/s4")
+        assert r.status_code == 200
+        posts = r.json()["posts"]
+        assert len(posts) == 3
+        assert posts[0]["title"] == "Part One"
+        assert posts[1]["title"] == "Part Two"
+        assert posts[2]["title"] == "Part Three"
