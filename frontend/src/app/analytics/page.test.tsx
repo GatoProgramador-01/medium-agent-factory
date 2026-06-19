@@ -97,4 +97,20 @@ describe("AnalyticsPage", () => {
     await waitFor(() => expect(screen.getByTestId("agent-charts")).toBeInTheDocument());
     expect(screen.getByTestId("agent-charts")).toHaveAttribute("data-count", "2");
   });
+
+  it("shows tokens_in total in stat box", async () => {
+    (api.tokenUsage as jest.Mock).mockResolvedValue(MOCK_USAGE);
+    render(<AnalyticsPage />);
+    // total: 12000 + 4500 = 16500
+    await waitFor(() => expect(screen.getByTestId("stat-tokens-in")).toBeInTheDocument());
+    expect(screen.getByTestId("stat-tokens-in")).toHaveTextContent("16,500");
+  });
+
+  it("shows tokens_out total in stat box", async () => {
+    (api.tokenUsage as jest.Mock).mockResolvedValue(MOCK_USAGE);
+    render(<AnalyticsPage />);
+    // total: 3000 + 900 = 3900
+    await waitFor(() => expect(screen.getByTestId("stat-tokens-out")).toBeInTheDocument());
+    expect(screen.getByTestId("stat-tokens-out")).toHaveTextContent("3,900");
+  });
 });

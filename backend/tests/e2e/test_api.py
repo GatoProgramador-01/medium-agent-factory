@@ -411,6 +411,72 @@ class TestAnalyticsE2E:
         assert rows["quality_analyzer"]["call_count"] == 2
         assert rows["content_generator"]["call_count"] == 1
 
+    async def test_token_usage_filters_by_run_id(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.agent_runs.insert_many(
+            [
+                {
+                    "run_id": "target-run",
+                    "agent_name": "research",
+                    "tokens_in": 100,
+                    "tokens_out": 50,
+                    "cost_usd": 0.001,
+                    "duration_ms": 300,
+                },
+                {
+                    "run_id": "other-run",
+                    "agent_name": "research",
+                    "tokens_in": 200,
+                    "tokens_out": 80,
+                    "cost_usd": 0.002,
+                    "duration_ms": 400,
+                },
+            ]
+        )
+        r = await client.get("/analytics/token-usage?run_id=target-run")
+        assert r.status_code == 200
+        rows = r.json()
+        assert len(rows) == 1
+        assert rows[0]["agent_name"] == "research"
+        assert rows[0]["total_tokens_in"] == 100
+
+    async def test_token_usage_filter_returns_empty_for_unknown_run(
+        self, client: AsyncClient
+    ) -> None:
+        r = await client.get("/analytics/token-usage?run_id=no-such-run")
+        assert r.status_code == 200
+        assert r.json() == []
+
+    async def test_token_usage_filter_excludes_other_runs(
+        self, client: AsyncClient
+    ) -> None:
+        db = get_db()
+        await db.agent_runs.insert_many(
+            [
+                {
+                    "run_id": "run-a",
+                    "agent_name": "quality",
+                    "tokens_in": 10,
+                    "tokens_out": 5,
+                    "cost_usd": 0.0001,
+                    "duration_ms": 100,
+                },
+                {
+                    "run_id": "run-b",
+                    "agent_name": "quality",
+                    "tokens_in": 20,
+                    "tokens_out": 10,
+                    "cost_usd": 0.0002,
+                    "duration_ms": 200,
+                },
+            ]
+        )
+        r = await client.get("/analytics/token-usage?run_id=run-a")
+        assert r.status_code == 200
+        rows = r.json()
+        assert len(rows) == 1
+        assert rows[0]["total_tokens_in"] == 10
+
 
 class TestExemplarsE2E:
     async def test_list_exemplars_empty(self, client: AsyncClient) -> None:

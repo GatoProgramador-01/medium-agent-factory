@@ -38,10 +38,10 @@ export default function AnalyticsPage() {
           ))
         ) : (
           <>
-            <StatBox label="total_cost_usd" value={`$${totalCost.toFixed(4)}`} accent />
-            <StatBox label="llm_calls" value={totalCalls} />
-            <StatBox label="tokens_in" value={totalIn.toLocaleString()} />
-            <StatBox label="tokens_out" value={totalOut.toLocaleString()} />
+            <StatBox label="total_cost_usd" value={`$${totalCost.toFixed(4)}`} accent testId="stat-cost" />
+            <StatBox label="llm_calls" value={totalCalls} testId="stat-calls" />
+            <StatBox label="tokens_in" value={totalIn.toLocaleString()} testId="stat-tokens-in" />
+            <StatBox label="tokens_out" value={totalOut.toLocaleString()} testId="stat-tokens-out" />
           </>
         )}
       </div>
@@ -99,9 +99,9 @@ export default function AnalyticsPage() {
   );
 }
 
-function StatBox({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
+function StatBox({ label, value, accent, testId }: { label: string; value: string | number; accent?: boolean; testId?: string }) {
   return (
-    <div className="term-box p-3 space-y-1">
+    <div className="term-box p-3 space-y-1" data-testid={testId}>
       <p className="text-[10px] text-[var(--text-muted)] tracking-wider">{label}</p>
       <p className={`text-lg font-bold tabular-nums ${accent ? "text-[var(--orange)]" : "text-[var(--text)]"}`}>
         {value}
