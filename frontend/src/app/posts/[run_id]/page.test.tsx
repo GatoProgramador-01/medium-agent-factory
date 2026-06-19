@@ -10,6 +10,7 @@ jest.mock("@/lib/api", () => ({
     getSeries: jest.fn(),
     deletePost: jest.fn(),
     updateStatus: jest.fn(),
+    setMediumUrl: jest.fn(),
   },
 }));
 
@@ -59,6 +60,7 @@ describe("PostReaderPage", () => {
     (api.getSeries as jest.Mock).mockResolvedValue(null);
     (api.deletePost as jest.Mock).mockResolvedValue(undefined);
     (api.updateStatus as jest.Mock).mockResolvedValue({ ...MOCK_POST, status: "approved" });
+    (api.setMediumUrl as jest.Mock).mockResolvedValue({ ...MOCK_POST });
   });
 
   it("shows a loading skeleton before data arrives", () => {
@@ -203,6 +205,46 @@ describe("PostReaderPage", () => {
     await user.click(screen.getByRole("button", { name: /^delete$/i }));
     await user.click(screen.getByRole("button", { name: /confirm/i }));
     expect(api.deletePost).toHaveBeenCalledWith("run-1");
+  });
+
+  it("shows Add Medium link button when medium_url is not set", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue({ ...MOCK_POST, medium_url: undefined });
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByTestId("add-medium-link")).toBeInTheDocument();
+  });
+
+  it("clicking Add Medium link shows a URL input", async () => {
+    const user = userEvent.setup();
+    (api.getPost as jest.Mock).mockResolvedValue({ ...MOCK_POST, medium_url: undefined });
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByTestId("add-medium-link"));
+    await user.click(screen.getByTestId("add-medium-link"));
+    expect(screen.getByTestId("medium-url-input")).toBeInTheDocument();
+  });
+
+  it("clicking Save calls api.setMediumUrl with the run_id and URL", async () => {
+    const user = userEvent.setup();
+    (api.getPost as jest.Mock).mockResolvedValue({ ...MOCK_POST, medium_url: undefined });
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByTestId("add-medium-link"));
+    await user.click(screen.getByTestId("add-medium-link"));
+    await user.type(screen.getByTestId("medium-url-input"), "https://medium.com/@user/my-post");
+    await user.click(screen.getByTestId("save-medium-link"));
+    expect(api.setMediumUrl).toHaveBeenCalledWith("run-1", "https://medium.com/@user/my-post");
+  });
+
+  it("after saving medium URL the link appears in the footer", async () => {
+    const user = userEvent.setup();
+    const savedUrl = "https://medium.com/@user/saved-post";
+    (api.getPost as jest.Mock).mockResolvedValue({ ...MOCK_POST, medium_url: undefined });
+    (api.setMediumUrl as jest.Mock).mockResolvedValue({ ...MOCK_POST, medium_url: savedUrl });
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByTestId("add-medium-link"));
+    await user.click(screen.getByTestId("add-medium-link"));
+    await user.type(screen.getByTestId("medium-url-input"), savedUrl);
+    await user.click(screen.getByTestId("save-medium-link"));
+    await waitFor(() => expect(screen.getByRole("link", { name: /view on medium/i })).toBeInTheDocument());
   });
 
   it("after successful delete redirects to /posts", async () => {

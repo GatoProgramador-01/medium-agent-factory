@@ -147,6 +147,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
+  setMediumUrl: (runId: string, medium_url: string | null) =>
+    request<Post>(`/posts/${runId}/medium_url`, {
+      method: "PATCH",
+      body: JSON.stringify({ medium_url }),
+    }),
 
   tokenUsage: (runId?: string) =>
     request<AgentUsage[]>(`/analytics/token-usage${runId ? `?run_id=${runId}` : ""}`),

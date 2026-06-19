@@ -94,6 +94,70 @@ function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
   );
 }
 
+function MediumUrlInput({ runId, initialUrl, onSave }: { runId: string; initialUrl?: string; onSave: (url: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue]     = useState(initialUrl ?? "");
+  const [saving, setSaving]   = useState(false);
+  const [url, setUrl]         = useState(initialUrl);
+
+  async function handleSave() {
+    setSaving(true);
+    await api.setMediumUrl(runId, value);
+    setUrl(value);
+    onSave(value);
+    setEditing(false);
+    setSaving(false);
+  }
+
+  if (!editing && !url) {
+    return (
+      <button
+        data-testid="add-medium-link"
+        onClick={() => setEditing(true)}
+        className="btn text-sm"
+      >
+        Add Medium link
+      </button>
+    );
+  }
+
+  if (!editing && url) {
+    return (
+      <span className="flex items-center gap-2">
+        <a href={url} target="_blank" rel="noopener noreferrer" className="btn text-sm" style={{ textDecoration: "none" }}>
+          View on Medium ↗
+        </a>
+        <button onClick={() => { setValue(url); setEditing(true); }} className="text-xs" style={{ color: "var(--text-dim)" }}>
+          edit
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-2">
+      <input
+        data-testid="medium-url-input"
+        type="url"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="https://medium.com/@you/article"
+        className="text-xs px-2 py-1 rounded"
+        style={{ background: "var(--card-bg)", border: "1px solid var(--border)", color: "var(--text)", minWidth: 260 }}
+      />
+      <button
+        data-testid="save-medium-link"
+        onClick={handleSave}
+        disabled={saving}
+        className="btn text-sm"
+      >
+        {saving ? "Saving…" : "Save"}
+      </button>
+      <button onClick={() => setEditing(false)} className="btn text-sm">Cancel</button>
+    </span>
+  );
+}
+
 function DeleteButton({ runId }: { runId: string }) {
   const router = useRouter();
   type Phase = "idle" | "confirming" | "deleting";
@@ -332,18 +396,12 @@ export default function PostReaderPage() {
             <CopyButton content={post.content} title={post.title} />
             <DownloadButton title={post.title} content={post.content} />
             <PromoteExemplarButton runId={runId} />
+            <MediumUrlInput
+              runId={runId}
+              initialUrl={post.medium_url}
+              onSave={(url) => setPost((p) => p ? { ...p, medium_url: url } : p)}
+            />
             <DeleteButton runId={runId} />
-            {post.medium_url && (
-              <a
-                href={post.medium_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn text-sm"
-                style={{ textDecoration: "none" }}
-              >
-                View on Medium ↗
-              </a>
-            )}
           </div>
         </article>
 

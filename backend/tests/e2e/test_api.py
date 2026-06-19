@@ -299,6 +299,31 @@ class TestPostsE2E:
         r = await client.patch("/posts/e2e-st3/status", json={"status": "banana"})
         assert r.status_code == 422
 
+    async def test_patch_medium_url_sets_url(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {"run_id": "e2e-mu1", "status": "published", "created_at": datetime.now(UTC)}
+        )
+        url = "https://medium.com/@user/my-article-abc123"
+        r = await client.patch("/posts/e2e-mu1/medium_url", json={"medium_url": url})
+        assert r.status_code == 200
+        assert r.json()["medium_url"] == url
+
+    async def test_patch_medium_url_persists_to_db(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {"run_id": "e2e-mu2", "status": "published", "created_at": datetime.now(UTC)}
+        )
+        url = "https://medium.com/@user/another-article"
+        await client.patch("/posts/e2e-mu2/medium_url", json={"medium_url": url})
+        doc = await db.posts.find_one({"run_id": "e2e-mu2"})
+        assert doc is not None
+        assert doc["medium_url"] == url
+
+    async def test_patch_medium_url_not_found_returns_404(self, client: AsyncClient) -> None:
+        r = await client.patch("/posts/no-such/medium_url", json={"medium_url": "https://medium.com/x"})
+        assert r.status_code == 404
+
 
 class TestAnalyticsE2E:
     async def test_token_usage_empty(self, client: AsyncClient) -> None:
