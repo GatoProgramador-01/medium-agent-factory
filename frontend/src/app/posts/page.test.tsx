@@ -85,7 +85,7 @@ describe("PostsPage", () => {
     render(<PostsPage />);
     await user.click(screen.getByTestId("filter-draft"));
     await waitFor(() =>
-      expect(api.listPosts).toHaveBeenCalledWith("draft")
+      expect(api.listPosts).toHaveBeenCalledWith("draft", 0)
     );
   });
 
@@ -97,7 +97,7 @@ describe("PostsPage", () => {
     await user.click(screen.getByTestId("filter-draft"));
     await user.click(screen.getByTestId("filter-all"));
     await waitFor(() =>
-      expect(api.listPosts).toHaveBeenLastCalledWith(undefined)
+      expect(api.listPosts).toHaveBeenLastCalledWith(undefined, 0)
     );
   });
 
@@ -437,6 +437,65 @@ describe("PostsPage", () => {
       render(<PostsPage />);
       await waitFor(() => screen.getByTestId("word-count-run-wc"));
       expect(screen.getByTestId("word-count-run-wc")).toHaveTextContent("1,700");
+    });
+  });
+
+  describe("Load more", () => {
+    function makePosts(count: number, startId = 0) {
+      return Array.from({ length: count }, (_, i) => ({
+        ...MOCK_POST,
+        run_id: `run-p${startId + i}`,
+        title: `Post ${startId + i}`,
+        tags: [],
+      }));
+    }
+
+    it("shows Load more button when a full page is returned", async () => {
+      (api.listPosts as jest.Mock).mockResolvedValue(makePosts(20));
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(20));
+      expect(screen.getByTestId("load-more")).toBeInTheDocument();
+    });
+
+    it("hides Load more when fewer than 20 posts are returned", async () => {
+      (api.listPosts as jest.Mock).mockResolvedValue(makePosts(5));
+      render(<PostsPage />);
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(5));
+      expect(screen.queryByTestId("load-more")).not.toBeInTheDocument();
+    });
+
+    it("clicking Load more fetches next page with offset 20", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock)
+        .mockResolvedValueOnce(makePosts(20))
+        .mockResolvedValueOnce(makePosts(5, 20));
+      render(<PostsPage />);
+      await waitFor(() => screen.getByTestId("load-more"));
+      await user.click(screen.getByTestId("load-more"));
+      expect(api.listPosts).toHaveBeenNthCalledWith(2, undefined, 20);
+    });
+
+    it("appended posts are shown after clicking Load more", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock)
+        .mockResolvedValueOnce(makePosts(20))
+        .mockResolvedValueOnce(makePosts(5, 20));
+      render(<PostsPage />);
+      await waitFor(() => screen.getByTestId("load-more"));
+      await user.click(screen.getByTestId("load-more"));
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(25));
+    });
+
+    it("hides Load more after last page has fewer than 20 posts", async () => {
+      const user = userEvent.setup();
+      (api.listPosts as jest.Mock)
+        .mockResolvedValueOnce(makePosts(20))
+        .mockResolvedValueOnce(makePosts(3, 20));
+      render(<PostsPage />);
+      await waitFor(() => screen.getByTestId("load-more"));
+      await user.click(screen.getByTestId("load-more"));
+      await waitFor(() => expect(screen.getAllByTestId("post-card")).toHaveLength(23));
+      expect(screen.queryByTestId("load-more")).not.toBeInTheDocument();
     });
   });
 });

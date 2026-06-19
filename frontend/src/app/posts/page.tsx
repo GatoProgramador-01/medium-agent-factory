@@ -180,24 +180,48 @@ function PostCard({ post, onTagClick }: { post: Post; onTagClick: (tag: string) 
   );
 }
 
+const PAGE_SIZE = 20;
+
 export default function PostsPage() {
   type SortKey = "newest" | "oldest" | "score-desc" | "score-asc";
 
-  const [posts, setPosts]         = useState<Post[]>([]);
-  const [filter, setFilter]       = useState("");
-  const [search, setSearch]       = useState("");
-  const [boostOnly, setBoostOnly] = useState(false);
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const [sort, setSort]           = useState<SortKey>("newest");
-  const [loading, setLoading]     = useState(true);
+  const [posts, setPosts]             = useState<Post[]>([]);
+  const [filter, setFilter]           = useState("");
+  const [search, setSearch]           = useState("");
+  const [boostOnly, setBoostOnly]     = useState(false);
+  const [tagFilter, setTagFilter]     = useState<string | null>(null);
+  const [sort, setSort]               = useState<SortKey>("newest");
+  const [loading, setLoading]         = useState(true);
+  const [offset, setOffset]           = useState(0);
+  const [hasMore, setHasMore]         = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    api.listPosts(filter || undefined)
-      .then(setPosts)
+    setOffset(0);
+    api.listPosts(filter || undefined, 0)
+      .then((p) => {
+        setPosts(p);
+        setHasMore(p.length === PAGE_SIZE);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [filter]);
+
+  async function handleLoadMore() {
+    setLoadingMore(true);
+    const nextOffset = offset + PAGE_SIZE;
+    try {
+      const more = await api.listPosts(filter || undefined, nextOffset);
+      setPosts((prev) => [...prev, ...more]);
+      setOffset(nextOffset);
+      setHasMore(more.length === PAGE_SIZE);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const visible = posts
     .filter((p) => {
@@ -345,9 +369,23 @@ export default function PostsPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {visible.map((p) => <PostCard key={p.run_id} post={p} onTagClick={setTagFilter} />)}
-        </div>
+        <>
+          <div className="space-y-3">
+            {visible.map((p) => <PostCard key={p.run_id} post={p} onTagClick={setTagFilter} />)}
+          </div>
+          {hasMore && (
+            <div className="text-center pt-4">
+              <button
+                data-testid="load-more"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="btn text-sm"
+              >
+                {loadingMore ? "Loading…" : "Load more"}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

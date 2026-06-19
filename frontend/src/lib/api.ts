@@ -130,8 +130,13 @@ export const api = {
   listRuns: () => request<PipelineRun[]>("/pipeline/runs"),
   getRun: (id: string) => request<PipelineRun>(`/pipeline/runs/${id}`),
 
-  listPosts: (status?: string) =>
-    request<Post[]>(`/posts${status ? `?status=${status}` : ""}`),
+  listPosts: (status?: string, offset = 0) => {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (offset > 0) params.set("offset", String(offset));
+    const qs = params.toString();
+    return request<Post[]>(`/posts${qs ? `?${qs}` : ""}`);
+  },
   getPost: (runId: string) => request<Post>(`/posts/${runId}`),
   deletePost: async (runId: string): Promise<void> => {
     const res = await fetch(`${BASE}/posts/${runId}`, { method: "DELETE" });
