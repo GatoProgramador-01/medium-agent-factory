@@ -94,6 +94,59 @@ function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
   );
 }
 
+function TagsEditor({ runId, initialTags }: { runId: string; initialTags: string[] }) {
+  const [tags, setTags]     = useState(initialTags);
+  const [newTag, setNewTag] = useState("");
+
+  async function removeTag(tag: string) {
+    const next = tags.filter((t) => t !== tag);
+    setTags(next);
+    await api.updateTags(runId, next);
+  }
+
+  async function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    const trimmed = newTag.trim();
+    if (!trimmed || tags.includes(trimmed)) return;
+    const next = [...tags, trimmed];
+    setTags(next);
+    setNewTag("");
+    await api.updateTags(runId, next);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mb-8">
+      {tags.map((t) => (
+        <span
+          key={t}
+          data-testid={`tag-pill-${t}`}
+          className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full"
+          style={{ background: "rgba(249,115,22,0.08)", color: "var(--text-muted)", border: "1px solid rgba(249,115,22,0.18)" }}
+        >
+          {t}
+          <button
+            data-testid={`remove-tag-${t}`}
+            onClick={() => removeTag(t)}
+            style={{ color: "var(--text-dim)", lineHeight: 1, cursor: "pointer" }}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+      <input
+        data-testid="add-tag-input"
+        type="text"
+        value={newTag}
+        onChange={(e) => setNewTag(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="add tag…"
+        className="text-xs px-2 py-0.5 rounded"
+        style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", width: 90, outline: "none" }}
+      />
+    </div>
+  );
+}
+
 function MediumUrlInput({ runId, initialUrl, onSave }: { runId: string; initialUrl?: string; onSave: (url: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue]     = useState(initialUrl ?? "");
@@ -364,23 +417,7 @@ export default function PostReaderPage() {
           )}
 
           {/* Tags */}
-          {post.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-8">
-              {post.tags.map((t) => (
-                <span
-                  key={t}
-                  className="text-xs px-2.5 py-1 rounded-full"
-                  style={{
-                    background: "rgba(249,115,22,0.08)",
-                    color: "var(--text-muted)",
-                    border: "1px solid rgba(249,115,22,0.18)",
-                  }}
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
-          )}
+          <TagsEditor runId={runId} initialTags={post.tags} />
 
           {/* Divider */}
           <div style={{ height: "1px", background: "rgba(249,115,22,0.18)", marginBottom: "2.5rem" }} />

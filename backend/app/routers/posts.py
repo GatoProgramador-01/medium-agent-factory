@@ -19,6 +19,10 @@ class MediumUrlUpdate(BaseModel):
     medium_url: str | None
 
 
+class TagsUpdate(BaseModel):
+    tags: list[str]
+
+
 @router.get("")
 async def list_posts(
     status: str | None = None,
@@ -70,6 +74,20 @@ async def update_medium_url(run_id: str, body: MediumUrlUpdate) -> dict[str, Any
     result = await db.posts.find_one_and_update(
         {"run_id": run_id},
         {"$set": {"medium_url": body.medium_url, "updated_at": datetime.now(UTC)}},
+        projection={"_id": 0},
+        return_document=True,
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return cast(dict[str, Any], result)
+
+
+@router.patch("/{run_id}/tags")
+async def update_post_tags(run_id: str, body: TagsUpdate) -> dict[str, Any]:
+    db = get_db()
+    result = await db.posts.find_one_and_update(
+        {"run_id": run_id},
+        {"$set": {"tags": body.tags, "updated_at": datetime.now(UTC)}},
         projection={"_id": 0},
         return_document=True,
     )

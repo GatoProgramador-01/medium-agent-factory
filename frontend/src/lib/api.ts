@@ -152,6 +152,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ medium_url }),
     }),
+  updateTags: (runId: string, tags: string[]) =>
+    request<Post>(`/posts/${runId}/tags`, {
+      method: "PATCH",
+      body: JSON.stringify({ tags }),
+    }),
 
   tokenUsage: (runId?: string) =>
     request<AgentUsage[]>(`/analytics/token-usage${runId ? `?run_id=${runId}` : ""}`),

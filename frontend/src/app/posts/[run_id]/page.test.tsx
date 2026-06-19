@@ -11,6 +11,7 @@ jest.mock("@/lib/api", () => ({
     deletePost: jest.fn(),
     updateStatus: jest.fn(),
     setMediumUrl: jest.fn(),
+    updateTags: jest.fn(),
   },
 }));
 
@@ -61,6 +62,7 @@ describe("PostReaderPage", () => {
     (api.deletePost as jest.Mock).mockResolvedValue(undefined);
     (api.updateStatus as jest.Mock).mockResolvedValue({ ...MOCK_POST, status: "approved" });
     (api.setMediumUrl as jest.Mock).mockResolvedValue({ ...MOCK_POST });
+    (api.updateTags as jest.Mock).mockResolvedValue({ ...MOCK_POST });
   });
 
   it("shows a loading skeleton before data arrives", () => {
@@ -205,6 +207,49 @@ describe("PostReaderPage", () => {
     await user.click(screen.getByRole("button", { name: /^delete$/i }));
     await user.click(screen.getByRole("button", { name: /confirm/i }));
     expect(api.deletePost).toHaveBeenCalledWith("run-1");
+  });
+
+  it("renders existing post tags", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByTestId("tag-pill-ai")).toBeInTheDocument();
+    expect(screen.getByTestId("tag-pill-cost")).toBeInTheDocument();
+    expect(screen.getByTestId("tag-pill-llm")).toBeInTheDocument();
+  });
+
+  it("each tag pill has a remove button", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByTestId("tag-pill-ai"));
+    expect(screen.getByTestId("remove-tag-ai")).toBeInTheDocument();
+  });
+
+  it("clicking × on a tag removes it and calls api.updateTags", async () => {
+    const user = userEvent.setup();
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByTestId("remove-tag-ai"));
+    await user.click(screen.getByTestId("remove-tag-ai"));
+    expect(api.updateTags).toHaveBeenCalledWith("run-1", ["cost", "llm"]);
+    expect(screen.queryByTestId("tag-pill-ai")).not.toBeInTheDocument();
+  });
+
+  it("shows an add-tag input field", async () => {
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByRole("heading", { name: MOCK_POST.title }));
+    expect(screen.getByTestId("add-tag-input")).toBeInTheDocument();
+  });
+
+  it("typing a tag and pressing Enter adds it and calls api.updateTags", async () => {
+    const user = userEvent.setup();
+    (api.getPost as jest.Mock).mockResolvedValue(MOCK_POST);
+    render(<PostReaderPage />);
+    await waitFor(() => screen.getByTestId("add-tag-input"));
+    await user.type(screen.getByTestId("add-tag-input"), "python{Enter}");
+    expect(api.updateTags).toHaveBeenCalledWith("run-1", ["ai", "cost", "llm", "python"]);
+    expect(screen.getByTestId("tag-pill-python")).toBeInTheDocument();
   });
 
   it("shows Add Medium link button when medium_url is not set", async () => {

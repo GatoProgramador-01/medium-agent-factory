@@ -447,6 +447,69 @@ class TestExemplarsE2E:
         r = await client.delete("/posts/exemplars/no-such-exemplar")
         assert r.status_code == 404
 
+    async def test_promote_exemplar_returns_saved_status(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {
+                "run_id": "e2e-promo1",
+                "title": "Great Post",
+                "content": "word " * 100,
+                "tags": ["ai"],
+                "status": "approved",
+                "quality_report": {"score": 0.97, "read_ratio_prediction": 0.82,
+                                   "medium_boost_eligible": True, "issues": [], "strengths": []},
+                "created_at": datetime.now(UTC),
+            }
+        )
+        r = await client.post("/posts/e2e-promo1/exemplar")
+        assert r.status_code == 200
+        assert r.json()["status"] == "saved_as_exemplar"
+
+    async def test_promote_exemplar_creates_exemplar_doc(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {
+                "run_id": "e2e-promo2",
+                "title": "Another Great Post",
+                "content": "word " * 100,
+                "tags": ["llm"],
+                "status": "approved",
+                "quality_report": {"score": 0.96, "read_ratio_prediction": 0.80,
+                                   "medium_boost_eligible": True, "issues": [], "strengths": []},
+                "created_at": datetime.now(UTC),
+            }
+        )
+        await client.post("/posts/e2e-promo2/exemplar")
+        exemplar = await db.exemplars.find_one({"run_id": "e2e-promo2"})
+        assert exemplar is not None
+
+    async def test_promote_exemplar_not_found_returns_404(self, client: AsyncClient) -> None:
+        r = await client.post("/posts/no-such/exemplar")
+        assert r.status_code == 404
+
+    async def test_patch_tags_updates_post(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {"run_id": "e2e-tags1", "status": "draft", "tags": ["old"], "created_at": datetime.now(UTC)}
+        )
+        r = await client.patch("/posts/e2e-tags1/tags", json={"tags": ["ai", "llm", "cost"]})
+        assert r.status_code == 200
+        assert r.json()["tags"] == ["ai", "llm", "cost"]
+
+    async def test_patch_tags_persists_to_db(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.posts.insert_one(
+            {"run_id": "e2e-tags2", "status": "draft", "tags": [], "created_at": datetime.now(UTC)}
+        )
+        await client.patch("/posts/e2e-tags2/tags", json={"tags": ["python", "agents"]})
+        doc = await db.posts.find_one({"run_id": "e2e-tags2"})
+        assert doc is not None
+        assert doc["tags"] == ["python", "agents"]
+
+    async def test_patch_tags_not_found_returns_404(self, client: AsyncClient) -> None:
+        r = await client.patch("/posts/no-such/tags", json={"tags": ["ai"]})
+        assert r.status_code == 404
+
 
 class TestSeriesE2E:
     async def test_trigger_series_returns_series_id(self, client: AsyncClient) -> None:
