@@ -174,6 +174,10 @@ export const api = {
   },
 
   listSeries: () => request<SeriesDetail[]>("/series"),
+  deleteSeries: async (seriesId: string): Promise<void> => {
+    const res = await fetch(`${BASE}/series/${seriesId}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  },
   getSeries: (id: string) => request<SeriesDetail>(`/series/${id}`),
   triggerSeries: (theme: string, context?: string) =>
     request<{ series_id: string; message: string }>("/series/run", {

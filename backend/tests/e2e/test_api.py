@@ -561,6 +561,27 @@ class TestSeriesE2E:
         assert r.json()["series_id"] == "s3"
         assert r.json()["theme"] == "AI Agents"
 
+    async def test_delete_series_returns_204(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.series.insert_one(
+            {"series_id": "s-del1", "theme": "To Delete", "status": "completed", "created_at": datetime.now(UTC)}
+        )
+        r = await client.delete("/series/s-del1")
+        assert r.status_code == 204
+
+    async def test_delete_series_removes_from_db(self, client: AsyncClient) -> None:
+        db = get_db()
+        await db.series.insert_one(
+            {"series_id": "s-del2", "theme": "Remove Me", "status": "completed", "created_at": datetime.now(UTC)}
+        )
+        await client.delete("/series/s-del2")
+        remaining = await db.series.find_one({"series_id": "s-del2"})
+        assert remaining is None
+
+    async def test_delete_series_not_found_returns_404(self, client: AsyncClient) -> None:
+        r = await client.delete("/series/no-such-series")
+        assert r.status_code == 404
+
     async def test_get_series_attaches_posts_in_order(self, client: AsyncClient) -> None:
         db = get_db()
         await db.series.insert_one(

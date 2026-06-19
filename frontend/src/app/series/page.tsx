@@ -10,7 +10,7 @@ function scoreColor(score: number) {
   return "var(--red)";
 }
 
-function SeriesCard({ series }: { series: SeriesDetail }) {
+function SeriesCard({ series, onRemove }: { series: SeriesDetail; onRemove: () => void }) {
   return (
     <div
       className="card p-5 space-y-4"
@@ -82,6 +82,17 @@ function SeriesCard({ series }: { series: SeriesDetail }) {
           ))}
         </ol>
       )}
+
+      <div className="flex justify-end pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+        <button
+          data-testid={`delete-series-${series.series_id}`}
+          onClick={async () => { await api.deleteSeries(series.series_id); onRemove(); }}
+          className="text-xs px-2 py-0.5 rounded transition-colors"
+          style={{ color: "var(--text-dim)", border: "1px solid var(--border)", cursor: "pointer" }}
+        >
+          Delete series
+        </button>
+      </div>
     </div>
   );
 }
@@ -141,7 +152,13 @@ export default function SeriesPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {series.map((s) => <SeriesCard key={s.series_id} series={s} />)}
+          {series.map((s) => (
+            <SeriesCard
+              key={s.series_id}
+              series={s}
+              onRemove={() => setSeries((prev) => prev.filter((x) => x.series_id !== s.series_id))}
+            />
+          ))}
         </div>
       )}
     </div>

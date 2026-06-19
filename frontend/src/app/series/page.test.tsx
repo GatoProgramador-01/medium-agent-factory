@@ -1,9 +1,13 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import SeriesPage from "./page";
 import { api } from "@/lib/api";
 
 jest.mock("@/lib/api", () => ({
-  api: { listSeries: jest.fn() },
+  api: {
+    listSeries: jest.fn(),
+    deleteSeries: jest.fn(),
+  },
 }));
 
 const mockListSeries = api.listSeries as jest.MockedFunction<typeof api.listSeries>;
@@ -22,7 +26,10 @@ const fakeSeries = [
 ];
 
 describe("SeriesPage", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (api.deleteSeries as jest.Mock).mockResolvedValue(undefined);
+  });
 
   it("renders page heading", async () => {
     mockListSeries.mockResolvedValue(fakeSeries);
@@ -57,5 +64,35 @@ describe("SeriesPage", () => {
     render(<SeriesPage />);
     await waitFor(() => screen.getByTestId("empty-state"));
     expect(screen.getByTestId("empty-state")).toBeInTheDocument();
+  });
+
+  it("shows a delete button on each series card", async () => {
+    mockListSeries.mockResolvedValue(fakeSeries);
+    render(<SeriesPage />);
+    await waitFor(() => screen.getByTestId("series-card-series-abc"));
+    expect(screen.getByTestId("delete-series-series-abc")).toBeInTheDocument();
+  });
+
+  it("clicking delete calls api.deleteSeries with the series_id", async () => {
+    const user = userEvent.setup();
+    mockListSeries.mockResolvedValue(fakeSeries);
+    render(<SeriesPage />);
+    await waitFor(() => screen.getByTestId("delete-series-series-abc"));
+    await user.click(screen.getByTestId("delete-series-series-abc"));
+    expect(api.deleteSeries).toHaveBeenCalledWith("series-abc");
+  });
+
+  it("deleted series card disappears from the list", async () => {
+    const user = userEvent.setup();
+    const twoSeries = [
+      ...fakeSeries,
+      { series_id: "series-xyz", theme: "Second Series", status: "completed", created_at: "2026-06-17T10:00:00Z", posts: [] },
+    ];
+    mockListSeries.mockResolvedValue(twoSeries);
+    render(<SeriesPage />);
+    await waitFor(() => expect(screen.getAllByTestId(/series-card-/)).toHaveLength(2));
+    await user.click(screen.getByTestId("delete-series-series-abc"));
+    await waitFor(() => expect(screen.queryByTestId("series-card-series-abc")).not.toBeInTheDocument());
+    expect(screen.getByTestId("series-card-series-xyz")).toBeInTheDocument();
   });
 });

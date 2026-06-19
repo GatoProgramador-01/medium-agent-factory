@@ -51,6 +51,14 @@ async def list_series(limit: int = 20) -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], await cursor.to_list(length=limit))
 
 
+@router.delete("/{series_id}", status_code=204)
+async def delete_series(series_id: str) -> None:
+    db = get_db()
+    result = await db.series.delete_one({"series_id": series_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Series not found")
+
+
 @router.get("/{series_id}")
 async def get_series(series_id: str) -> dict[str, Any]:
     db = get_db()
