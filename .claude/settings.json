@@ -1,5 +1,23 @@
 {
   "model": "sonnet",
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "PowerShell(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__mongodb__*",
+      "mcp__playwright__*",
+      "mcp__github__*",
+      "TodoWrite(*)",
+      "TodoRead(*)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
