@@ -2,6 +2,8 @@
 name: lint-and-format
 description: Check and fix code formatting and lint errors across backend and frontend. Use before committing.
 disable-model-invocation: false
+model: haiku
+maxTurns: 4
 allowed-tools: Bash Read Edit
 ---
 

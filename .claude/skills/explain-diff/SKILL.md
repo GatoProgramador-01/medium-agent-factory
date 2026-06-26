@@ -2,6 +2,8 @@
 name: explain-diff
 description: Summarize uncommitted changes and flag security risks, missing tests, or breaking changes. Use before committing or creating a PR.
 disable-model-invocation: false
+model: sonnet
+maxTurns: 6
 allowed-tools: Bash Read Grep
 ---
 

@@ -2,6 +2,8 @@
 name: verify-build
 description: Verify both backend (mypy strict) and frontend (next build) compile cleanly. Use before creating a PR or deploying.
 disable-model-invocation: false
+model: haiku
+maxTurns: 3
 allowed-tools: Bash Read Edit
 ---
 

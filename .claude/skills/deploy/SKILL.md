@@ -2,6 +2,8 @@
 name: deploy
 description: Trigger production deployment to Railway + Vercel via GitHub Actions. Only invoke this manually after confirming all CI checks pass.
 disable-model-invocation: true
+model: haiku
+maxTurns: 3
 allowed-tools: Bash
 ---
 

@@ -3,6 +3,8 @@ name: test-and-fix
 description: Run the test suite and auto-fix any failing tests. Use when tests are broken or after implementing new features.
 argument-hint: "[backend|frontend|all]"
 disable-model-invocation: false
+model: sonnet
+maxTurns: 8
 allowed-tools: Bash Read Edit Glob Grep
 ---
 
