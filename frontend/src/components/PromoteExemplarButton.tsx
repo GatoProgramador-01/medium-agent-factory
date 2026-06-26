@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 
-export function PromoteExemplarButton({ runId }: { runId: string }) {
+export function PromoteExemplarButton({
+  runId,
+  label,
+}: {
+  runId: string;
+  label?: string;
+}) {
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
 
   async function handleClick() {
@@ -24,7 +30,7 @@ export function PromoteExemplarButton({ runId }: { runId: string }) {
       className="btn text-sm"
       style={state === "saved" ? { color: "var(--green)", borderColor: "var(--green)" } : {}}
     >
-      {state === "saved" ? "Saved!" : state === "saving" ? "Saving…" : "Save as Exemplar"}
+      {state === "saved" ? "Saved!" : state === "saving" ? "Saving…" : (label ?? "Save as Exemplar")}
     </button>
   );
 }

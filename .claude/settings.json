@@ -37,6 +37,10 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/block-force-push.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-commit-docker-build.sh"
           }
         ]
       }

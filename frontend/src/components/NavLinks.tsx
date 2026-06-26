@@ -27,9 +27,11 @@ export function NavLinks() {
             data-testid={testId}
             className="px-3 py-1.5 rounded-md text-sm transition-colors"
             style={{
-              color:      active ? "var(--orange)"    : "var(--text-muted)",
-              background: active ? "var(--orange-dim)": "transparent",
-              fontWeight: active ? 500 : 400,
+              color:         active ? "var(--text)"    : "var(--text-muted)",
+              background:    active ? "transparent"    : "transparent",
+              fontWeight:    active ? 600               : 400,
+              borderBottom:  active ? "2px solid var(--orange)" : "2px solid transparent",
+              paddingBottom: "2px",
             }}
           >
             {label}

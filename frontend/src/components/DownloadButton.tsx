@@ -10,7 +10,15 @@ function slugify(title: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export function DownloadButton({ title, content }: { title: string; content: string }) {
+export function DownloadButton({
+  title,
+  content,
+  label,
+}: {
+  title: string;
+  content: string;
+  label?: string;
+}) {
   const [downloaded, setDownloaded] = useState(false);
 
   function handleDownload() {
@@ -30,7 +38,7 @@ export function DownloadButton({ title, content }: { title: string; content: str
 
   return (
     <button onClick={handleDownload} className="btn text-sm">
-      {downloaded ? "Downloaded!" : "Download .md"}
+      {downloaded ? "Downloaded!" : (label ?? "Download .md")}
     </button>
   );
 }

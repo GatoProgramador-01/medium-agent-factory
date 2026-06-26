@@ -11,40 +11,194 @@ import { SeriesNav } from "@/components/SeriesNav";
 import { PromoteExemplarButton } from "@/components/PromoteExemplarButton";
 import { DownloadButton } from "@/components/DownloadButton";
 
-function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
+type QualityReport = {
+  score: number;
+  read_ratio_prediction: number;
+  medium_boost_eligible: boolean;
+  issues: { category: string; severity: string; suggestion: string }[];
+  strengths: string[];
+};
+
+function ScoreRing({ pct, color }: { pct: number; color: string }) {
+  const r = 25;
+  const strokeWidth = 4;
+  const circumference = 2 * Math.PI * r;
+  const filled = circumference * (pct / 100);
+
+  return (
+    <svg
+      width={60}
+      height={60}
+      viewBox="0 0 60 60"
+      style={{ flexShrink: 0 }}
+      aria-hidden="true"
+    >
+      {/* Track */}
+      <circle
+        cx={30}
+        cy={30}
+        r={r}
+        fill="none"
+        stroke="var(--border)"
+        strokeWidth={strokeWidth}
+      />
+      {/* Filled arc — starts at top (rotate -90deg) */}
+      <circle
+        cx={30}
+        cy={30}
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeDasharray={`${filled} ${circumference - filled}`}
+        strokeDashoffset={0}
+        strokeLinecap="round"
+        transform="rotate(-90 30 30)"
+        style={{ transition: "stroke-dasharray 0.5s ease" }}
+      />
+    </svg>
+  );
+}
+
+function ReadRatioLabel({ ratio }: { ratio: number }) {
+  const pct = Math.round(ratio * 100);
+  if (pct > 80) {
+    return (
+      <span className="text-xs font-medium" style={{ color: "var(--green)" }}>
+        Exceptional
+      </span>
+    );
+  }
+  if (pct >= 65) {
+    return (
+      <span className="text-xs font-medium" style={{ color: "var(--amber)" }}>
+        Strong
+      </span>
+    );
+  }
+  return (
+    <span className="text-xs font-medium" style={{ color: "var(--red)" }}>
+      Weak
+    </span>
+  );
+}
+
+function QualityPanel({ qr }: { qr: QualityReport }) {
+  const [showAllStrengths, setShowAllStrengths] = useState(false);
+
   const pct = Math.round(qr.score * 100);
-  const scoreColor = pct >= 90 ? "var(--green)" : pct >= 75 ? "var(--amber)" : "var(--red)";
+  const scoreColor =
+    pct >= 90 ? "var(--green)" : pct >= 75 ? "var(--amber)" : "var(--red)";
+
+  // Group issues by category, max 5 categories
+  const categoryMap = qr.issues.reduce<
+    Record<string, { count: number; topSeverity: string }>
+  >((acc, iss) => {
+    const existing = acc[iss.category];
+    const severityRank = (s: string) =>
+      s === "HIGH" ? 2 : s === "MEDIUM" ? 1 : 0;
+    if (!existing) {
+      acc[iss.category] = { count: 1, topSeverity: iss.severity };
+    } else {
+      acc[iss.category] = {
+        count: existing.count + 1,
+        topSeverity:
+          severityRank(iss.severity) > severityRank(existing.topSeverity)
+            ? iss.severity
+            : existing.topSeverity,
+      };
+    }
+    return acc;
+  }, {});
+
+  const categoryRows = Object.entries(categoryMap)
+    .sort(([, a], [, b]) => {
+      const rank = (s: string) => (s === "HIGH" ? 2 : s === "MEDIUM" ? 1 : 0);
+      return rank(b.topSeverity) - rank(a.topSeverity);
+    })
+    .slice(0, 5);
+
+  const severityBadgeStyle = (severity: string) => ({
+    background:
+      severity === "HIGH"
+        ? "rgba(239,68,68,0.15)"
+        : severity === "MEDIUM"
+        ? "rgba(245,158,11,0.15)"
+        : "rgba(124,133,162,0.12)",
+    color:
+      severity === "HIGH"
+        ? "var(--red)"
+        : severity === "MEDIUM"
+        ? "var(--amber)"
+        : "var(--text-muted)",
+  });
+
+  const visibleStrengths = showAllStrengths
+    ? qr.strengths
+    : qr.strengths.slice(0, 1);
 
   return (
     <aside
       className="card p-5 space-y-4 text-sm"
       style={{
-        minWidth: 220,
-        maxWidth: 260,
+        minWidth: 200,
+        maxWidth: 240,
         background: "linear-gradient(170deg, #1e1409 0%, #180f06 100%)",
         border: "1px solid rgba(249,115,22,0.2)",
       }}
     >
+      {/* Score + ring */}
       <div>
-        <div className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Quality Score</div>
-        <div className="text-3xl font-bold tabular-nums" style={{ color: scoreColor }}>
-          {pct}
-          <span className="text-base font-normal" style={{ color: "var(--text-muted)" }}>/100</span>
+        <div className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+          Quality Score
         </div>
-        <div className="score-bar-track mt-2">
-          <div className="score-bar-fill" style={{ width: `${pct}%`, background: scoreColor }} />
+        <div className="flex items-center gap-3">
+          <ScoreRing pct={pct} color={scoreColor} />
+          <div>
+            <div
+              className="text-3xl font-bold tabular-nums"
+              style={{ color: scoreColor }}
+            >
+              {pct}
+              <span
+                className="text-base font-normal"
+                style={{ color: "var(--text-muted)" }}
+              >
+                /100
+              </span>
+            </div>
+            <div className="score-bar-track mt-2">
+              <div
+                className="score-bar-fill"
+                style={{ width: `${pct}%`, background: scoreColor }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Read ratio */}
       <div className="space-y-1">
-        <div className="text-xs" style={{ color: "var(--text-muted)" }}>Predicted read ratio</div>
-        <div className="font-semibold" data-testid="quality-read-ratio" style={{ color: "var(--green)" }}>
-          {Math.round(qr.read_ratio_prediction * 100)}%
+        <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+          Predicted read ratio
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className="font-semibold"
+            data-testid="quality-read-ratio"
+            style={{ color: "var(--green)" }}
+          >
+            {Math.round(qr.read_ratio_prediction * 100)}%
+          </span>
+          <ReadRatioLabel ratio={qr.read_ratio_prediction} />
         </div>
       </div>
 
+      {/* Boost eligible */}
       <div className="space-y-1">
-        <div className="text-xs" style={{ color: "var(--text-muted)" }}>Boost eligible</div>
+        <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+          Boost eligible
+        </div>
         <div data-testid="quality-boost-eligible">
           {qr.medium_boost_eligible ? (
             <span className="badge badge-green">Yes</span>
@@ -54,40 +208,83 @@ function QualityPanel({ qr }: { qr: NonNullable<Post["quality_report"]> }) {
         </div>
       </div>
 
-      {qr.issues.length > 0 && (
-        <div className="space-y-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-          <div className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Issues</div>
-          {qr.issues.slice(0, 4).map((iss, i) => (
-            <div key={i} data-testid={`quality-issue-${i}`} className="space-y-0.5">
+      {/* Issue category breakdown */}
+      {categoryRows.length > 0 && (
+        <div
+          className="space-y-2 pt-2"
+          style={{ borderTop: "1px solid var(--border)" }}
+        >
+          <div
+            className="text-xs font-medium"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Issues
+          </div>
+          {categoryRows.map(([category, { count, topSeverity }], i) => (
+            <div
+              key={category}
+              data-testid={`quality-issue-${i}`}
+              className="flex items-center justify-between gap-2"
+            >
               <span
-                className="badge"
-                style={{
-                  background: iss.severity === "HIGH"   ? "rgba(239,68,68,0.15)"
-                            : iss.severity === "MEDIUM" ? "rgba(245,158,11,0.15)"
-                            : "rgba(124,133,162,0.12)",
-                  color:      iss.severity === "HIGH"   ? "var(--red)"
-                            : iss.severity === "MEDIUM" ? "var(--amber)"
-                            : "var(--text-muted)",
-                }}
+                className="text-xs leading-snug truncate"
+                style={{ color: "var(--text-muted)", flex: 1 }}
+                title={category}
               >
-                {iss.severity}
+                {category}
               </span>
-              <p className="text-xs leading-snug" style={{ color: "var(--text-muted)" }}>
-                {iss.category}
-              </p>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="badge" style={severityBadgeStyle(topSeverity)}>
+                  {topSeverity}
+                </span>
+                {count > 1 && (
+                  <span
+                    className="text-xs tabular-nums"
+                    style={{ color: "var(--text-dim)" }}
+                  >
+                    ×{count}
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>
       )}
 
+      {/* Strengths — expandable */}
       {qr.strengths.length > 0 && (
-        <div className="space-y-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-          <div className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Strengths</div>
-          {qr.strengths.slice(0, 2).map((s, i) => (
-            <p key={i} data-testid={`quality-strength-${i}`} className="text-xs leading-snug" style={{ color: "var(--text-muted)" }}>
-              {s.slice(0, 120)}{s.length > 120 ? "…" : ""}
+        <div
+          className="space-y-2 pt-2"
+          style={{ borderTop: "1px solid var(--border)" }}
+        >
+          <div
+            className="text-xs font-medium"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Strengths
+          </div>
+          {visibleStrengths.map((s, i) => (
+            <p
+              key={i}
+              data-testid={`quality-strength-${i}`}
+              className="text-xs leading-snug"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {s.slice(0, 120)}
+              {s.length > 120 ? "…" : ""}
             </p>
           ))}
+          {qr.strengths.length > 1 && (
+            <button
+              onClick={() => setShowAllStrengths((v) => !v)}
+              className="text-xs"
+              style={{ color: "var(--orange)", cursor: "pointer", background: "none", border: "none", padding: 0 }}
+            >
+              {showAllStrengths
+                ? "Show less"
+                : `Show ${qr.strengths.length - 1} more`}
+            </button>
+          )}
         </div>
       )}
     </aside>
@@ -268,8 +465,12 @@ function CopyButton({ content, title }: { content: string; title: string }) {
   }
 
   return (
-    <button onClick={handleCopy} className="btn text-sm">
-      {copied ? "Copied!" : "Copy Markdown"}
+    <button
+      data-testid="copy-markdown-btn"
+      onClick={handleCopy}
+      className="btn text-sm"
+    >
+      {copied ? "Copied!" : "✦ Copy"}
     </button>
   );
 }
@@ -306,9 +507,10 @@ function StatusPicker({ runId, status, onChange }: { runId: string; status: stri
 export default function PostReaderPage() {
   const params = useParams();
   const runId  = params.run_id as string;
-  const [post, setPost]           = useState<Post | null>(null);
-  const [series, setSeries]       = useState<SeriesDetail | null>(null);
-  const [loading, setLoading]     = useState(true);
+  const [post, setPost]       = useState<Post | null>(null);
+  const [series, setSeries]   = useState<SeriesDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (!runId) return;
@@ -322,6 +524,23 @@ export default function PostReaderPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [runId]);
+
+  useEffect(() => {
+    function handleScroll() {
+      const scrollY = window.scrollY;
+      const documentHeight = document.documentElement.scrollHeight;
+      const windowHeight = window.innerHeight;
+      const total = documentHeight - windowHeight;
+      if (total <= 0) {
+        setProgress(0);
+        return;
+      }
+      setProgress((scrollY / total) * 100);
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   if (loading) {
     return (
@@ -349,8 +568,30 @@ export default function PostReaderPage() {
   const wordCount = post.content.split(/\s+/).length;
   const readMin   = Math.ceil(wordCount / 220);
 
+  const qr = post.quality_report;
+  const scorePct = qr ? Math.round(qr.score * 100) : null;
+  const scoreColor = scorePct != null
+    ? scorePct >= 90 ? "var(--green)" : scorePct >= 75 ? "var(--amber)" : "var(--red)"
+    : "var(--text-muted)";
+
   return (
     <div>
+      {/* Reading progress bar */}
+      <div
+        className="reading-progress"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "3px",
+          background: "var(--orange)",
+          zIndex: 9999,
+          width: `${progress}%`,
+          transition: "width 0.1s linear",
+        }}
+      />
+
       {/* Back nav */}
       <Link
         href="/posts"
@@ -360,7 +601,7 @@ export default function PostReaderPage() {
         ← All Posts
       </Link>
 
-      <div className="flex gap-10 items-start">
+      <div className="post-reader-layout flex gap-10 items-start">
         {/* Article */}
         <article className="flex-1 min-w-0 reading-wrapper">
           {/* Series navigation */}
@@ -372,8 +613,11 @@ export default function PostReaderPage() {
             />
           )}
 
-          {/* Meta */}
-          <div className="flex flex-wrap items-center gap-2 mb-4 text-xs" style={{ color: "var(--text-dim)" }}>
+          {/* Meta row */}
+          <div
+            className="post-meta-bar flex flex-wrap items-center gap-2 text-xs"
+            style={{ color: "var(--text-dim)" }}
+          >
             <StatusPicker
               runId={runId}
               status={post.status}
@@ -390,10 +634,28 @@ export default function PostReaderPage() {
             <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
           </div>
 
+          {/* Mobile quality bar — hidden on desktop, shown on mobile */}
+          {qr && scorePct != null && (
+            <div className="mobile-quality-bar">
+              <span
+                className="font-bold tabular-nums"
+                style={{ color: scoreColor, fontSize: "1rem" }}
+              >
+                {scorePct}
+                <span style={{ color: "var(--text-muted)", fontWeight: 400, fontSize: "0.75rem" }}>/100</span>
+              </span>
+              {qr.medium_boost_eligible ? (
+                <span className="badge badge-green" style={{ fontSize: "10px" }}>Boost</span>
+              ) : (
+                <span className="badge badge-muted" style={{ fontSize: "10px" }}>No Boost</span>
+              )}
+            </div>
+          )}
+
           {/* Title */}
           <h1
             className="font-bold mb-4 leading-tight"
-            style={{ fontSize: "2rem", color: "#f5e8d0", letterSpacing: "-0.02em" }}
+            style={{ fontSize: "2.4rem", color: "#f5e8d0", letterSpacing: "-0.02em" }}
           >
             {post.title}
           </h1>
@@ -416,6 +678,11 @@ export default function PostReaderPage() {
             </blockquote>
           )}
 
+          {/* Subtitle */}
+          {post.subtitle && (
+            <p className="post-subtitle">{post.subtitle}</p>
+          )}
+
           {/* Tags */}
           <TagsEditor runId={runId} initialTags={post.tags} />
 
@@ -423,7 +690,7 @@ export default function PostReaderPage() {
           <div style={{ height: "1px", background: "rgba(249,115,22,0.18)", marginBottom: "2.5rem" }} />
 
           {/* Full post content */}
-          <PostContent content={post.content} />
+          <PostContent content={post.content} sources={post.verified_sources} />
 
           {/* Footer actions */}
           <div
@@ -431,8 +698,12 @@ export default function PostReaderPage() {
             style={{ borderTop: "1px solid var(--border)" }}
           >
             <CopyButton content={post.content} title={post.title} />
-            <DownloadButton title={post.title} content={post.content} />
-            <PromoteExemplarButton runId={runId} />
+            <DownloadButton
+              title={post.title}
+              content={post.content}
+              label="⊡ Download"
+            />
+            <PromoteExemplarButton runId={runId} label="★ Save as Exemplar" />
             <MediumUrlInput
               runId={runId}
               initialUrl={post.medium_url}
@@ -442,15 +713,27 @@ export default function PostReaderPage() {
           </div>
         </article>
 
-        {/* Sidebar — sticky; quality + sources + revision history stacked */}
-        {(post.quality_report || (post.verified_sources && post.verified_sources.length > 0) || (post.quality_history && post.quality_history.length >= 2)) && (
-          <div className="shrink-0 sticky top-6 space-y-4">
-            {post.quality_report && <QualityPanel qr={post.quality_report} />}
-            <SourcesPanel sources={post.verified_sources} />
+        {/* Sidebar — sticky; quality + revision history (sources moved below) */}
+        {(qr || (post.quality_history && post.quality_history.length >= 2)) && (
+          <div
+            className="post-sidebar shrink-0 sticky top-6 space-y-4"
+            style={{
+              maxHeight: "calc(100vh - 3rem)",
+              overflowY: "auto",
+            }}
+          >
+            {qr && <QualityPanel qr={qr} />}
             <RevisionHistoryPanel history={post.quality_history} />
           </div>
         )}
       </div>
+
+      {/* Sources — full-width below article */}
+      {post.verified_sources && post.verified_sources.length > 0 && (
+        <div className="sources-below">
+          <SourcesPanel sources={post.verified_sources} />
+        </div>
+      )}
     </div>
   );
 }

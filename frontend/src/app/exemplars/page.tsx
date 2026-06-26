@@ -50,7 +50,7 @@ function ExemplarCard({ ex, onRemove }: { ex: Exemplar; onRemove: () => void }) 
           fontFamily: "Georgia, serif",
         }}
       >
-        "{ex.hook}"
+        &ldquo;{ex.hook}&rdquo;
       </blockquote>
 
       {/* Tags */}

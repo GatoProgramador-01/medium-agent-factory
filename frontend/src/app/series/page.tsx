@@ -4,18 +4,53 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, type SeriesDetail } from "@/lib/api";
 
-function scoreColor(score: number) {
+function scoreCircleColor(score: number) {
   if (score >= 0.90) return "var(--green)";
   if (score >= 0.75) return "var(--amber)";
   return "var(--red)";
 }
 
 function SeriesCard({ series, onRemove }: { series: SeriesDetail; onRemove: () => void }) {
+  const total = series.posts.length;
+  const completed = series.posts.filter((p) => p.status === "completed").length;
+  const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
   return (
     <div
       className="card p-5 space-y-4"
       data-testid={`series-card-${series.series_id}`}
     >
+      {/* Progress bar */}
+      {total > 0 && (
+        <div>
+          <div
+            className="flex items-center justify-between mb-1"
+            style={{ fontSize: "0.7rem", color: "var(--text-dim)" }}
+          >
+            <span>{completed} of {total} completed</span>
+            <span>{progressPct}%</span>
+          </div>
+          <div
+            style={{
+              height: "3px",
+              background: "var(--border)",
+              borderRadius: "2px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${progressPct}%`,
+                background: progressPct === 100 ? "var(--green)" : "var(--orange)",
+                borderRadius: "2px",
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
@@ -44,42 +79,69 @@ function SeriesCard({ series, onRemove }: { series: SeriesDetail; onRemove: () =
       {/* Parts list */}
       {series.posts.length > 0 && (
         <ol className="space-y-2 list-none p-0 m-0">
-          {series.posts.map((post) => (
-            <li key={post.run_id}>
-              <Link
-                href={`/posts/${post.run_id}`}
-                data-testid={`series-part-${post.run_id}`}
-                className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors group"
-                style={{
-                  background: "rgba(124,133,162,0.05)",
-                  border: "1px solid var(--border)",
-                  textDecoration: "none",
-                }}
-              >
-                <span
-                  className="text-xs shrink-0 tabular-nums font-mono"
-                  style={{ color: "#a78bfa", minWidth: "1.5rem" }}
+          {series.posts.map((post) => {
+            const wordCount = post.word_count ?? null;
+
+            return (
+              <li key={post.run_id}>
+                <Link
+                  href={`/posts/${post.run_id}`}
+                  data-testid={`series-part-${post.run_id}`}
+                  className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors group"
+                  style={{
+                    background: "rgba(124,133,162,0.05)",
+                    border: "1px solid var(--border)",
+                    textDecoration: "none",
+                  }}
                 >
-                  #{post.series_position}
-                </span>
-                <span
-                  className="flex-1 text-sm truncate group-hover:text-white transition-colors"
-                  style={{ color: "var(--text)" }}
-                >
-                  {post.title}
-                </span>
-                {post.quality_score !== undefined && (
                   <span
-                    className="text-xs tabular-nums font-semibold shrink-0"
-                    style={{ color: scoreColor(post.quality_score) }}
+                    className="text-xs shrink-0 tabular-nums font-mono"
+                    style={{ color: "#a78bfa", minWidth: "1.5rem" }}
                   >
-                    {Math.round(post.quality_score * 100)}
+                    #{post.series_position}
                   </span>
-                )}
-                <span className="text-xs shrink-0" style={{ color: "var(--text-dim)" }}>→</span>
-              </Link>
-            </li>
-          ))}
+                  <span
+                    className="flex-1 text-sm truncate group-hover:text-white transition-colors"
+                    style={{ color: "var(--text)" }}
+                  >
+                    {post.title}
+                  </span>
+                  {wordCount !== null && wordCount !== undefined && (
+                    <span
+                      className="text-xs tabular-nums shrink-0"
+                      style={{ color: "var(--text-dim)" }}
+                    >
+                      {wordCount.toLocaleString()}w
+                    </span>
+                  )}
+                  {post.quality_score !== undefined && (
+                    <span
+                      className="shrink-0 flex items-center gap-1.5"
+                      title={`Score: ${Math.round(post.quality_score * 100)}`}
+                    >
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
+                          background: scoreCircleColor(post.quality_score),
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span
+                        className="text-xs tabular-nums font-semibold"
+                        style={{ color: scoreCircleColor(post.quality_score) }}
+                      >
+                        {Math.round(post.quality_score * 100)}
+                      </span>
+                    </span>
+                  )}
+                  <span className="text-xs shrink-0" style={{ color: "var(--text-dim)" }}>→</span>
+                </Link>
+              </li>
+            );
+          })}
         </ol>
       )}
 
@@ -127,6 +189,7 @@ export default function SeriesPage() {
         <div className="space-y-3">
           {[1, 2].map((i) => (
             <div key={i} className="card p-5 space-y-3">
+              <div className="skeleton h-2 w-full" />
               <div className="skeleton h-4 w-1/2" />
               <div className="skeleton h-3 w-1/4" />
               <div className="space-y-2">
@@ -138,16 +201,26 @@ export default function SeriesPage() {
         </div>
       ) : series.length === 0 ? (
         <div className="card p-12 text-center space-y-4" data-testid="empty-state">
-          <p className="text-lg" style={{ color: "var(--text-muted)" }}>No series yet</p>
+          <div
+            style={{
+              fontSize: "3rem",
+              color: "var(--orange)",
+              opacity: 0.3,
+              lineHeight: 1,
+            }}
+          >
+            ◈
+          </div>
+          <p className="text-lg font-semibold" style={{ color: "var(--text-muted)" }}>No series yet</p>
           <p className="text-sm" style={{ color: "var(--text-dim)" }}>
             Run a series pipeline to generate multi-part articles.
           </p>
           <Link
             href="/pipeline"
             className="btn btn-primary inline-block mt-2"
-            style={{ textDecoration: "none" }}
+            style={{ textDecoration: "none", fontSize: "0.9rem", padding: "0.5rem 1.25rem" }}
           >
-            Run Pipeline
+            Run Pipeline →
           </Link>
         </div>
       ) : (

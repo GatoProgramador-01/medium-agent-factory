@@ -266,3 +266,238 @@ html, body {
   background: var(--orange); animation: blink 1s step-end infinite;
   vertical-align: middle; margin-left: 3px; border-radius: 1px;
 }
+
+/* ── Agent step node (pipeline progress tracker) ── */
+.agent-node {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+}
+.agent-node-done   { background: rgba(34,197,94,0.2);  border-color: var(--green); }
+.agent-node-active { background: rgba(245,158,11,0.2); border-color: var(--amber); animation: pulse 1.5s ease-in-out infinite; }
+.agent-node-pending{ background: transparent; border-color: var(--border); }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.4); }
+  50%       { box-shadow: 0 0 0 4px rgba(245,158,11,0); }
+}
+
+/* ── Score ring SVG helper ── */
+.score-ring { transform: rotate(-90deg); }
+
+/* ── Fade-in for log lines ── */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+.log-line-enter { animation: fadeIn 0.18s ease forwards; }
+
+/* ── Medium-style reading typography enhancements ── */
+
+/* Drop cap on first paragraph of post */
+.post-first-para::first-letter {
+  font-size: 3.8em;
+  font-weight: 700;
+  line-height: 0.85;
+  float: left;
+  margin: 0.08em 0.12em 0 0;
+  color: var(--orange);
+  font-family: Georgia, 'Palatino Linotype', serif;
+}
+
+/* Blockquote inside post body */
+.post-blockquote {
+  font-family: Georgia, 'Palatino Linotype', serif;
+  font-size: 1.2rem;
+  font-style: italic;
+  color: #c89a60;
+  border-left: 3px solid var(--orange);
+  background: rgba(249, 115, 22, 0.05);
+  border-radius: 0 8px 8px 0;
+  padding: 0.75rem 1.25rem;
+  margin: 1.8em 0;
+  line-height: 1.7;
+}
+
+/* Inline code inside post body */
+.post-code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(249, 115, 22, 0.18);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: #f0a060;
+}
+
+/* List inside post body */
+.post-body ul {
+  padding-left: 1.6em;
+  margin-bottom: 1.5em;
+}
+.post-body ul li {
+  margin-bottom: 0.5em;
+  color: #f0dfc8;
+  line-height: 1.75;
+}
+.post-body ul li::marker {
+  color: var(--orange);
+}
+
+/* Inline citation superscript */
+.cite-ref {
+  font-size: 0.65em;
+  vertical-align: super;
+  color: var(--orange);
+  font-family: var(--mono);
+  font-weight: 600;
+  margin-left: 1px;
+  text-decoration: none;
+}
+
+/* Post subtitle */
+.post-subtitle {
+  font-family: Georgia, 'Palatino Linotype', serif;
+  font-size: 1.25rem;
+  color: #c0a070;
+  font-style: italic;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+/* Meta bar below title */
+.post-meta-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(249, 115, 22, 0.12);
+}
+
+/* ── Sources section below article ── */
+.sources-below {
+  margin-top: 2rem;
+  max-width: 800px;
+}
+
+/* ── Footnotes inside PostContent ── */
+.post-footnotes {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(249, 115, 22, 0.2);
+}
+
+.footnotes-heading {
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.footnotes-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.footnotes-list li {
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.footnote-num {
+  color: var(--orange);
+  font-family: var(--mono);
+  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 2rem;
+}
+
+.footnote-claim {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.footnote-link {
+  color: var(--green);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.footnote-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Post reader responsive layout ── */
+.post-reader-layout {
+  display: flex;
+  gap: 2.5rem;
+  align-items: flex-start;
+}
+
+/* Sidebar hidden on mobile */
+.post-sidebar {
+  flex-shrink: 0;
+  position: sticky;
+  top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+}
+
+/* Mobile quality bar — hidden on desktop */
+.mobile-quality-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .post-reader-layout {
+    flex-direction: column;
+  }
+
+  .post-sidebar {
+    display: none;
+  }
+
+  .mobile-quality-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+  }
+
+  .reading-wrapper {
+    padding: 1.25rem;
+    border-radius: 10px;
+  }
+
+  .post-body {
+    font-size: 17px;
+  }
+
+  .post-first-para::first-letter {
+    font-size: 3em;
+  }
+
+  .sources-below {
+    max-width: 100%;
+  }
+}

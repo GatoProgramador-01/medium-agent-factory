@@ -40,6 +40,12 @@ function scoreColor(score: number) {
   return "badge-red";
 }
 
+function scoreBorderColor(score: number) {
+  if (score >= 0.90) return "var(--green)";
+  if (score >= 0.75) return "var(--amber)";
+  return "var(--red)";
+}
+
 function ScoreBadge({ score }: { score: number }) {
   const pct = Math.round(score * 100);
   return (
@@ -57,13 +63,18 @@ function PostCard({ post, onTagClick }: { post: Post; onTagClick: (tag: string) 
   const qr = post.quality_report;
   const wordCount = post.word_count ?? (post.content ? post.content.split(/\s+/).length : 0);
   const readMin = Math.ceil(wordCount / 220);
+  const borderColor = qr ? scoreBorderColor(qr.score) : "var(--border)";
 
   return (
     <Link
       href={`/posts/${post.run_id}`}
       data-testid="post-card"
       className="block card p-5 post-card group"
-      style={{ textDecoration: "none" }}
+      style={{
+        textDecoration: "none",
+        borderLeft: `3px solid ${borderColor}`,
+        position: "relative",
+      }}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -79,7 +90,9 @@ function PostCard({ post, onTagClick }: { post: Post; onTagClick: (tag: string) 
               {post.status}
             </span>
             {post.series_position && (
-              <span data-testid={`series-badge-${post.run_id}`} className="badge badge-purple">Part {post.series_position}</span>
+              <span data-testid={`series-badge-${post.run_id}`} className="badge badge-purple">
+                Part {post.series_position} of series
+              </span>
             )}
           </div>
 
@@ -176,6 +189,22 @@ function PostCard({ post, onTagClick }: { post: Post; onTagClick: (tag: string) 
           )}
         </div>
       </div>
+
+      {/* Arrow accent */}
+      <span
+        className="group-hover:translate-x-1"
+        style={{
+          position: "absolute",
+          right: "1.25rem",
+          bottom: "1.25rem",
+          color: "var(--text-dim)",
+          fontSize: "0.75rem",
+          transition: "transform 0.15s ease",
+          display: "inline-block",
+        }}
+      >
+        ▸
+      </span>
     </Link>
   );
 }
@@ -252,8 +281,16 @@ export default function PostsPage() {
         </p>
       </div>
 
-      {/* Filter + search bar */}
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Filter + search toolbar */}
+      <div
+        className="flex flex-wrap items-center gap-3"
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "10px",
+          padding: "8px 12px",
+        }}
+      >
         <div className="flex items-center gap-2">
           <span className="text-xs" style={{ color: "var(--text-dim)" }}>Status:</span>
           {STATUSES.map((s) => (
@@ -355,17 +392,33 @@ export default function PostsPage() {
         </div>
       ) : visible.length === 0 ? (
         <div className="card p-12 text-center space-y-4" data-testid="empty-state">
-          <p className="text-lg" style={{ color: "var(--text-muted)" }}>No posts yet</p>
+          <div
+            style={{
+              fontSize: "3rem",
+              color: "var(--orange)",
+              opacity: 0.3,
+              lineHeight: 1,
+            }}
+          >
+            ◈
+          </div>
+          <p className="text-lg font-semibold" style={{ color: "var(--text-muted)" }}>No posts yet</p>
           <p className="text-sm" style={{ color: "var(--text-dim)" }}>
-            {boostOnly && !search ? "No Boost-eligible posts yet." : search ? `No posts matching "${search}"` : filter ? `No posts with status "${filter}"` : "Run the pipeline to generate your first post."}
+            {boostOnly && !search
+              ? "No Boost-eligible posts yet."
+              : search
+              ? `No posts matching "${search}"`
+              : filter
+              ? `No posts with status "${filter}"`
+              : "Run the pipeline to generate your first post."}
           </p>
           <Link
             href="/pipeline"
             data-testid="empty-cta"
             className="btn btn-primary inline-block mt-2"
-            style={{ textDecoration: "none" }}
+            style={{ textDecoration: "none", fontSize: "0.9rem", padding: "0.5rem 1.25rem" }}
           >
-            Run Pipeline
+            Run Pipeline →
           </Link>
         </div>
       ) : (
