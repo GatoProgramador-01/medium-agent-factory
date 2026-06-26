@@ -20,17 +20,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* Header */}
         <header style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
-          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-6">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-6">
             <Link
               href="/"
-              className="font-semibold text-sm tracking-tight"
-              style={{ color: "var(--orange)" }}
+              className="font-semibold text-base tracking-tight flex items-center gap-2"
+              style={{ color: "var(--text)", textDecoration: "none" }}
             >
-              Agent Factory
+              <span style={{ color: "var(--orange)", fontSize: "0.5rem", lineHeight: 1 }}>&#9679;</span>
+              <span style={{ color: "var(--orange)" }}>Agent Factory</span>
             </Link>
             <div style={{ width: "1px", height: "16px", background: "var(--border-light)" }} />
             <NavLinks />
           </div>
+          <div style={{ height: "1px", background: "linear-gradient(to right, transparent, rgba(249,115,22,0.08), transparent)" }} />
         </header>
 
         {/* Page content */}

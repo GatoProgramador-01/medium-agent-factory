@@ -12,6 +12,7 @@ class AgentRunRecord:
     cost_usd: float
     duration_ms: int
     model: str
+    provider: str = field(default="")
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def to_doc(self) -> dict[str, Any]:
@@ -23,5 +24,6 @@ class AgentRunRecord:
             "cost_usd": round(self.cost_usd, 6),
             "duration_ms": self.duration_ms,
             "model": self.model,
+            "provider": self.provider,
             "created_at": self.created_at,
         }

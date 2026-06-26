@@ -128,6 +128,24 @@ export type Summary = {
   published_posts: number;
   total_cost_usd: number;
   total_tokens: number;
+  claude_cost_usd: number;
+  deepseek_cost_usd: number;
+};
+
+export type CostComparison = {
+  claude_cost_usd: number;
+  claude_tokens_in: number;
+  claude_tokens_out: number;
+  claude_runs: number;
+  deepseek_cost_usd: number;
+  deepseek_tokens_in: number;
+  deepseek_tokens_out: number;
+  deepseek_runs: number;
+  equivalent_claude_cost_usd: number;
+  savings_usd: number;
+  savings_pct: number;
+  has_claude_data: boolean;
+  has_deepseek_data: boolean;
 };
 
 export const api = {
@@ -172,6 +190,7 @@ export const api = {
     request<AgentUsage[]>(`/analytics/token-usage${runId ? `?run_id=${runId}` : ""}`),
   tokenUsageByRun: () => request<RunUsage[]>("/analytics/token-usage/by-run"),
   summary: () => request<Summary>("/analytics/summary"),
+  costComparison: () => request<CostComparison>("/analytics/cost-comparison"),
 
   getLogs: (runId: string) => request<AgentLog[]>(`/pipeline/runs/${runId}/logs`),
 

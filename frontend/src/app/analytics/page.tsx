@@ -2,18 +2,48 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { api, type AgentUsage, type RunUsage } from "@/lib/api";
+import { api, type AgentUsage, type RunUsage, type CostComparison } from "@/lib/api";
+import CostComparisonPanel from "@/components/CostComparisonPanel";
 
 const AgentCharts = dynamic(() => import("@/components/AgentCharts"), { ssr: false });
 
+function MetricCard({
+  label,
+  value,
+  accent,
+  testId,
+}: {
+  label: string;
+  value: string | number;
+  accent?: boolean;
+  testId?: string;
+}) {
+  return (
+    <div className="metric-card" data-testid={testId}>
+      <div className="metric-card-label">{label}</div>
+      <div
+        className="metric-card-value"
+        style={accent ? { color: "var(--orange)" } : undefined}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
-  const [usage, setUsage]   = useState<AgentUsage[]>([]);
-  const [byRun, setByRun]   = useState<RunUsage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [usage, setUsage]                       = useState<AgentUsage[]>([]);
+  const [byRun, setByRun]                       = useState<RunUsage[]>([]);
+  const [costComparison, setCostComparison]     = useState<CostComparison | null>(null);
+  const [loading, setLoading]                   = useState(true);
 
   useEffect(() => {
-    Promise.all([api.tokenUsage(), api.tokenUsageByRun()])
-      .then(([u, r]) => { setUsage(u); setByRun(r); })
+    Promise.all([api.tokenUsage(), api.tokenUsageByRun(), api.costComparison()])
+      .then(([u, r, c]) => {
+        setUsage(u);
+        setByRun(r);
+        setCostComparison(c);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -24,45 +54,77 @@ export default function AnalyticsPage() {
   const totalOut   = usage.reduce((a, u) => a + u.total_tokens_out, 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+
+      {/* ── Page heading ── */}
       <div>
-        <p className="text-[var(--text-muted)] text-xs mb-1">user@factory:~/factory$</p>
-        <h1 className="text-[var(--orange)] text-xl font-bold" data-testid="page-heading">Analytics</h1>
-        <p className="text-[var(--text-muted)] text-xs mt-1">top -n 1 --agents --sort=cost</p>
+        <span className="section-label">Overview</span>
+        <h1
+          className="text-3xl font-bold mt-1"
+          data-testid="page-heading"
+          style={{ color: "#fff", letterSpacing: "-0.025em" }}
+        >
+          Analytics
+        </h1>
+        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+          LLM cost &amp; performance breakdown
+        </p>
       </div>
 
-      {/* Summary row */}
+      {/* ── Cost Comparison Panel ── */}
+      <CostComparisonPanel data={costComparison} loading={loading} />
+
+      {/* ── Summary stat grid ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {loading ? (
-          Array.from({length: 4}).map((_, i) => (
-            <div key={i} className="term-box p-3 space-y-2">
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="metric-card space-y-3">
               <div className="skeleton h-2 w-20" />
-              <div className="skeleton h-5 w-12" />
+              <div className="skeleton h-8 w-14" />
             </div>
           ))
         ) : (
           <>
-            <StatBox label="total_cost_usd" value={`$${totalCost.toFixed(4)}`} accent testId="stat-cost" />
-            <StatBox label="llm_calls" value={totalCalls} testId="stat-calls" />
-            <StatBox label="tokens_in" value={totalIn.toLocaleString()} testId="stat-tokens-in" />
-            <StatBox label="tokens_out" value={totalOut.toLocaleString()} testId="stat-tokens-out" />
+            <MetricCard
+              label="Total cost (USD)"
+              value={`$${totalCost.toFixed(4)}`}
+              accent
+              testId="stat-cost"
+            />
+            <MetricCard
+              label="LLM calls"
+              value={totalCalls}
+              testId="stat-calls"
+            />
+            <MetricCard
+              label="Tokens in"
+              value={totalIn.toLocaleString()}
+              testId="stat-tokens-in"
+            />
+            <MetricCard
+              label="Tokens out"
+              value={totalOut.toLocaleString()}
+              testId="stat-tokens-out"
+            />
           </>
         )}
       </div>
 
-      {/* Charts */}
+      {/* ── Charts ── */}
       {!loading && usage.length > 0 && <AgentCharts usage={usage} />}
 
-      {/* Table */}
-      <div className="term-box overflow-hidden">
-        <div className="term-box-header">
-          <span>agent breakdown</span>
-          {!loading && <span className="ml-auto text-[var(--orange)]">{usage.length} agents</span>}
+      {/* ── Agent breakdown table ── */}
+      <div className="panel">
+        <div className="panel-header">
+          <span className="panel-title">Agent Breakdown</span>
+          {!loading && (
+            <span className="section-label">{usage.length} agents</span>
+          )}
         </div>
 
         {loading ? (
-          <div className="p-4 space-y-2">
-            {[1,2,3,4].map((i) => (
+          <div className="panel-body space-y-3">
+            {[1, 2, 3, 4].map((i) => (
               <div key={i} className="flex gap-6">
                 <div className="skeleton h-3 w-32" />
                 <div className="skeleton h-3 w-12" />
@@ -72,26 +134,30 @@ export default function AnalyticsPage() {
             ))}
           </div>
         ) : usage.length === 0 ? (
-          <p className="p-4 text-xs text-[var(--text-muted)]">no data — run a pipeline to see metrics</p>
+          <div className="panel-body">
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              No data — run a pipeline to see metrics.
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="data-table">
               <thead>
-                <tr className="border-b border-[var(--border)] text-[var(--text-muted)]">
-                  {["agent", "calls", "tok_in", "tok_out", "avg_ms", "cost_usd"].map((h) => (
-                    <th key={h} className="px-4 py-2 text-left font-normal tracking-wider">{h}</th>
+                <tr>
+                  {["Agent", "Calls", "Tokens in", "Tokens out", "Avg ms", "Cost (USD)"].map((h) => (
+                    <th key={h}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {usage.map((u) => (
-                  <tr key={u.agent_name} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)] transition-colors">
-                    <td className="px-4 py-2 text-[var(--orange)]">{u.agent_name}</td>
-                    <td className="px-4 py-2 tabular-nums">{u.call_count}</td>
-                    <td className="px-4 py-2 tabular-nums">{u.total_tokens_in.toLocaleString()}</td>
-                    <td className="px-4 py-2 tabular-nums">{u.total_tokens_out.toLocaleString()}</td>
-                    <td className="px-4 py-2 tabular-nums">{u.avg_duration_ms}ms</td>
-                    <td className="px-4 py-2 tabular-nums text-[var(--orange)]">${u.total_cost_usd.toFixed(6)}</td>
+                  <tr key={u.agent_name}>
+                    <td className="td-accent">{u.agent_name}</td>
+                    <td className="td-mono">{u.call_count}</td>
+                    <td className="td-mono">{u.total_tokens_in.toLocaleString()}</td>
+                    <td className="td-mono">{u.total_tokens_out.toLocaleString()}</td>
+                    <td className="td-mono">{u.avg_duration_ms}ms</td>
+                    <td className="td-mono td-accent">${u.total_cost_usd.toFixed(6)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -99,15 +165,18 @@ export default function AnalyticsPage() {
           </div>
         )}
       </div>
-      {/* By-run breakdown */}
-      <div className="term-box overflow-hidden" data-testid="by-run-table">
-        <div className="term-box-header">
-          <span>cost by run</span>
-          {!loading && <span className="ml-auto text-[var(--orange)]">{byRun.length} runs</span>}
+
+      {/* ── Cost by run table ── */}
+      <div className="panel" data-testid="by-run-table">
+        <div className="panel-header">
+          <span className="panel-title">Cost by Run</span>
+          {!loading && (
+            <span className="section-label">{byRun.length} runs</span>
+          )}
         </div>
 
         {loading ? (
-          <div className="p-4 space-y-2">
+          <div className="panel-body space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex gap-6">
                 <div className="skeleton h-3 w-32" />
@@ -117,14 +186,18 @@ export default function AnalyticsPage() {
             ))}
           </div>
         ) : byRun.length === 0 ? (
-          <p className="p-4 text-xs text-[var(--text-muted)]">no data — run a pipeline to see per-run costs</p>
+          <div className="panel-body">
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              No data — run a pipeline to see per-run costs.
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="data-table">
               <thead>
-                <tr className="border-b border-[var(--border)] text-[var(--text-muted)]">
-                  {["run_id", "agent_calls", "tok_in", "tok_out", "cost_usd"].map((h) => (
-                    <th key={h} className="px-4 py-2 text-left font-normal tracking-wider">{h}</th>
+                <tr>
+                  {["Run ID", "Agent calls", "Tokens in", "Tokens out", "Cost (USD)"].map((h) => (
+                    <th key={h}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -133,13 +206,17 @@ export default function AnalyticsPage() {
                   <tr
                     key={r.run_id}
                     data-testid={`by-run-row-${r.run_id}`}
-                    className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)] transition-colors"
                   >
-                    <td className="px-4 py-2 font-mono text-[var(--text-dim)] truncate max-w-[8rem]">{r.run_id}</td>
-                    <td className="px-4 py-2 tabular-nums">{r.agent_calls}</td>
-                    <td className="px-4 py-2 tabular-nums">{r.total_tokens_in.toLocaleString()}</td>
-                    <td className="px-4 py-2 tabular-nums">{r.total_tokens_out.toLocaleString()}</td>
-                    <td className="px-4 py-2 tabular-nums text-[var(--orange)]">${r.total_cost_usd.toFixed(6)}</td>
+                    <td
+                      className="td-muted"
+                      style={{ fontFamily: "var(--mono)", maxWidth: "10rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      {r.run_id}
+                    </td>
+                    <td className="td-mono">{r.agent_calls}</td>
+                    <td className="td-mono">{r.total_tokens_in.toLocaleString()}</td>
+                    <td className="td-mono">{r.total_tokens_out.toLocaleString()}</td>
+                    <td className="td-mono td-accent">${r.total_cost_usd.toFixed(6)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -147,17 +224,6 @@ export default function AnalyticsPage() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function StatBox({ label, value, accent, testId }: { label: string; value: string | number; accent?: boolean; testId?: string }) {
-  return (
-    <div className="term-box p-3 space-y-1" data-testid={testId}>
-      <p className="text-[10px] text-[var(--text-muted)] tracking-wider">{label}</p>
-      <p className={`text-lg font-bold tabular-nums ${accent ? "text-[var(--orange)]" : "text-[var(--text)]"}`}>
-        {value}
-      </p>
     </div>
   );
 }

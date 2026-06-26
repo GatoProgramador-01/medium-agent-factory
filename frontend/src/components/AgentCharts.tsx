@@ -21,11 +21,11 @@ const LABEL_COLOR = "#ede0cf";   // --text
 export default function AgentCharts({ usage }: { usage: AgentUsage[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="term-box">
-        <div className="term-box-header">
-          <span>cost_usd per agent</span>
+      <div className="panel">
+        <div className="panel-header">
+          <span className="panel-title">Cost by Agent (USD)</span>
         </div>
-        <div className="p-4">
+        <div className="panel-body">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={usage} margin={{ top: 4, right: 4, left: -20, bottom: 50 }}>
               <CartesianGrid strokeDasharray="2 2" stroke={GRID_COLOR} vertical={false} />
@@ -49,11 +49,11 @@ export default function AgentCharts({ usage }: { usage: AgentUsage[] }) {
         </div>
       </div>
 
-      <div className="term-box">
-        <div className="term-box-header">
-          <span>avg_latency_ms per agent</span>
+      <div className="panel">
+        <div className="panel-header">
+          <span className="panel-title">Avg Latency by Agent (ms)</span>
         </div>
-        <div className="p-4">
+        <div className="panel-body">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={usage} margin={{ top: 4, right: 4, left: -20, bottom: 50 }}>
               <CartesianGrid strokeDasharray="2 2" stroke={GRID_COLOR} vertical={false} />

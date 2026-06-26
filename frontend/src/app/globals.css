@@ -35,6 +35,7 @@ html, body {
   color: var(--text);
   font-size: 15px;
   line-height: 1.65;
+  font-family: var(--font-inter, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -89,6 +90,8 @@ html, body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 /* ── Post card — warm left-border reveal on hover ── */
@@ -501,3 +504,138 @@ html, body {
     max-width: 100%;
   }
 }
+
+/* ── Metric card with glow accent ── */
+.metric-card {
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(249,115,22,0.03) 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.metric-card:hover { border-color: var(--border-light); box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+.metric-card-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem; }
+.metric-card-value { font-size: 2rem; font-weight: 700; line-height: 1; color: #fff; font-feature-settings: "tnum"; }
+.metric-card-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.4rem; }
+
+/* ── Section heading ── */
+.section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Provider comparison cards ── */
+.provider-card {
+  border-radius: 16px;
+  padding: 1.5rem;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.provider-card-claude {
+  background: linear-gradient(135deg, rgba(167,139,250,0.06) 0%, var(--surface) 100%);
+  border: 1px solid rgba(167,139,250,0.2);
+}
+.provider-card-deepseek {
+  background: linear-gradient(135deg, rgba(249,115,22,0.06) 0%, var(--surface) 100%);
+  border: 1px solid rgba(249,115,22,0.2);
+}
+.provider-name { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.provider-cost { font-size: 2.5rem; font-weight: 700; line-height: 1; font-feature-settings: "tnum"; }
+.provider-meta { font-size: 0.75rem; color: var(--text-muted); }
+.provider-claude { color: #a78bfa; }
+.provider-deepseek { color: var(--orange); }
+
+/* ── Savings bar ── */
+.savings-bar-track {
+  height: 6px;
+  border-radius: 100px;
+  background: rgba(167,139,250,0.2);
+  position: relative;
+  overflow: hidden;
+}
+.savings-bar-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--orange), #fbbf24);
+  transition: width 0.6s ease;
+}
+
+/* ── Pipeline step chip (landing page hero) ── */
+.pipeline-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.pipeline-step-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--orange);
+  flex-shrink: 0;
+}
+.pipeline-connector {
+  width: 1.5rem;
+  height: 1px;
+  background: var(--border-light);
+  flex-shrink: 0;
+}
+
+/* ── Data table — professional style ── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0.625rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid rgba(48,38,25,0.5);
+  vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--surface-hover); }
+.data-table .td-mono { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+.data-table .td-accent { color: var(--orange); font-weight: 500; }
+.data-table .td-muted { color: var(--text-muted); }
+
+/* ── Panel — section container ── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.panel-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.panel-title { font-size: 0.8125rem; font-weight: 600; color: var(--text); }
+.panel-body { padding: 1.25rem; }

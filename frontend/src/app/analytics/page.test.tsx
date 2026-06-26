@@ -3,8 +3,15 @@ import AnalyticsPage from "./page";
 import { api } from "@/lib/api";
 
 jest.mock("@/lib/api", () => ({
-  api: { tokenUsage: jest.fn(), tokenUsageByRun: jest.fn() },
+  api: { tokenUsage: jest.fn(), tokenUsageByRun: jest.fn(), costComparison: jest.fn() },
 }));
+
+const MOCK_COST_COMPARISON = {
+  claude_cost_usd: 0, claude_tokens_in: 0, claude_tokens_out: 0, claude_runs: 0,
+  deepseek_cost_usd: 0, deepseek_tokens_in: 0, deepseek_tokens_out: 0, deepseek_runs: 0,
+  equivalent_claude_cost_usd: 0, savings_usd: 0, savings_pct: 0,
+  has_claude_data: false, has_deepseek_data: false,
+};
 
 // AgentCharts uses Recharts/SVG which doesn't render in jsdom — stub it out.
 jest.mock("@/components/AgentCharts", () => ({
@@ -42,6 +49,7 @@ describe("AnalyticsPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (api.tokenUsageByRun as jest.Mock).mockResolvedValue([]);
+    (api.costComparison as jest.Mock).mockResolvedValue(MOCK_COST_COMPARISON);
   });
 
   it("renders page heading", () => {
