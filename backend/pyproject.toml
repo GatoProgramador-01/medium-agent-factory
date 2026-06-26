@@ -31,6 +31,8 @@ dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
     "pymongo>=4.10.0",
+    "bandit>=1.7.0",
+    "pip-audit>=2.7.0",
 ]
 
 [tool.setuptools.packages.find]

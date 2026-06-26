@@ -1,0 +1,4 @@
+# Claude Code generated — keep hooks and settings, ignore transient files
+worktrees/
+settings.local.json
+*.log
