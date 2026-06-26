@@ -5,24 +5,29 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.agents.orchestrator import run_pipeline
 from app.database import get_db
+from app.limiter import limiter
+from app.utils.cost_guard import check_daily_run_limit
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
 
 class PipelineRequest(BaseModel):
-    custom_topic: str
+    custom_topic: str = Field(min_length=10, max_length=500)
 
 
+@limiter.limit("2/hour")
 @router.post("/run")
 async def trigger_pipeline(
+    request: Request,
     req: PipelineRequest,
     background_tasks: BackgroundTasks,
+    _: None = Depends(check_daily_run_limit),
 ) -> dict[str, Any]:
     """Trigger pipeline asynchronously. Poll /runs/{run_id} for status."""
     run_id = str(uuid.uuid4())
@@ -41,14 +46,22 @@ async def trigger_pipeline(
     return {"run_id": run_id, "message": "Pipeline started"}
 
 
+@limiter.limit("2/hour")
 @router.post("/run/sync")
-async def trigger_pipeline_sync(req: PipelineRequest) -> dict[str, Any]:
+async def trigger_pipeline_sync(
+    request: Request,
+    req: PipelineRequest,
+    _: None = Depends(check_daily_run_limit),
+) -> dict[str, Any]:
     """Run pipeline synchronously — blocks until complete."""
     return await run_pipeline(custom_topic=req.custom_topic)
 
 
 @router.get("/runs")
-async def list_runs(limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
+async def list_runs(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = 0,
+) -> list[dict[str, Any]]:
     db = get_db()
     cursor = db.pipeline_runs.find(
         {}, {"_id": 0}, sort=[("created_at", -1)], skip=offset, limit=limit

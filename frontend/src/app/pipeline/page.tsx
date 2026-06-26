@@ -329,6 +329,7 @@ export default function PipelinePage() {
             onChange={(e) => setTopic(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && phase === "idle" && handleRun()}
             disabled={phase === "running"}
+            maxLength={500}
             placeholder="e.g. I spent 90 days tracking every dollar my AI pipeline made on Medium"
             className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
             style={{
@@ -377,6 +378,7 @@ export default function PipelinePage() {
               onChange={(e) => setTheme(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && seriesPhase === "idle" && handleSeriesRun()}
               disabled={seriesPhase === "running"}
+              maxLength={500}
               placeholder="e.g. The real cost of running LLMs in production"
               className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
               style={{
@@ -399,6 +401,7 @@ export default function PipelinePage() {
               value={context}
               onChange={(e) => setContext(e.target.value)}
               disabled={seriesPhase === "running"}
+              maxLength={1000}
               placeholder="e.g. Focus on Anthropic, OpenAI and DeepSeek; avoid Gemini"
               rows={3}
               className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors resize-none"

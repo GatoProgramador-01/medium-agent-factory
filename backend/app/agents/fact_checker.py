@@ -178,6 +178,8 @@ async def run_fact_check(content: str) -> tuple[str, list[QualityIssue]]:
     if not claims:
         return content, []
 
+    claims = claims[: settings.max_claims_per_run]  # cap Tavily cost per run
+
     results = await verify_claims(claims)
     annotated = inject_hyperlinks(content, results)
     issues = results_to_issues(results)

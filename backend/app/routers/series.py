@@ -1,28 +1,32 @@
-from typing import Any
+import uuid
+from datetime import UTC, datetime
+from typing import Any, cast
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 
 from app.agents.orchestrator import run_series
 from app.database import get_db
+from app.limiter import limiter
+from app.utils.cost_guard import check_daily_run_limit
 
 router = APIRouter(prefix="/series", tags=["series"])
 
 
 class SeriesRequest(BaseModel):
-    theme: str
-    context: str = ""
+    theme: str = Field(min_length=10, max_length=500)
+    context: str = Field(default="", max_length=1000)
 
 
+@limiter.limit("1/hour")
 @router.post("/run")
 async def trigger_series(
+    request: Request,
     req: SeriesRequest,
     background_tasks: BackgroundTasks,
+    _: None = Depends(check_daily_run_limit),
 ) -> dict[str, Any]:
     """Plan and run a multi-post series asynchronously."""
-    import uuid
-    from datetime import UTC, datetime
-
     series_id = str(uuid.uuid4())
     db = get_db()
     await db.series.insert_one(
@@ -46,7 +50,6 @@ async def trigger_series(
 @router.get("")
 async def list_series(limit: int = 20) -> list[dict[str, Any]]:
     db = get_db()
-    from typing import cast
     cursor = db.series.find({}, {"_id": 0}, sort=[("created_at", -1)], limit=limit)
     return cast(list[dict[str, Any]], await cursor.to_list(length=limit))
 
@@ -62,12 +65,10 @@ async def delete_series(series_id: str) -> None:
 @router.get("/{series_id}")
 async def get_series(series_id: str) -> dict[str, Any]:
     db = get_db()
-    from typing import cast
     series = await db.series.find_one({"series_id": series_id}, {"_id": 0})
     if not series:
         raise HTTPException(status_code=404, detail="Series not found")
 
-    # Attach posts in order
     posts_cursor = db.posts.find(
         {"series_id": series_id},
         {"_id": 0, "content": 0},

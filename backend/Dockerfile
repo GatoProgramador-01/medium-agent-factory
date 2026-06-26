@@ -17,6 +17,9 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY . .
 
+RUN adduser --system --no-create-home --uid 1001 appuser
+USER appuser
+
 EXPOSE 8000
 
 # 2 workers handles concurrent requests without OOMing on 512 MB

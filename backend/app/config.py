@@ -45,5 +45,15 @@ class Settings(BaseSettings):
     # Source reliability — Sprint 7
     fact_check_enabled: bool = True  # run claim extraction + Tavily verification
 
+    # ── Security & cost guards ────────────────────────────────────────────────
+    # CORS: comma-separated list of allowed origins
+    allowed_origins: str = "http://localhost:3000,http://frontend:3000"
+    # Admin key bypasses daily_run_limit (set to a strong random value in prod)
+    admin_api_key: str = ""
+    # Global daily cap across all users — prevents runaway costs
+    daily_run_limit: int = 20
+    # Max Tavily searches per fact-check pass — caps per-run Tavily cost
+    max_claims_per_run: int = 8
+
 
 settings = Settings()
