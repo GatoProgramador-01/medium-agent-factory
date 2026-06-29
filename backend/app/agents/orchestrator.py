@@ -48,6 +48,7 @@ from app.agents.content_generator import (
     generate_initial_post,
     revise_post,
 )
+from app.agents.post_processor import inject_captions, merge_sources_sections
 from app.agents.exemplar_store import (
     EXEMPLAR_THRESHOLD,
     find_exemplar,
@@ -78,7 +79,9 @@ class PipelineState(TypedDict):
     custom_topic: str
     series_id: str | None
     series_position: int | None
-    series_context: str  # angle + hook_seed injected by run_series; "" for standalone runs
+    series_context: (
+        str  # angle + hook_seed injected by run_series; "" for standalone runs
+    )
     trend_context: str  # populated by research_node; "" when Tavily unavailable
 
     post: GeneratedPost | None
@@ -87,8 +90,10 @@ class PipelineState(TypedDict):
     format_changes: Annotated[list[str], operator.add]
     revision_count: int
     quality_history: Annotated[list[dict[str, Any]], operator.add]  # score per cycle
-    fact_check_issues: list[QualityIssue]      # unverifiable claims from fact_checker_node
-    fact_check_results: list[VerificationResult]  # all results; re-injected in format_node
+    fact_check_issues: list[QualityIssue]  # unverifiable claims from fact_checker_node
+    fact_check_results: list[
+        VerificationResult
+    ]  # all results; re-injected in format_node
     errors: Annotated[list[str], operator.add]
     completed_steps: Annotated[list[str], operator.add]
 
@@ -126,7 +131,9 @@ async def research_node(state: PipelineState) -> dict[str, Any]:
             )
         return {"trend_context": trend_context, "completed_steps": ["research"]}
     except Exception as e:
-        await log_step(run_id, "web_researcher", f"Research skipped: {e}", level="warning")
+        await log_step(
+            run_id, "web_researcher", f"Research skipped: {e}", level="warning"
+        )
         return {"trend_context": "", "completed_steps": ["research"]}
 
 
@@ -145,10 +152,14 @@ async def content_generation_node(state: PipelineState) -> dict[str, Any]:
         exemplar_section = format_exemplar_injection(exemplar) if exemplar else ""
         if exemplar:
             await log_step(
-                run_id, "content_generator",
+                run_id,
+                "content_generator",
                 f'Exemplar found: "{exemplar["title"]}" '
                 f'(score {exemplar["score"]:.2f}) — injecting as few-shot reference',
-                data={"exemplar_title": exemplar["title"], "exemplar_score": exemplar["score"]},
+                data={
+                    "exemplar_title": exemplar["title"],
+                    "exemplar_score": exemplar["score"],
+                },
             )
         trend_context = state.get("trend_context", "")
         post = await generate_initial_post(
@@ -165,13 +176,15 @@ async def content_generation_node(state: PipelineState) -> dict[str, Any]:
         if "SOURCE URLS" in trend_context and "## Sources" not in post.content:
             url_block = trend_context.split("SOURCE URLS")[1].strip()
             source_lines = [
-                ln.strip() for ln in url_block.splitlines()
+                ln.strip()
+                for ln in url_block.splitlines()
                 if ln.strip().startswith("- http")
             ]
             if source_lines:
                 post.content += "\n\n## Sources\n" + "\n".join(source_lines)
                 await log_step(
-                    run_id, "content_generator",
+                    run_id,
+                    "content_generator",
                     f"Sources section auto-appended ({len(source_lines)} URLs — LLM skipped it)",
                     level="warning",
                 )
@@ -221,8 +234,17 @@ async def fact_check_node(state: PipelineState) -> dict[str, Any]:
     try:
         claims = await extract_claims(post.content)
         if not claims:
-            await log_step(run_id, "fact_checker", "No verifiable claims found — skipping", level="info")
-            return {"fact_check_issues": [], "fact_check_results": [], "completed_steps": ["fact_check"]}
+            await log_step(
+                run_id,
+                "fact_checker",
+                "No verifiable claims found — skipping",
+                level="info",
+            )
+            return {
+                "fact_check_issues": [],
+                "fact_check_results": [],
+                "completed_steps": ["fact_check"],
+            }
 
         all_results = await verify_claims(claims)
         annotated = inject_hyperlinks(post.content, all_results)
@@ -237,7 +259,10 @@ async def fact_check_node(state: PipelineState) -> dict[str, Any]:
             "fact_checker",
             f"Fact check complete — {hyperlinks} source(s) injected, {unverifiable} unverifiable claim(s) flagged",
             level="success" if unverifiable == 0 else "warning",
-            data={"hyperlinks_injected": hyperlinks, "unverifiable_count": unverifiable},
+            data={
+                "hyperlinks_injected": hyperlinks,
+                "unverifiable_count": unverifiable,
+            },
         )
         return {
             "post": post,
@@ -246,8 +271,14 @@ async def fact_check_node(state: PipelineState) -> dict[str, Any]:
             "completed_steps": ["fact_check"],
         }
     except Exception as e:
-        await log_step(run_id, "fact_checker", f"Fact check skipped: {e}", level="warning")
-        return {"fact_check_issues": [], "fact_check_results": [], "completed_steps": ["fact_check_skipped"]}
+        await log_step(
+            run_id, "fact_checker", f"Fact check skipped: {e}", level="warning"
+        )
+        return {
+            "fact_check_issues": [],
+            "fact_check_results": [],
+            "completed_steps": ["fact_check_skipped"],
+        }
 
 
 async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
@@ -275,7 +306,9 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
 
         passed, gate_failures = _gate_check(report)
         level = "success" if passed else "warning"
-        boost_label = "Boost-eligible" if report.medium_boost_eligible else "NOT Boost-eligible"
+        boost_label = (
+            "Boost-eligible" if report.medium_boost_eligible else "NOT Boost-eligible"
+        )
 
         high_count = sum(1 for i in report.issues if i.severity.lower() == "high")
         med_count = sum(1 for i in report.issues if i.severity.lower() == "medium")
@@ -384,7 +417,12 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
             "medium_boost_eligible": report.medium_boost_eligible,
             "passed": passed,
             "gate_failures": gate_failures,
-            "issue_summary": {"high": high_c, "medium": med_c, "low": low_c, "total": len(report.issues)},
+            "issue_summary": {
+                "high": high_c,
+                "medium": med_c,
+                "low": low_c,
+                "total": len(report.issues),
+            },
             "issues": [
                 {
                     "severity": i.severity,
@@ -406,7 +444,9 @@ async def quality_analysis_node(state: PipelineState) -> dict[str, Any]:
             "issue_count": len(report.issues),
             "passed": passed,
             "gate_failures": gate_failures,
-            "issue_categories": [i.category for i in report.issues if i.severity.lower() == "high"],
+            "issue_categories": [
+                i.category for i in report.issues if i.severity.lower() == "high"
+            ],
         }
         return {
             "quality_report": report,
@@ -434,6 +474,7 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
         return {"errors": ["revision: missing post or quality report"]}
 
     from app.agents.llm_factory import get_model_name as _get_model_name
+
     model = _get_model_name("worker")
     model_label = model
     max_rev = settings.max_revision_cycles
@@ -477,14 +518,13 @@ async def content_revision_node(state: PipelineState) -> dict[str, Any]:
     # When ONLY word count fails, use expand_post (additive) instead of revise_post (editing).
     # revise_post ignores structural-addition instructions — empirically adds only 1-54 words
     # per cycle. expand_post generates a new section in creation mode and appends it verbatim.
-    word_count_only = (
-        len(gate_failures) == 1
-        and "word count" in gate_failures[0]
-    )
+    word_count_only = len(gate_failures) == 1 and "word count" in gate_failures[0]
 
     try:
         if word_count_only:
-            deficit = settings.min_word_count - report.word_count + 150  # 150-word buffer
+            deficit = (
+                settings.min_word_count - report.word_count + 150
+            )  # 150-word buffer
             new_section = await expand_post(
                 run_id=run_id,
                 title=post.title,
@@ -578,7 +618,9 @@ async def format_node(state: PipelineState) -> dict[str, Any]:
         if fc_results:
             post.content = inject_hyperlinks(post.content, fc_results)
 
-        result = await format_post(run_id=run_id, title=post.title, content=post.content)
+        result = await format_post(
+            run_id=run_id, title=post.title, content=post.content
+        )
 
         # Patch the post content in-place so finalize_node sees the formatted version
         post.content = result.formatted_content
@@ -648,6 +690,11 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
             ],
             "strengths": qr.strengths,
         }
+    # Deterministic post-processing: inject caption placeholders + merge duplicate source sections
+    if post:
+        post.content = inject_captions(post.content)
+        post.content = merge_sources_sections(post.content)
+
     verified_sources = [
         {
             "claim_text": r.claim.text,
@@ -667,7 +714,10 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
     score_msg = f" Final quality score: {qr.score:.2f}" if qr else ""
     cycles_msg = f" Revision cycles: {state.get('revision_count', 0)}/{settings.max_revision_cycles}."
     await log_step(
-        run_id, "orchestrator", f"Post approved and saved.{score_msg}{cycles_msg}", level="success"
+        run_id,
+        "orchestrator",
+        f"Post approved and saved.{score_msg}{cycles_msg}",
+        level="success",
     )
 
     # Auto-save as exemplar when score clears the threshold
@@ -682,7 +732,8 @@ async def finalize_node(state: PipelineState) -> dict[str, Any]:
             hook_score=qr.read_ratio_hook_score,
         )
         await log_step(
-            run_id, "orchestrator",
+            run_id,
+            "orchestrator",
             f"Post saved as few-shot exemplar (score {qr.score:.2f} >= {EXEMPLAR_THRESHOLD}).",
             level="success",
             data={"exemplar_saved": True, "score": qr.score},
@@ -724,7 +775,8 @@ def _gate_check(report: QualityReport) -> tuple[bool, list[str]]:
         # "ai" in i.category is too broad — it matches "unattributed_claim" ("cl**ai**m")
         # which would incorrectly prevent word-count-only expansion path from running.
         ai_blocks = [
-            i for i in report.issues
+            i
+            for i in report.issues
             if i.severity.lower() == "high" and i.category.startswith("ai_")
         ]
         if ai_blocks:
@@ -889,7 +941,9 @@ async def run_series(
 
     # ── Step 1: plan ──────────────────────────────────────────────────────────
     plan_run_id = f"{series_id}-planner"
-    await log_step(plan_run_id, "series_planner", f'Planning series for theme: "{theme}"')
+    await log_step(
+        plan_run_id, "series_planner", f'Planning series for theme: "{theme}"'
+    )
 
     plan = await plan_series(run_id=plan_run_id, theme=theme, context=context)
 
@@ -901,9 +955,7 @@ async def run_series(
         data={
             "series_title": plan.series_title,
             "series_description": plan.series_description,
-            "posts": [
-                {"position": p.position, "angle": p.angle} for p in plan.posts
-            ],
+            "posts": [{"position": p.position, "angle": p.angle} for p in plan.posts],
         },
     )
 
@@ -933,7 +985,7 @@ async def run_series(
             f"Starting post {post_plan.position}/{len(plan.posts)}: {post_plan.angle}",
         )
         post_series_context = (
-            f"SERIES: Post {post_plan.position} of {len(plan.posts)} — \"{plan.series_title}\"\n"
+            f'SERIES: Post {post_plan.position} of {len(plan.posts)} — "{plan.series_title}"\n'
             f"SERIES DESCRIPTION: {plan.series_description}\n"
             f"THIS POST'S ANGLE: {post_plan.angle}\n"
             f"HOOK SEED: {post_plan.hook_seed}\n"
@@ -962,7 +1014,9 @@ async def run_series(
             level="success" if result["status"] == "completed" else "error",
         )
 
-    series_status = "completed" if all(r["status"] == "completed" for r in results) else "failed"
+    series_status = (
+        "completed" if all(r["status"] == "completed" for r in results) else "failed"
+    )
     await db.series.update_one(
         {"series_id": series_id},
         {"$set": {"status": series_status, "completed_at": datetime.now(UTC)}},

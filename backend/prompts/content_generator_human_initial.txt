@@ -30,7 +30,10 @@ MANDATORY CHECKS — verify every box before submitting:
 □ If comparing costs/speeds/accuracy across options: include one Markdown table with real numbers
 □ If describing a technical solution or code pattern: include one code block (5–15 lines) tied to a dollar or time saving in the same paragraph
 □ Close with a SPECIFIC question or forward prediction — not "What do you think?" or "Drop a comment"
-□ SOURCES SECTION (required when research is provided): If the TREND CONTEXT above contains source URLs, add "## Sources" as the LAST section. List each URL as: - [domain name](full_url). Max 8 sources.
+□ CITATIONS: Use inline hyperlinks on first mention of any cited study or source.
+  If 3+ distinct studies cited: add "## References" as the last section with numbered list:
+  1. [Author / Publication — Title](URL)
+  If a ## Sources section already exists (from TREND CONTEXT), use that instead — do not create both.
 
 {exemplar_section}
 Write the full post now. Start with the hook — not a title, not an intro sentence that sets context.

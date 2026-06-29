@@ -17,7 +17,9 @@ class TestWordCountPromptStructuralPlan:
 
 
 class TestSourcesInstruction:
-    def test_sources_checkbox_in_initial_prompt(self):
+    def test_citations_checkbox_in_initial_prompt(self):
+        """Change 5: SOURCES SECTION replaced with CITATIONS + inline hyperlink rule."""
         prompt = str(load_template("content_generator_human_initial"))
-        assert "SOURCES SECTION" in prompt
-        assert "## Sources" in prompt
+        assert "CITATIONS" in prompt
+        assert "## References" in prompt
+        assert "## Sources" in prompt  # still referenced as the fallback

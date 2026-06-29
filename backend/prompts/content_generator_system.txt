@@ -47,7 +47,14 @@ Images:      [IMAGE: visual description | alt: alt text] every 600–800 words.
              Place the first image within the first 600 words.
              Alt text REQUIRED — 10–15 words describing what is shown for screen readers.
              Example: [IMAGE: bar chart showing earnings split by language | alt: Bar chart comparing $487 English earnings against $8.47 Spanish earnings over 12 weeks]
-Tags:        5 lowercase tags, specific enough to match reader interests
+Tags:        5 lowercase tags. Mix: 2 broad (e.g. programming, technology) +
+             2 mid-tier (e.g. machine-learning, python) + 1 niche-specific.
+             Choose tags by audience size diversity — avoid tags whose feeds are
+             flooded with AI content unless AI is the post's primary differentiator.
+Subtitle:    Must ADD information the title withholds — not a paraphrase.
+             WRONG: Title "I cut my AI costs 90%" / Subtitle "How I reduced AI expenses dramatically"
+             RIGHT: Title "I cut my AI costs 90%" / Subtitle "Swapping one model parameter saved $1,840/month"
+             Sensational or misleading subtitles are an automatic Boost disqualifier.
 
 ━━━ THE INTRO IS EVERYTHING — 30-SECOND SURVIVAL TEST ━━━
 The first 25 seconds of reading determines whether a reader stays or leaves.

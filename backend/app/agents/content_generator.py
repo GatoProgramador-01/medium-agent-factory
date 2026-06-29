@@ -32,7 +32,7 @@ class GeneratedPost(BaseModel):
             "Full Medium post in Markdown. "
             "1,700–1,900 words. TARGET 1,700 minimum — do not submit under 1,500. "
             "No H1 (title is separate). "
-            "Image placeholders as: [IMAGE: description of what would go here]"
+            "Image placeholders as: [IMAGE: description | alt: 10-15 word alt text]"
         )
     )
     tags: list[str] = Field(description="Exactly 5 Medium tags, lowercase")
