@@ -120,7 +120,20 @@ flowchart LR
     run2 --> snap
 ```
 
+### Modular Node-Agent Architecture
+
+The LangGraph pipeline is strictly modularized to separate orchestration state transitions from core agent intelligence. This is achieved through a two-layer design:
+
+1.  **Node Coordination Layer (`backend/app/agents/nodes/`)**:
+    *   Acts as the LangGraph state machine boundary. Each node (e.g., [fact_check_node](file:///C:/Users/lanitaEmperadora/medium-agent-factory/backend/app/agents/nodes/fact_check.py) or [quality_analysis_node](file:///C:/Users/lanitaEmperadora/medium-agent-factory/backend/app/agents/nodes/quality_analysis.py)) is a clean Python function wrapping logic, state updates, and logs.
+    *   **Dynamic Import Pattern**: To enable complete unit test isolation and global mock patching, all node functions dynamically import their corresponding core agent helpers inside the function body (e.g., importing `verify_claims` within the execution of the node function). This ensures test runners can patch helper modules *after* importing the node modules, avoiding rigid module-level bindings.
+
+2.  **Core Agent Tool Layer (`backend/app/agents/`)**:
+    *   Houses the functional execution engines, prompt loaders, and LLM interfaces (e.g., [fact_checker.py](file:///C:/Users/lanitaEmperadora/medium-agent-factory/backend/app/agents/fact_checker.py), [quality_analyzer.py](file:///C:/Users/lanitaEmperadora/medium-agent-factory/backend/app/agents/quality_analyzer.py)).
+    *   Contains pure, stateless business logic that operates independently of LangGraph's routing state, simplifying unit testing and prompt isolation.
+
 ---
+
 
 ## Quality Gates
 
@@ -272,7 +285,27 @@ frontend/src/
                                       # SSE stream integration
 ```
 
+### Unified Python CI Script
+
+To simplify running local validation, we provide a unified Python CI script in [scripts/run_ci.py](file:///C:/Users/lanitaEmperadora/medium-agent-factory/backend/scripts/run_ci.py) inside the `backend` folder. This script automates linting, typing, and testing checks in one command.
+
+To run the CI script:
+*   **Windows (PowerShell/Command Prompt)**:
+    ```powershell
+    .venv/Scripts/python.exe scripts/run_ci.py
+    ```
+*   **macOS / Linux**:
+    ```bash
+    .venv/bin/python scripts/run_ci.py
+    ```
+
+The script executes the following checks sequentially:
+1.  **Ruff Linter**: Runs formatting and style audits (`ruff check app`).
+2.  **Mypy Static Type Analyzer**: Enforces strict Python typing (`mypy app`).
+3.  **Pytest Unit Tests**: Runs the backend test suite (`pytest`).
+
 ---
+
 
 ## Quick Start
 
@@ -345,17 +378,25 @@ curl -X POST http://localhost:8000/series \
 
 ## Alternative LLM Backends
 
-The entire pipeline routes through `get_llm(role)` in `llm_factory.py`. Switching backends requires one environment variable — no changes inside agent files.
+The entire pipeline routes through [get_llm](file:///C:/Users/lanitaEmperadora/medium-agent-factory/backend/app/agents/llm_factory.py#L47) in [llm_factory.py](file:///C:/Users/lanitaEmperadora/medium-agent-factory/backend/app/agents/llm_factory.py). Switching backends requires environment variables — no changes inside agent files.
 
+### Local LLM via Ollama
 ```bash
 # Local inference via Ollama (zero API cost)
 USE_LOCAL_LLM=true LOCAL_LLM_MODEL=llama3.2 uvicorn app.main:app --port 8000
+```
+Inside Docker, set `LOCAL_LLM_BASE_URL=http://ollama:11434`. Outside Docker, it defaults to `http://localhost:11434`.
 
-# DeepSeek V3 (low-cost cloud inference)
-USE_DEEPSEEK=true DEEPSEEK_API_KEY=sk-... uvicorn app.main:app --port 8000
+### DeepSeek Cloud Inference
+To route model requests to DeepSeek's cloud API, configure the backend using:
+```bash
+USE_DEEPSEEK=true
+DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_MODEL=deepseek-v4-flash
 ```
 
-Inside Docker, set `LOCAL_LLM_BASE_URL=http://ollama:11434`. Outside Docker, it defaults to `http://localhost:11434`.
+#### Automatic Fallback Guardrail
+When the fact-checking node [fact_check_node](file:///C:/Users/lanitaEmperadora/medium-agent-factory/backend/app/agents/nodes/fact_check.py) flags assertions that cannot be validated via parallel Tavily searches, the pipeline applies an **automatic fallback guardrail** inside the finalizer node [finalize_node](file:///C:/Users/lanitaEmperadora/medium-agent-factory/backend/app/agents/nodes/finalize.py). If a post contains unverifiable claims (marked as `HIGH` severity), the finalizer dynamically detects this and sets `recommended_publication` to `False` and `publication_confidence` to `0.0`. This ensures unverified output is explicitly marked as unfit for publication.
 
 ---
 
@@ -374,7 +415,9 @@ Inside Docker, set `LOCAL_LLM_BASE_URL=http://ollama:11434`. Outside Docker, it 
 | `BLOCK_HIGH_AI_PATTERNS` | `true` | Block posts with HIGH-severity AI pattern phrases |
 | `FACT_CHECK_ENABLED` | `true` | Run claim extraction and Tavily verification |
 | `USE_LOCAL_LLM` | `false` | Route all LLM calls to Ollama |
-| `USE_DEEPSEEK` | `false` | Route all LLM calls to DeepSeek V3 |
+| `USE_DEEPSEEK` | `false` | Route all LLM calls to DeepSeek V3/V4 |
+| `DEEPSEEK_API_KEY` | — | DeepSeek API key for cloud inference |
+| `DEEPSEEK_MODEL` | `deepseek-chat` | DeepSeek model name (e.g. `deepseek-v4-flash` or `deepseek-chat`) |
 | `LOCAL_LLM_MODEL` | `llama3.2` | Ollama model name |
 | `LOCAL_LLM_BASE_URL` | `http://localhost:11434` | Ollama server URL |
 | `LANGCHAIN_TRACING_V2` | `false` | Enable LangSmith tracing |
