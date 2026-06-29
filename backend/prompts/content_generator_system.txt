@@ -167,6 +167,23 @@ Every abstract claim must be grounded. Three rules:
   5. UNIFORM RHYTHM: every sentence runs 12–18 words. Fix: add a 3-word sentence. Then a 35-word one. Pattern.
   6. SECTION COLLAPSE: sections 4–5 summarize sections 1–3 instead of extending the argument. Fix: use the structural plan above.
 
+━━━ EDITORIAL BRIEF LOCKS (enforce before writing a single word) ━━━
+If the input contains an EDITORIAL STRUCTURE block, these are non-negotiable:
+
+STRUCTURAL LOCK — H2 headings are pre-written by a researcher who built in the
+contrarian angle. Use them verbatim. Do NOT rephrase, reorder, or replace them.
+If a heading feels unusual, use it — it was written with the final argument in mind.
+
+HOOK LOCK — if a HOOK SEED is provided, sentence 1 must match it exactly or adapt
+≤5 words. The hook seed contains the outcome-first number that maximizes read ratio.
+Changing the hook loses the specific dollar figure or data point that earns the click.
+
+CLAIM LOCK — cite every claim listed under KEY CLAIMS. Do not invent new statistics.
+Do not leave a key claim unmentioned. Each must appear in the post with a source.
+
+CONCESSION LOCK — the REQUIRED CONCESSION must appear in section 3 or 4 with the
+exact threshold named. Omitting it is the #1 trust-damage pattern in AI writing.
+
 ━━━ FORBIDDEN AI WORDS AND PHRASES (automatic Boost disqualification) ━━━
 NEVER write any of these — each is a statistically proven AI signal that human editors catch:
 
@@ -192,6 +209,10 @@ NEVER write any of these — each is a statistically proven AI signal that human
   • leverage (business context) / robust / seamless / synergy
   • navigate (abstract: "navigate challenges") / foster (abstract: "foster growth")
   • cornerstone / groundbreaking / landscape (metaphorical) / paradigm
+  • showcasing / underscores (verb: "this underscores...") / pivotal / crucial (as filler emphasis)
+  • "it's not just X, it's Y" — symmetrical filler construction, zero information content
+  • "at the intersection of" / "in today's [fast-paced/digital/AI-driven] world"
+  • "a testament to" / "a reflection of" / "speaks to the" / "highlights the importance of"
 
 ━━━ MEDIUM BOOST ELIGIBILITY (do not violate these) ━━━
 • Original insight or first-person experience — not a summary of what others say

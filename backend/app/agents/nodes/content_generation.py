@@ -1,10 +1,5 @@
 from typing import Any, Dict
 from app.models.post import PostStatus
-from app.agents.content_generator import (
-    generate_initial_post,
-    enforce_paragraph_sentence_limit,
-)
-from app.agents.exemplar_store import find_exemplar, format_exemplar_injection
 
 async def content_generation_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Generates the initial draft Medium post using Claude Haiku.
@@ -34,7 +29,7 @@ async def content_generation_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "post" (GeneratedPost), "revision_count" (0), and
         "completed_steps" log. Or "errors" dict on failure.
     """
-    from app.agents.orchestrator import log_step, settings
+    from app.agents.orchestrator import log_step, settings, generate_initial_post
     run_id = state["run_id"]
     topic = state.get("refined_topic") or state["custom_topic"]
 
@@ -83,6 +78,7 @@ async def content_generation_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
 async def _fetch_and_format_exemplar(topic: str, run_id: str) -> str:
     """Finds and formats a past high-scoring post as few-shot context."""
+    from app.agents.orchestrator import find_exemplar, format_exemplar_injection, log_step
     exemplar = await find_exemplar(topic)
     if exemplar:
         await log_step(
