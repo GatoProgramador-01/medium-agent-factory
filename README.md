@@ -9,9 +9,10 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000.svg?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248.svg?logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
 [![LangChain](https://img.shields.io/badge/LangGraph-LangChain-1C3C3C.svg)](https://langchain.com/)
+[![Tests](https://img.shields.io/badge/tests-453-brightgreen.svg)](#test-suite)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**A LangGraph multi-agent pipeline that researches, writes, fact-checks, and iteratively revises Medium posts until every quality gate passes — source-backed claims, no AI patterns, and a 1,300-word floor.**
+**16-node LangGraph pipeline that writes, evaluates, and revises Medium posts with G-Eval quality gates and eval-in-CI.**
 
 [Live Demo](https://medium-agent-factory.vercel.app) &nbsp;|&nbsp; Backend hosted on Railway &nbsp;|&nbsp; [View Source](https://github.com/GatoProgramador-01/medium-agent-factory)
 
@@ -61,196 +62,62 @@ A single well-written post is fine. A three-post series that reads like chapters
 
 ---
 
-## Editorial Monetization Roadmap
-
-The next phase is not "generate more posts." The next phase is to turn real
-software projects into evidence-backed posts, guides, and series that can earn
-reader trust on Medium.
-
-Medium rewards direct experience, useful explanation, strong narrative, and
-specific evidence. For this project, the most valuable source material is not a
-generic AI topic. It is a working repository with scars: architecture decisions,
-failed runs, test output, performance numbers, debugging notes, and code that
-actually shipped.
-
-The first flagship case study is
-[`GatoProgramador-01/pj-peru-scraper`](https://github.com/GatoProgramador-01/pj-peru-scraper):
-a real scraper for Peruvian judiciary portals with HTTP-only scraping, JSF
-ViewState edge cases, soft-block detection, PDF downloads, checkpointing,
-parallel workers, tests, and concrete runtime metrics.
-
-### Target Publishing Modes
-
-| Mode | Goal | Best For | Output |
-|------|------|----------|--------|
-| Post Mode | One strong argument with a clear hook | Lessons learned, failure stories, launches | 1,400-1,800 word Medium post |
-| Guide Mode | Teach the reader how to build or debug something end-to-end | Architecture walkthroughs, scraping guides, LLMOps patterns | Deep technical tutorial with commands, code, screenshots, and gotchas |
-| Series Mode | Build repeat readership and follow-through | Complex repos like `pj-peru-scraper` | 4-7 connected posts with continuity and non-repetition |
-
-### New Agent Roadmap
-
-| Agent | Purpose | Why It Matters for Revenue |
-|-------|---------|----------------------------|
-| `RepoAnalyzer` | Reads README, package files, tests, scripts, modules, and commit history to extract the real project story | Prevents generic posts by grounding every article in real evidence |
-| `RunbookExecutor` | Runs safe local commands, tests, dry-runs, benchmarks, and captures outputs | Turns claims into verifiable proof readers can trust |
-| `EvidenceWeaver` | Converts logs, metrics, code paths, and failure notes into publishable narrative | Makes the writing feel first-hand instead of AI-generated |
-| `GuidePlanner` | Decides whether a topic should become a post, guide, or series | Optimizes for reader intent and follow potential |
-| `CodeSnippetCurator` | Selects short, explainable snippets and avoids dumping large code blocks | Improves technical clarity and read ratio |
-| `SeriesContinuityEditor` | Maintains callbacks, progression, and non-repetition across a series | Creates repeat readership instead of isolated posts |
-| `MediumMoneyEvaluator` | Scores Boost fit, reader value, follow potential, AI-policy risk, and publication fit | Keeps the system focused on posts that can actually earn |
-| `PublicationPitcher` | Produces publication-specific pitch notes and submission strategy | Increases distribution odds beyond self-publishing |
-
-### Sprint Plan
-
-#### Sprint M1: Evidence-First Repo Analysis
-
-- Add `RepoAnalyzer` for local and GitHub repositories.
-- Extract project purpose, stack, architecture, commands, tests, scripts, notable
-  files, metrics, and unresolved risks.
-- Produce an `EvidenceBrief` document stored in MongoDB and usable by all writer
-  agents.
-- First target: `pj-peru-scraper`.
-
-Success criteria:
-
-- The system can explain what the repo does without hallucinating.
-- Every numeric claim in a generated post traces back to repo evidence, run
-  output, or explicit user-provided context.
-
-#### Sprint M2: Runbook and Local Proof
-
-- Add `RunbookExecutor` with safe command allowlists.
-- Run tests, lint, dry-runs, sample scraper commands, and benchmark scripts when
-  available.
-- Capture stdout/stderr summaries, durations, pass/fail status, and artifact
-  paths.
-- Store `RunEvidence` records linked to the post or series run.
-
-Success criteria:
-
-- The post generator can cite local test output and measured runtime.
-- Failed commands become story material and debugging notes, not silent errors.
-
-#### Sprint M3: Guide Mode
-
-- Add `GuidePlanner` and a guide-specific prompt set.
-- Generate tutorial structures with prerequisites, setup, commands, expected
-  output, failure modes, and "why this design" sections.
-- Add `CodeSnippetCurator` to select compact snippets from real files.
-
-Success criteria:
-
-- The system can produce a complete technical guide from `pj-peru-scraper`
-  without inventing architecture or commands.
-- Code snippets are short, contextual, and linked to source files.
-
-#### Sprint M4: Series Mode for Real Projects
-
-- Upgrade current series planning into a project-aware editorial arc.
-- Add `SeriesContinuityEditor` to track what each post already explained.
-- Generate 4-7 post series plans from one evidence brief.
-
-Candidate `pj-peru-scraper` series:
-
-1. The HTTP 200 That Lied: detecting soft-blocks in legacy portals.
-2. Why HTTP-only scraping beat browser automation.
-3. The 7-layer scraper architecture.
-4. Concurrency, checkpointing, and avoiding 429s.
-5. Testing a scraper against hostile legacy systems.
-6. How Claude Code helped, where it failed, and the control plane that fixed it.
-
-Success criteria:
-
-- Each post has a distinct promise and no repeated setup.
-- The series creates a natural follow path for readers.
-
-#### Sprint M5: Medium Money Evaluator
-
-- Add a scoring agent focused on monetization signals: direct experience,
-  practical utility, specificity, originality, read ratio, Boost fit,
-  publication fit, and AI-policy risk.
-- Add a "publish / revise / hold" verdict.
-- Add title, subtitle, CTA, and publication pitch recommendations.
-
-Success criteria:
-
-- The pipeline does not approve posts that are merely well-written.
-- Approval requires credible earning potential and low AI-policy risk.
-
-#### Sprint M6: DeepSeek Cost and LangSmith Observability
-
-- Update DeepSeek model defaults and pricing tables.
-- Fix token accounting for OpenAI-compatible usage metadata: `usage`,
-  `token_usage`, and `AIMessage.usage_metadata`.
-- Add LangSmith metadata tags for provider, model, run_id, series_id, agent, and
-  editorial mode.
-- Show per-post estimated cost, latency, revision count, and quality deltas in
-  analytics.
-
-Success criteria:
-
-- Every generated post has an estimated cost and trace link.
-- DeepSeek can be compared against Claude for quality, latency, and cost.
-
-#### Sprint M7: Publish-Ready Export
-
-- Add an export step for Medium-ready Markdown.
-- Include title, subtitle, canonical tags, image briefs, source list, disclosure
-  note when AI assistance should be disclosed, and publication pitch.
-- Add a final human checklist before paywall submission.
-
-Success criteria:
-
-- The final artifact can be pasted into Medium with minimal editing.
-- The system flags claims that need manual verification before publication.
-
----
-
 ## Architecture
 
-### Full Pipeline
+### Full Pipeline — 16 Nodes
 
 ```mermaid
 flowchart TD
     api[FastAPI · POST /pipeline/runs]
-    api --> state[AgentState · LangGraph]
+    api --> repo_analysis[repo_analysis_node\nRepoAnalyzer · EvidenceBrief\noptional · skips when repo_path=None]
+    repo_analysis --> topic_refiner[topic_refiner_node\nTopicBrief · angle + hook seed]
+    topic_refiner --> research[research_node\nWebResearcher · Tavily · trend_context]
+    research --> exemplar[exemplar_store_node\nMongoDB few-shot retrieval]
+    exemplar --> content_gen[content_generation_node\nContentGenerator · Claude Haiku · initial draft]
 
-    state --> trend[Trend Researcher\nTavily · angles]
-    trend --> exemplar[Exemplar Retrieval\nMongoDB · few-shot]
-    exemplar --> writer[Content Generator\nClaude Haiku · draft]
+    content_gen --> fact_check[fact_checker_node\nClaude Haiku · claim extraction\n+ parallel Tavily verification]
+    fact_check -->|SUPPORTED → hyperlink| annotate[Annotate Draft]
+    fact_check -->|UNVERIFIABLE → QualityIssue| issues[Issue List]
 
-    writer --> fact[Fact Checker\nClaude Haiku · claim extraction\n+ parallel Tavily verification]
-    fact -->|SUPPORTED → hyperlink| annotate[Annotate Draft]
-    fact -->|UNVERIFIABLE → QualityIssue| issues[Issue List]
-
-    annotate & issues --> structural[Layer A · Structural Checker\nPython · zero LLM cost]
-    annotate & issues --> llm_quality[Layer B · G-Eval Rubric\nClaude Sonnet · 4 axes]
+    annotate & issues --> structural[structural_checker_node\nLayer A · Python · zero LLM cost\nparagraph_length · heading_cadence\nword_count · ai_pattern]
+    annotate & issues --> llm_quality[quality_analysis_node\nLayer B · G-Eval Rubric\nClaude Haiku · 4 axes · 0.0–1.0]
 
     structural --> merge[Merge Issues]
     llm_quality --> merge
 
-    merge --> gate{All 4 gates pass?}
-    gate -->|yes| formatter[Formatter]
-    gate -->|no + cycles left| reviser[Reviser · Claude Haiku]
-    reviser --> writer
+    merge --> gate{All 4 gates\npass?}
+    gate -->|yes| title_opt[title_optimizer_node\nClaude Haiku · candidate titles]
+    gate -->|no + cycles left| reviser[reviser · Claude Haiku / Sonnet]
+    reviser --> content_gen
 
-    formatter --> mongo[(MongoDB)]
-    formatter --> sse[SSE Stream → Frontend]
+    title_opt --> intro_ab[intro_ab_tester_node\nA/B intro variants · best hook selected]
+    intro_ab --> close_opt[close_optimizer_node\nCTA + closing paragraph]
+    close_opt --> img_enrich[image_description_enricher_node\nalt-text + caption injection]
+    img_enrich --> pub_match[publication_matcher_node\nTop-3 publications · confidence score]
+
+    pub_match --> coherence{series run?}
+    coherence -->|yes| series_check[series_coherence_checker_node\nnon-repetition · continuity score]
+    coherence -->|no| formatter_node[formatter_node\nClaude Haiku · pull quote + final clean]
+    series_check --> formatter_node
+
+    formatter_node --> post_proc[post_processor_node\ncaption injection · source merge]
+    post_proc --> mongo[(MongoDB\nposts + quality_snapshots)]
+    post_proc --> sse[SSE Stream → Frontend]
 ```
 
-### Quality Architecture
+### Quality Feedback Loop
 
 ```mermaid
-flowchart TD
-    post[Post Content]
-    post --> A[Layer A · Structural Checker\nPython · deterministic · zero cost]
-    post --> B[Layer B · G-Eval Rubric\nClaude Sonnet · 4 axes 0–1]
-    A -->|paragraph_length\nheading_cadence\nword_count\nai_pattern| merge[Merge]
-    B -->|hook_strength\nspecificity\nvoice_authenticity\ninsight_value| merge
-    merge --> C[Layer C · Gates\nmin_quality_score=0.70\nmin_read_ratio=0.65\nmin_word_count=1300]
-    C --> verdict{Pass?}
-    verdict -->|yes| done([Finalize])
-    verdict -->|no| revise([Revise])
+flowchart LR
+    run[pipeline_run\nRevision cycle N]
+    run --> snap[quality_snapshots\nMongoDB · score + gate_failures\n+ issues per cycle]
+    snap --> analytics[analyze_quality_snapshots\naggregation pipeline\nwhich categories block most]
+    analytics --> pa[prompt_analyst_node\nfinds weakest prompt\nreturns edit recommendation]
+    pa --> edit[prompt edit\nprompts/*.txt in git]
+    edit --> commit[git commit\nPrompt versioned]
+    commit --> ci[CI eval gate\nLayer 1+2 · <5 min · <$0.05\nblocks merge on regression]
+    ci --> run2[pipeline_run\nNext run · better prompts]
+    run2 --> snap
 ```
 
 ---
@@ -272,7 +139,7 @@ All four must pass before the post is finalized. Any failure routes to the revis
 
 `content_score = mean(hook_strength, specificity, voice_authenticity, insight_value)`
 
-Each axis is scored 0.0–1.0 by Claude Sonnet independently. No weighting. No black box.
+Each axis is scored 0.0–1.0 by Claude Haiku independently. No weighting. No black box.
 
 | Axis | 1.0 Description | 0.0 Description |
 |------|----------------|----------------|
@@ -280,28 +147,6 @@ Each axis is scored 0.0–1.0 by Claude Sonnet independently. No weighting. No b
 | `specificity` | 3+ named data points — company names, dates, amounts with source | Fully abstract; zero concrete anchors |
 | `voice_authenticity` | Contractions throughout, personal anecdote with named detail, no AI hedging | Multiple forbidden phrases; zero personal voice |
 | `insight_value` | Non-obvious claim + concession + specific prediction | Zero original insight; could have been written by anyone |
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Orchestration | LangGraph (StateGraph + conditional edges) |
-| LLM — supervisor | Claude Sonnet 4.6 |
-| LLM — workers | Claude Haiku 4.5 |
-| LLM — optional | DeepSeek V3, Ollama (local) |
-| Web research + fact-checking | Tavily Search API |
-| Storage | MongoDB Atlas (Motor async driver) |
-| API | FastAPI + Server-Sent Events (SSE) |
-| Frontend | Next.js 15 + Tailwind CSS |
-| Prompts | Git-versioned `.txt` files |
-| Config | Pydantic Settings (environment variables) |
-| Observability | LangSmith tracing |
-| CI/CD | GitHub Actions (5 jobs) |
-| Deploy | Railway (backend) + Vercel (frontend) |
-| IaC option | Terraform (AWS ECS Fargate) |
-| Containerization | Docker + GitHub Container Registry |
 
 ---
 
@@ -321,7 +166,7 @@ Layer 1 and 2 run under 5 minutes and under $0.05. Layer 3 runs nightly. The eva
 
 ### Prompt Versioning
 
-Prompts are code. Every prompt lives in `prompts/` as a `.txt` file, versioned in git, loaded at startup into a module-level cache. No prompt strings inside agent files.
+Prompts are code. Every prompt lives in `prompts/` as a `.txt` file, versioned in git, loaded at startup into a module-level cache. No prompt strings inside agent files. 27 prompt files across 14 agents.
 
 ```python
 # app/prompt_loader.py
@@ -369,43 +214,80 @@ db.quality_snapshots.aggregate([
 
 ---
 
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Orchestration | LangGraph (StateGraph + conditional edges) |
+| LLM — supervisor | Claude Sonnet 4.6 |
+| LLM — workers | Claude Haiku 4.5 |
+| LLM — optional | DeepSeek V3, Ollama (local) |
+| Web research + fact-checking | Tavily Search API |
+| Storage | MongoDB Atlas (Motor async driver) |
+| API | FastAPI + Server-Sent Events (SSE) |
+| Frontend | Next.js 15 + Tailwind CSS |
+| Prompts | 27 git-versioned `.txt` files |
+| Config | Pydantic Settings (environment variables) |
+| Observability | LangSmith tracing |
+| CI/CD | GitHub Actions (5 jobs) |
+| Deploy | Railway (backend) + Vercel (frontend) |
+| IaC option | Terraform (AWS ECS Fargate) |
+| Containerization | Docker + GitHub Container Registry |
+
+---
+
 ## Test Suite
 
-**306 total — 248 backend + 58 frontend. TDD throughout (Red → Green → Refactor).**
+**453 tests — TDD throughout (Red → Green → Refactor).**
 
-Every feature started with a failing test. No `// TODO: add tests` is committed. The CI pipeline blocks merges if tests fail or coverage drops.
+Every feature started with a failing test. No `// TODO: add tests` is committed. The CI pipeline blocks merges if tests fail or coverage drops. The eval gate runs on every PR touching agents or prompts.
 
 ```
 backend/tests/
-├── test_fact_checker.py          # claim extraction, parallel verification, hyperlink injection
-├── test_structural_checker.py    # 19 tests · paragraph, heading, intro, word count, ai_pattern
-├── test_quality_snapshot.py      # MongoDB snapshot persistence + structural integration
-├── test_routing.py               # route_after_quality — pure logic, zero LLM calls
-├── test_prompt_refinements.py    # G-Eval rubric axis presence, category canonicalization
-├── test_validators.py            # Pydantic unicode-normalizer coerce fix
-├── test_formatter.py             # pull quote extraction, formatting rules
-├── test_series_context.py        # series planner output, continuity injection
-├── test_llm_factory.py           # get_llm() routing (Anthropic / DeepSeek / Ollama)
-├── test_prompt_loader.py         # prompt file loading and caching
+├── test_fact_checker.py              # claim extraction, parallel verification, hyperlink injection
+├── test_structural_checker.py        # 19 tests · paragraph, heading, intro, word count, ai_pattern
+├── test_quality_snapshot.py          # MongoDB snapshot persistence + structural integration
+├── test_routing.py                   # route_after_quality — pure logic, zero LLM calls
+├── test_prompt_refinements.py        # G-Eval rubric axis presence, category canonicalization
+├── test_validators.py                # Pydantic unicode-normalizer coerce fix
+├── test_formatter.py                 # pull quote extraction, formatting rules
+├── test_series_context.py            # series planner output, continuity injection
+├── test_llm_factory.py               # get_llm() routing (Anthropic / DeepSeek / Ollama)
+├── test_prompt_loader.py             # prompt file loading and caching
+├── test_topic_refiner.py             # TopicBrief structured output + EvidenceBrief injection
+├── test_repo_analyzer.py             # EvidenceBrief extraction, hallucination guards
+├── test_intro_ab_tester.py           # A/B variant scoring, best hook selection
+├── test_close_optimizer.py           # CTA generation, closing paragraph structure
+├── test_series_coherence_checker.py  # non-repetition detection, continuity scoring
+├── test_title_optimizer.py           # candidate title variants, click-through heuristics
+├── test_publication_matcher.py       # publication confidence scores, top-3 ranking
+├── test_image_description_enricher.py # alt-text injection, caption formatting
+├── test_post_processor.py            # caption merge, source section deduplication
 └── e2e/
-    └── test_api.py               # real FastAPI + real MongoDB (pytest-asyncio)
+    └── test_api.py                   # real FastAPI + real MongoDB (pytest-asyncio)
 
 frontend/src/
-└── **/*.test.tsx                 # 58 unit tests · Jest + React Testing Library
+└── **/*.test.tsx                     # Jest + React Testing Library · QualityPanel,
+                                      # SourcesPanel, RevisionHistoryPanel, SeriesNav,
+                                      # SSE stream integration
 ```
 
 ---
 
 ## Quick Start
 
-### Prerequisites
+### Docker (recommended)
 
-- Python 3.11+
-- Node.js 24+
-- MongoDB running locally (or a free Atlas cluster)
-- API keys: `ANTHROPIC_API_KEY`, `TAVILY_API_KEY`
+```bash
+cp backend/.env.example backend/.env
+# Edit backend/.env — set ANTHROPIC_API_KEY, TAVILY_API_KEY, MONGODB_URI
 
-### Backend
+docker compose up --build
+# Frontend: http://localhost:3000
+# Backend:  http://localhost:8000/docs
+```
+
+### Manual — Backend
 
 ```bash
 cd backend
@@ -417,19 +299,17 @@ source .venv/Scripts/activate
 source .venv/bin/activate
 
 pip install -e ".[dev]"
-
 cp .env.example .env
 # Edit .env — set ANTHROPIC_API_KEY, TAVILY_API_KEY, MONGODB_URI
 
-# Start server (Windows PowerShell — avoids Git Bash background process issues)
+# Start server (Windows PowerShell)
 Start-Process -FilePath ".\.venv\Scripts\python.exe" `
   -ArgumentList "-m", "uvicorn", "app.main:app", "--port", "8000", "--reload" -NoNewWindow
 
-# Run tests
 pytest tests/ -v
 ```
 
-### Frontend
+### Manual — Frontend
 
 ```bash
 cd frontend
@@ -450,16 +330,15 @@ curl -X POST http://localhost:8000/pipeline/runs \
 # Watch the SSE stream
 curl http://localhost:8000/pipeline/runs/{run_id}/stream
 
+# Single post grounded in a local repo
+curl -X POST http://localhost:8000/pipeline/runs \
+  -H "Content-Type: application/json" \
+  -d '{"custom_topic": "How I scraped 43k judiciary PDFs without a browser", "repo_path": "/path/to/pj-peru-scraper"}'
+
 # Generate a 3-post series
 curl -X POST http://localhost:8000/series \
   -H "Content-Type: application/json" \
   -d '{"topic": "LLM cost optimization guide for agent developers", "num_posts": 3}'
-```
-
-### Docker
-
-```bash
-docker compose up --build
 ```
 
 ---
@@ -495,7 +374,7 @@ Inside Docker, set `LOCAL_LLM_BASE_URL=http://ollama:11434`. Outside Docker, it 
 | `BLOCK_HIGH_AI_PATTERNS` | `true` | Block posts with HIGH-severity AI pattern phrases |
 | `FACT_CHECK_ENABLED` | `true` | Run claim extraction and Tavily verification |
 | `USE_LOCAL_LLM` | `false` | Route all LLM calls to Ollama |
-| `USE_DEEPSEEK` | `false` | Route all LLM calls to DeepSeek |
+| `USE_DEEPSEEK` | `false` | Route all LLM calls to DeepSeek V3 |
 | `LOCAL_LLM_MODEL` | `llama3.2` | Ollama model name |
 | `LOCAL_LLM_BASE_URL` | `http://localhost:11434` | Ollama server URL |
 | `LANGCHAIN_TRACING_V2` | `false` | Enable LangSmith tracing |
@@ -505,20 +384,22 @@ Inside Docker, set `LOCAL_LLM_BASE_URL=http://ollama:11434`. Outside Docker, it 
 
 ## Skills Demonstrated
 
-This project was built as a portfolio piece demonstrating production-grade LLM engineering. Every decision was made with cost, reliability, and observability in mind.
-
-| Skill | Where |
-|-------|-------|
-| LangGraph stateful multi-agent orchestration with conditional edges | `backend/app/agents/orchestrator.py` |
-| G-Eval LLM-as-judge evaluation (EMNLP 2023) — 4 independent axes, 0.0–1.0 rubric | `backend/app/agents/quality_analyzer.py` |
+| Skill | Evidence |
+|-------|---------|
+| LangGraph stateful multi-agent orchestration — 16 nodes, conditional edges, revision loop | `backend/app/agents/orchestrator.py` |
+| G-Eval LLM-as-judge evaluation (EMNLP 2023) — 4 independent axes, 0.0–1.0 rubric, no weighting | `backend/app/agents/quality_analyzer.py` |
 | 3-layer quality architecture: deterministic + LLM rubric + config gates | `backend/app/agents/structural_checker.py`, `quality_analyzer.py`, `config.py` |
-| Parallel async fact-checking with Tavily — claim extraction + hyperlink injection | `backend/app/agents/fact_checker.py` |
-| SSE streaming from FastAPI to Next.js (no polling, no websocket overhead) | `backend/app/routers/pipeline.py`, `frontend/src/` |
-| TDD throughout — 306 tests, Red → Green → Refactor, no retrofitted tests | `backend/tests/`, `frontend/src/**/*.test.tsx` |
-| LLMOps: eval-in-CI, 3-layer eval architecture, LangSmith tracing, prompt versioning | `backend/evals/`, `backend/prompts/`, `.github/workflows/eval.yml` |
-| Multi-model cost switching — Anthropic / DeepSeek / Ollama, single factory function | `backend/app/agents/llm_factory.py` |
-| MongoDB analytics — `quality_snapshots` collection with aggregation pipeline | `backend/app/routers/analytics.py` |
+| Parallel async fact-checking — claim extraction + Tavily verification + hyperlink injection | `backend/app/agents/fact_checker.py` |
+| Repo grounding — EvidenceBrief extraction from local/GitHub repos, hallucination prevention | `backend/app/agents/repo_analyzer.py` |
+| A/B intro testing — multiple hook variants scored and ranked before committing to one | `backend/app/agents/intro_ab_tester.py` |
+| Series coherence checking — non-repetition detection across posts in a series | `backend/app/agents/series_coherence_checker.py` |
+| SSE streaming — FastAPI event generator to Next.js EventSource, no polling, no websocket | `backend/app/routers/pipeline.py` |
+| LLMOps: eval-in-CI, 3-layer eval architecture, LangSmith tracing, 27 versioned prompt files | `backend/evals/`, `backend/prompts/`, `.github/workflows/eval.yml` |
+| Multi-model cost switching — Anthropic / DeepSeek / Ollama via single factory function | `backend/app/agents/llm_factory.py` |
+| MongoDB quality analytics — `quality_snapshots` collection + aggregation pipeline | `backend/app/routers/analytics.py` |
+| TDD throughout — 453 tests, Red → Green → Refactor, no retrofitted tests | `backend/tests/`, `frontend/src/**/*.test.tsx` |
 | Docker + GitHub Actions 5-job CI/CD pipeline + Railway/Vercel deploy | `.github/workflows/`, `docker-compose.yml` |
+| Pydantic unicode-normalizer coerce fix — every str→list validator handles curly quotes / em-dashes | `backend/app/models/post.py` |
 
 ---
 
@@ -529,71 +410,83 @@ medium-agent-factory/
 ├── backend/
 │   ├── app/
 │   │   ├── agents/
-│   │   │   ├── orchestrator.py        ← LangGraph pipeline definition
-│   │   │   ├── content_generator.py   ← writer agent (Claude Haiku)
-│   │   │   ├── quality_analyzer.py    ← G-Eval rubric (Layer B)
-│   │   │   ├── structural_checker.py  ← deterministic checks (Layer A)
-│   │   │   ├── fact_checker.py        ← claim extraction + Tavily verification
-│   │   │   ├── series_planner.py      ← series outline + hook seeds
-│   │   │   ├── web_researcher.py      ← Tavily trend research
-│   │   │   ├── read_ratio_analyzer.py ← predicted 30-sec read rate
-│   │   │   ├── exemplar_store.py      ← few-shot exemplar retrieval
-│   │   │   └── llm_factory.py         ← get_llm(role) — single model config point
-│   │   ├── models/post.py             ← QualityReport, QualityIssue, AtomicClaim
+│   │   │   ├── orchestrator.py                ← LangGraph pipeline — 16 nodes + conditional edges
+│   │   │   ├── content_generator.py           ← writer agent (Claude Haiku)
+│   │   │   ├── quality_analyzer.py            ← G-Eval rubric (Layer B)
+│   │   │   ├── structural_checker.py          ← deterministic checks (Layer A)
+│   │   │   ├── fact_checker.py                ← claim extraction + Tavily verification
+│   │   │   ├── topic_refiner.py               ← TopicBrief · angle + hook seed
+│   │   │   ├── repo_analyzer.py               ← EvidenceBrief from local/GitHub repos
+│   │   │   ├── intro_ab_tester.py             ← A/B intro variants + scoring
+│   │   │   ├── close_optimizer.py             ← CTA + closing paragraph
+│   │   │   ├── series_coherence_checker.py    ← non-repetition + continuity scoring
+│   │   │   ├── title_optimizer.py             ← candidate title generation
+│   │   │   ├── publication_matcher.py         ← top-3 publication fit + confidence
+│   │   │   ├── image_description_enricher.py  ← alt-text + caption injection
+│   │   │   ├── post_processor.py              ← caption merge + source section dedup
+│   │   │   ├── series_planner.py              ← series outline + hook seeds
+│   │   │   ├── web_researcher.py              ← Tavily trend research
+│   │   │   ├── read_ratio_analyzer.py         ← predicted 30-sec read rate
+│   │   │   ├── exemplar_store.py              ← few-shot exemplar retrieval
+│   │   │   ├── prompt_analyst.py              ← prompt weakness detection
+│   │   │   └── llm_factory.py                 ← get_llm(role) — single model config point
+│   │   ├── models/post.py                     ← QualityReport, QualityIssue, AtomicClaim, EvidenceBrief
 │   │   ├── routers/
-│   │   │   ├── pipeline.py            ← POST /pipeline/runs + SSE /stream
-│   │   │   ├── posts.py               ← GET /posts
-│   │   │   ├── series.py              ← POST /series
-│   │   │   └── analytics.py           ← quality_snapshots aggregations
-│   │   ├── config.py                  ← Pydantic Settings
-│   │   ├── database.py                ← Motor async client singleton
-│   │   └── prompt_loader.py           ← startup cache for git-versioned prompts
-│   ├── prompts/
-│   │   ├── content_generator_system.txt
-│   │   ├── quality_analyzer_system.txt
-│   │   ├── reviser_system.txt
-│   │   ├── series_planner_system.txt
-│   │   └── claim_extractor_system.txt
-│   ├── evals/                         ← 3-layer eval suite (JSONL datasets)
-│   └── tests/                         ← 248 tests, TDD
+│   │   │   ├── pipeline.py                    ← POST /pipeline/runs + SSE /stream
+│   │   │   ├── posts.py                       ← GET /posts
+│   │   │   ├── series.py                      ← POST /series
+│   │   │   └── analytics.py                   ← quality_snapshots aggregations
+│   │   ├── config.py                          ← Pydantic Settings
+│   │   ├── database.py                        ← Motor async client singleton
+│   │   └── prompt_loader.py                   ← startup cache for 27 git-versioned prompts
+│   ├── prompts/                               ← 27 .txt prompt files, one per agent role
+│   ├── evals/                                 ← 3-layer eval suite (JSONL datasets)
+│   └── tests/                                 ← 453 tests, TDD
 ├── frontend/
 │   └── src/
 │       ├── components/
-│       │   ├── QualityPanel.tsx        ← G-Eval scores + gate pass/fail
-│       │   ├── SourcesPanel.tsx        ← verified claim hyperlinks
-│       │   ├── RevisionHistoryPanel.tsx ← per-cycle quality snapshots
-│       │   └── SeriesNav.tsx           ← series navigation
-│       └── app/                        ← Next.js 15 App Router pages
-├── infra/                             ← Terraform (AWS ECS Fargate option)
+│       │   ├── QualityPanel.tsx               ← G-Eval scores + gate pass/fail
+│       │   ├── SourcesPanel.tsx               ← verified claim hyperlinks
+│       │   ├── RevisionHistoryPanel.tsx        ← per-cycle quality snapshots
+│       │   └── SeriesNav.tsx                  ← series navigation
+│       └── app/                               ← Next.js 15 App Router pages
+├── infra/                                     ← Terraform (AWS ECS Fargate option)
 │   ├── modules/
 │   └── envs/dev/
 ├── docker-compose.yml
 └── .github/
     └── workflows/
-        ├── ci.yml                     ← 5-job pipeline
-        ├── eval.yml                   ← eval gate (path-filtered)
-        └── deploy.yml                 ← Railway + Vercel on merge
+        ├── ci.yml                             ← 5-job pipeline
+        ├── eval.yml                           ← eval gate (path-filtered)
+        └── deploy.yml                         ← Railway + Vercel on merge
 ```
 
 ---
 
 <details>
-<summary>Sprint History (Sprint 1 – Sprint 11+)</summary>
+<summary>Sprint History (Sprints 1 – 19)</summary>
 
 | Sprint | What Shipped |
 |--------|-------------|
-| 1 | Core LangGraph pipeline: Write → Quality → Revise → Format |
-| 2 | Penalty weight quality scoring system (v1 — later replaced) |
-| 3 | Series planner, `series_context` injection, multi-post continuity |
-| 4 | Read ratio analyzer — predicted 30-second read rate as Gate 2 |
-| 5 | Quality redesign: Layer A (structural checker) + Layer B (G-Eval rubric) + Layer C (config gates) |
-| 6 | `min_word_count` raised 1000 → 1300; validated with DeepSeek cost savings series (all 3 posts Boost-eligible) |
+| 1 | Core LangGraph pipeline: Write → Quality → Revise → Format; MemorySaver state, first SSE stream |
+| 2 | Penalty weight quality scoring system (v1 — magic numbers `0.12`/`0.05`; replaced in Sprint 5) |
+| 3 | Series planner, `series_context` injection, multi-post continuity; 3-post run validated |
+| 4 | Read ratio analyzer — predicted 30-second read rate added as Gate 2 |
+| 5 | Quality redesign: Layer A (structural checker) + Layer B (G-Eval rubric 4 axes) + Layer C (config gates); penalty weights retired |
+| 6 | `min_word_count` raised 1000 → 1300; DeepSeek cost savings series validated (all 3 posts Boost-eligible, scores 0.96/0.97/1.00) |
 | 7 | Fact checker agent: claim extraction + parallel Tavily verification + hyperlink injection |
 | 8 | SSE streaming: FastAPI event generator → Next.js `EventSource` with `__done__` sentinel |
-| 9 | Frontend dashboard: QualityPanel, SourcesPanel, RevisionHistoryPanel, SeriesNav |
-| 10 | LLMOps: 3-layer eval architecture, eval-in-CI, LangSmith tracing, prompt versioning |
-| 11 | `max_revision_cycles` raised 2 → 6; quality_snapshots MongoDB collection; analytics router |
-| 11+ | Multi-model cost switching (DeepSeek / Ollama); Docker + GitHub Container Registry; Railway + Vercel CI/CD deploy |
+| 9 | Frontend dashboard: QualityPanel, SourcesPanel, RevisionHistoryPanel, SeriesNav components |
+| 10 | LLMOps: 3-layer eval architecture, eval-in-CI (path-filtered), LangSmith tracing, prompt versioning |
+| 11 | `max_revision_cycles` raised 2 → 6; `quality_snapshots` MongoDB collection; analytics router + aggregation queries |
+| 12 | Multi-model cost switching (DeepSeek V3 / Ollama); Docker + GitHub Container Registry; Railway + Vercel deploy |
+| 13 | `topic_refiner` node: TopicBrief structured output, angle + hook seed injected into content generation |
+| 14 | `title_optimizer` node: multiple candidate titles, click-through heuristics, A/B scoring |
+| 15 | `intro_ab_tester` node: 3 opening variants generated and scored; best hook committed to state |
+| 16 | `close_optimizer` node: CTA generation + closing paragraph structure enforced |
+| 17 | `publication_matcher` node: top-3 publications ranked by fit, confidence score stored |
+| 18 | `image_description_enricher` + `post_processor` nodes: alt-text injection, caption merge, source section deduplication; `series_coherence_checker` added for series runs |
+| 19 | `repo_analyzer` node wired: EvidenceBrief extracted from local/GitHub repos; `grounding_context` + `evidence_brief` added to PipelineState; hallucination guards; 453 tests |
 
 </details>
 
@@ -602,3 +495,5 @@ medium-agent-factory/
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+Contributing: open an issue or PR. The pipeline is modular — adding a new node means a new file in `agents/`, a failing test, a passing test, and a prompt in `prompts/`. The orchestrator wiring is the last step.
