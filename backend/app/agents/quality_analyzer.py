@@ -130,8 +130,22 @@ async def run_quality_analysis(
 ) -> QualityReport:
     """Run G-Eval quality analysis on post title and content.
 
-    Scores on 4 axes (hook_strength, specificity, voice_authenticity, insight_value),
-    merges structural issues, analyzes read ratio, and produces revision guidance.
+    The Story (El Relato):
+    In the story of our pipeline, this function is the Quality Auditor.
+    Once a post draft is written, it needs an objective, multidimensional critique.
+    This function invokes our G-Eval model (Haiku) to score the content across four essential dimensions:
+    hook strength (is it clickable?), specificity (does it cite actual data?), voice authenticity (does it feel
+    like a human wrote it?), and insight value (is there actual substance?). It then runs the read ratio
+    predictor to calculate the percentage of readers who will finish the post, filter out structural issues
+    that are handled deterministically, and construct a detailed `QualityReport` detailing suggestions and strengths.
+
+    The Flow (El Flujo):
+    1. Log the initiation of quality analysis.
+    2. Invoke the worker model (Haiku) with the quality analyzer prompt to score the four axes and extract issues.
+    3. Call the `analyze_read_ratio` module to compute the predicted reader retention rate.
+    4. Filter out duplicate structural issues from the LLM response (relying instead on deterministic regex checks).
+    5. Compute the aggregate content score as the mathematical mean of the four axes.
+    6. Assemble the final `QualityReport` and return it.
 
     Args:
         run_id: Unique run identifier for token tracking.

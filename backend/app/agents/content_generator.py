@@ -195,6 +195,23 @@ async def generate_initial_post(
 ) -> GeneratedPost:
     """Generate initial post from topic and context.
 
+    The Story (El Relato):
+    In the story of our content pipeline, this function is the First Draft Writer.
+    It takes the refined topic angle and the target audience provided by the Chief Editor,
+    along with web research and repository evidence. It also looks at the selected few-shot exemplar
+    (representing past successful content) to establish the correct stylistic tone.
+    It then invokes the LLM writer (defaulting to Haiku for budget-conscious efficiency) to draft
+    the article, returning a complete `GeneratedPost` structure containing a title, subtitle,
+    content, lowercase tags, and visual suggestions.
+
+    The Flow (El Flujo):
+    1. Select the appropriate LLM model (Haiku is chosen for initial drafts).
+    2. Check if a series context is present and format it.
+    3. Load system and human templates from prompt files.
+    4. Call the generator LLM with structured output mapping to the `GeneratedPost` schema.
+    5. Apply sentence-length formatting to split long paragraphs in the draft content.
+    6. Return the structured `GeneratedPost` object.
+
     Args:
         run_id: Unique run identifier.
         topic: Post topic to write about.
@@ -249,8 +266,22 @@ async def revise_post(
 ) -> GeneratedPost:
     """Revise post based on quality feedback.
 
-    Applies targeted fixes from quality_analyzer and prior_cycle failures.
-    Escalates to Sonnet on revision 2+ if Haiku revisions haven't met gates.
+    The Story (El Relato):
+    In the story of our content pipeline, this function is the Detail-Oriented Proofreader.
+    If the initial post fails the quality checks, it is sent here to fix specific issues.
+    This function analyzes the quality report feedback, including structural issues, fact-checking failures,
+    and style warnings. It checks the number of revision attempts: if the article failed multiple times,
+    or has complex stylistic errors (like severe AI-like vocabulary patterns), it escalates the task from
+    Haiku to our more capable supervisor model (Claude Sonnet) to perform high-precision rewrites.
+
+    The Flow (El Flujo):
+    1. Check for high-severity AI vocabulary patterns or if revision cycle is >= 2.
+    2. Invoke `_pick_role` to select between worker (Haiku) or supervisor (Sonnet) models.
+    3. Measure the word count and introductory paragraph length.
+    4. Compile the lists of issues, strengths, gate failures, and read ratio predictions.
+    5. Load revision system and human instructions.
+    6. Invoke the LLM with structured feedback to generate a clean, corrected draft.
+    7. Format sentence splits and return the revised `GeneratedPost`.
 
     Args:
         run_id: Unique run identifier.

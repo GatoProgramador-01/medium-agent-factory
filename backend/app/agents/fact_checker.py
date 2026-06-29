@@ -253,8 +253,21 @@ def results_to_issues(results: list[VerificationResult]) -> list[QualityIssue]:
 async def run_fact_check(content: str) -> tuple[str, list[QualityIssue]]:
     """Run full fact-checking pipeline: extract, verify, inject, report.
 
-    Degrades gracefully: returns original content + empty issues if disabled,
-    extraction fails, or Tavily unavailable.
+    The Story (El Relato):
+    In the story of our publishing pipeline, this function represents the Fact-Checking Desk.
+    Before any post is approved for final distribution, it must undergo factual validation.
+    This function coordinates the entire verification pipeline: it extracts numeric or company-specific
+    claims, performs parallel web searches to look for supporting evidence, injects links to authoritative
+    sources where found, and flags unverifiable claims as high-severity issues. This ensures the published
+    article maintains the highest standards of journalistic trust and satisfies search engine guidelines.
+
+    The Flow (El Flujo):
+    1. Check if the fact-checking system is enabled. If not, exit immediately with the original content.
+    2. Extract verifiable claims using the claim extraction LLM helper (`extract_claims`).
+    3. Cap the maximum number of claims to prevent unnecessary search API costs.
+    4. Verify each claim in parallel using the Tavily search engine (`verify_claims`).
+    5. Inject markdown links for successful supporting URLs and convert failed verifications into structured quality issues.
+    6. Return the hyperlink-annotated text and the list of quality issues.
 
     Args:
         content: Post markdown content.
