@@ -22,3 +22,11 @@ test-results/
 analytics-error.md
 analytics-failed.png
 posts-failed.png
+
+# Generated build artifacts
+frontend/tsconfig.tsbuildinfo
+
+# Local Codex/agent config (contains machine-specific paths)
+.codex/
+.agents/
+.vscode/

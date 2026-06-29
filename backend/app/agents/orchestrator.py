@@ -768,7 +768,7 @@ def build_graph() -> Any:
         route_after_quality,
         {"finalize": "format", "revision": "revision"},
     )
-    g.add_edge("revision", "quality_analysis")
+    g.add_edge("revision", "fact_check")
     g.add_edge("format", "finalize")
     g.add_edge("finalize", END)
     return g.compile()

@@ -19,12 +19,17 @@ from app.agents.base import AgentTokenTracker
 from app.agents.llm_factory import get_llm, get_model_name
 from app.config import settings
 
+try:
+    from tavily import TavilyClient
+except ImportError:  # pragma: no cover
+    TavilyClient = None  # type: ignore[assignment, misc]
+
 
 # ── Pydantic models ────────────────────────────────────────────────────────────
 
 
 class _Queries(BaseModel):
-    queries: list[str] = Field(min_length=2, max_length=4)
+    queries: list[str] = Field(min_length=2, max_length=5)
 
     @model_validator(mode="before")
     @classmethod
@@ -89,10 +94,12 @@ async def _generate_queries(run_id: str, topic: str) -> list[str]:
 
     messages = [
         SystemMessage(content=(
-            "You generate 3 web search queries to find real data for a Medium article. "
+            "You generate 5 web search queries to find real data for a Medium article. "
             "Query 1: statistics and data about the topic. "
             "Query 2: named case studies or real-world examples. "
             "Query 3: recent news or trend related to the topic. "
+            "Query 4: expert opinion or authoritative source on the topic. "
+            "Query 5: criticism, challenges, or counterarguments related to the topic. "
             "Keep each query under 10 words. Return only the queries list."
         )),
         HumanMessage(content=f"Article topic: {topic}"),
@@ -102,14 +109,14 @@ async def _generate_queries(run_id: str, topic: str) -> list[str]:
 
 
 async def _run_search(query: str) -> list[dict[str, Any]]:
-    from tavily import TavilyClient  # lazy import — only when key is present
-
+    if TavilyClient is None:
+        raise RuntimeError("tavily package not installed")
     client = TavilyClient(api_key=settings.tavily_api_key)
     response: dict[str, Any] = await asyncio.to_thread(
         client.search,
         query=query,
-        search_depth="basic",
-        max_results=4,
+        search_depth="advanced",
+        max_results=5,
         include_answer=False,
     )
     return response.get("results", [])
@@ -133,7 +140,7 @@ async def _synthesize(
         f"[{i+1}] {r.get('title', '')}\n"
         f"URL: {r.get('url', '')}\n"
         f"{str(r.get('content', ''))[:500]}"
-        for i, r in enumerate(flat[:10])
+        for i, r in enumerate(flat[:15])
     )
 
     model_name = get_model_name("worker")
