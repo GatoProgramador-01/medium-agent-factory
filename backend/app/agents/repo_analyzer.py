@@ -1,4 +1,9 @@
-"""Local repository analyzer for evidence-first writing workflows."""
+"""Repository analyzer for evidence-first editorial planning.
+
+This agent is deterministic: it reads a local repository, extracts stack,
+commands, architecture hints, tests, metrics, and notable files, then returns an
+EvidenceBrief that writer agents can use without inventing project facts.
+"""
 
 from __future__ import annotations
 
@@ -9,263 +14,350 @@ from typing import Any
 
 from app.models.evidence_brief import EvidenceBrief
 
+
+_TEXT_EXTENSIONS = {
+    ".md",
+    ".txt",
+    ".json",
+    ".toml",
+    ".yaml",
+    ".yml",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".py",
+    ".sh",
+    ".ps1",
+}
+_TEXT_FILENAMES = {"dockerfile", "makefile"}
+
 _SKIP_DIRS = {
     ".git",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
     ".venv",
-    "__pycache__",
-    "build",
-    "coverage",
-    "dist",
+    "venv",
     "node_modules",
+    ".next",
+    "dist",
+    "build",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "worktrees",
 }
-_SKIP_FILES = {
-    ".env",
-    ".env.local",
-    ".env.production",
-    "coverage.xml",
-    "package-lock.json",
-    "pnpm-lock.yaml",
-    "yarn.lock",
-}
-_SAFE_ROOT_FILES = {
-    "README.md",
-    "README.rst",
-    "README.txt",
-    "package.json",
-    "pyproject.toml",
-}
-_SAFE_SUFFIXES = {".py", ".toml", ".json", ".md", ".rst", ".txt"}
 
 
 class RepoAnalyzer:
-    """Analyze a local repository using safe, deterministic file inspection."""
+    """Deterministic local repository analyzer."""
 
-    def analyze(self, repository_path: str | Path) -> EvidenceBrief:
-        repo = Path(repository_path)
-        if not repo.exists():
-            raise FileNotFoundError(repo)
-        if not repo.is_dir():
-            raise NotADirectoryError(repo)
+    def __init__(self, max_files: int = 250) -> None:
+        """Configure analyzer bounds.
 
-        safe_files = list(_iter_safe_files(repo))
-        evidence: list[str] = []
-        stack: set[str] = set()
-        commands: dict[str, str] = {}
-        architecture_hints: list[str] = []
+        Args:
+            max_files: Maximum files to scan before stopping.
+        """
+        self.max_files = max_files
 
-        readme_files = 0
-        package_manifests = 0
-        test_files = 0
+    def analyze(self, repo_path: str | Path) -> EvidenceBrief:
+        """Analyze a repository path and return an EvidenceBrief."""
+        return analyze_repository(repo_path, max_files=self.max_files)
 
-        for path in safe_files:
-            rel = _rel(path, repo)
-            text = _read_text(path)
-            if not text:
-                continue
 
-            if path.name.lower().startswith("readme"):
-                readme_files += 1
-                _analyze_readme(rel, text, stack, architecture_hints, evidence)
-            elif path.name == "package.json":
-                package_manifests += 1
-                _analyze_package_json(rel, text, stack, commands, evidence)
-            elif path.name == "pyproject.toml":
-                package_manifests += 1
-                _analyze_pyproject(rel, text, stack, commands, evidence)
-            elif _is_test_file(path, repo):
-                test_files += 1
-                _analyze_test_file(rel, text, stack, commands, evidence)
-            elif rel.replace("\\", "/") == "backend/app/main.py":
-                _add_evidence(evidence, rel, "FastAPI application entrypoint found")
-                stack.add("fastapi")
+def analyze_repository(repo_path: str | Path, max_files: int = 250) -> EvidenceBrief:
+    """Analyze a local repository and return an EvidenceBrief.
 
-        if (repo / "backend" / "app").is_dir():
-            architecture_hints.append("backend/app contains application code")
-        if (repo / "frontend" / "src").is_dir():
-            architecture_hints.append("frontend/src contains user interface code")
+    Args:
+        repo_path: Local repository path.
+        max_files: Maximum number of files to inspect to keep analysis bounded.
 
-        metrics = {
-            "files_scanned": len(safe_files),
-            "test_files": test_files,
-            "readme_files": readme_files,
-            "package_manifests": package_manifests,
-        }
+    Returns:
+        EvidenceBrief with deterministic evidence for editorial planning.
 
-        if not evidence:
-            _add_evidence(
-                evidence,
-                ".",
-                "Repository exists but no safe evidence files matched",
+    Raises:
+        FileNotFoundError: If repo_path does not exist.
+        NotADirectoryError: If repo_path is not a directory.
+    """
+    root = Path(repo_path).expanduser().resolve()
+    if not root.exists():
+        raise FileNotFoundError(f"Repository path not found: {root}")
+    if not root.is_dir():
+        raise NotADirectoryError(f"Repository path is not a directory: {root}")
+
+    files = _iter_repo_files(root, max_files=max_files)
+    texts = _read_priority_texts(root, files)
+    readme_text = _first_existing_text(texts, ("README.md", "readme.md")) or ""
+
+    stack = _detect_stack(files, texts)
+    test_files = _find_test_files(files)
+    commands = _extract_commands(texts, test_files)
+    architecture_hints = _extract_architecture_hints(readme_text, files)
+    evidence = _extract_evidence(texts, test_files)
+    metrics = {
+        "files_scanned": len(files),
+        "test_files": len(test_files),
+        "readme_files": sum(1 for p in files if p.name.lower() == "readme.md"),
+        "package_manifests": sum(
+            1
+            for p in files
+            if p.name.lower() in {"package.json", "pyproject.toml"}
+        ),
+    }
+
+    return EvidenceBrief(
+        repository_path=str(root),
+        stack=stack or ["unknown"],
+        architecture_hints=architecture_hints,
+        commands=commands,
+        metrics=metrics,
+        evidence=evidence or [f"{root.name}: repository scanned"],
+    )
+
+
+def _iter_repo_files(root: Path, max_files: int) -> list[Path]:
+    files: list[Path] = []
+    for path in root.rglob("*"):
+        if any(part in _SKIP_DIRS for part in path.relative_to(root).parts):
+            continue
+        if path.is_file():
+            files.append(path)
+    return sorted(files, key=lambda p: _file_priority(root, p))[:max_files]
+
+
+def _file_priority(root: Path, path: Path) -> tuple[int, str]:
+    rel = str(path.relative_to(root)).replace("\\", "/").lower()
+    name = path.name.lower()
+    if name in {"readme.md", "package.json", "pyproject.toml", "docker-compose.yml", "dockerfile"}:
+        return (0, rel)
+    if rel.startswith("backend/") or rel.startswith("frontend/"):
+        return (1, rel)
+    if "/tests/" in f"/{rel}" or name.startswith("test_") or name.endswith("_test.py"):
+        return (2, rel)
+    if name.startswith(".env") or rel.startswith(".codex/") or rel.startswith(".claude/worktrees/"):
+        return (9, rel)
+    return (5, rel)
+
+
+def _read_priority_texts(root: Path, files: list[Path]) -> dict[str, str]:
+    priority = []
+    for path in files:
+        rel = str(path.relative_to(root)).replace("\\", "/")
+        if (
+            path.suffix.lower() not in _TEXT_EXTENSIONS
+            and path.name.lower() not in _TEXT_FILENAMES
+        ):
+            continue
+        if rel.lower() in {
+            "readme.md",
+            "docker-compose.yml",
+            "dockerfile",
+            "makefile",
+        } or rel.lower().endswith(("package.json", "pyproject.toml")) or any(
+            part in rel.lower() for part in ("test", "script", "src/", "app/")
+        ):
+            priority.append(path)
+
+    texts: dict[str, str] = {}
+    for path in priority[:80]:
+        rel = str(path.relative_to(root)).replace("\\", "/")
+        try:
+            texts[rel] = path.read_text(encoding="utf-8", errors="replace")[:12000]
+        except OSError:
+            continue
+    return texts
+
+
+def _first_existing_text(texts: dict[str, str], names: tuple[str, ...]) -> str | None:
+    lowered = {k.lower(): v for k, v in texts.items()}
+    for name in names:
+        if name.lower() in lowered:
+            return lowered[name.lower()]
+    return None
+
+
+def _detect_stack(files: list[Path], texts: dict[str, str]) -> list[str]:
+    rels = {str(p).replace("\\", "/").lower() for p in files}
+    blob = "\n".join(texts.values()).lower()
+    stack: list[str] = []
+    checks = [
+        ("typescript", lambda: any(p.endswith(".ts") or p.endswith(".tsx") for p in rels)),
+        ("python", lambda: any(p.endswith(".py") for p in rels)),
+        ("node", lambda: "package.json" in {Path(p).name for p in rels}),
+        ("fastapi", lambda: "fastapi" in blob),
+        ("pydantic", lambda: "pydantic" in blob),
+        ("react", lambda: "react" in blob),
+        ("next", lambda: "next" in blob or any("next.config" in p for p in rels)),
+        ("pytest", lambda: "pytest" in blob or any("test_" in Path(p).name for p in rels)),
+        ("mongodb", lambda: "mongodb" in blob or "motor" in blob),
+        ("docker", lambda: any(Path(p).name in {"dockerfile", "docker-compose.yml"} for p in rels)),
+        ("playwright", lambda: "playwright" in blob),
+        ("cheerio", lambda: "cheerio" in blob),
+        ("axios", lambda: "axios" in blob),
+        ("langgraph", lambda: "langgraph" in blob),
+    ]
+    for name, predicate in checks:
+        if predicate():
+            stack.append(name)
+    return stack
+
+
+def _extract_commands(texts: dict[str, str], test_files: list[str]) -> dict[str, str]:
+    commands: dict[str, str] = {}
+
+    package_items = [(name, text) for name, text in texts.items() if name.endswith("package.json")]
+    for package_name, package in package_items:
+        try:
+            data = json.loads(package)
+            scripts = data.get("scripts", {})
+            if isinstance(scripts, dict):
+                for name, command in scripts.items():
+                    if isinstance(command, str):
+                        if name == "test":
+                            commands["frontend_test"] = command
+                        elif name == "build":
+                            commands["frontend_build"] = command
+                        elif name == "dev":
+                            commands["frontend_dev"] = command
+                        else:
+                            commands[f"frontend_{name}"] = command
+        except json.JSONDecodeError:
+            pass
+
+    if any(name.endswith("pyproject.toml") for name in texts) or test_files:
+        commands.setdefault("backend_test", "pytest")
+
+    for source_file, text in texts.items():
+        if source_file.lower() != "readme.md":
+            continue
+        for match in re.finditer(r"(?m)^\s*(npm|pnpm|yarn|python|pytest|docker|make)\s+([^\n]+)", text):
+            command = f"{match.group(1)} {match.group(2).strip()}"
+            commands.setdefault(_command_name(command), command)
+
+    return dict(list(commands.items())[:20])
+
+
+def _find_test_files(files: list[Path]) -> list[str]:
+    result = []
+    for path in files:
+        rel = str(path).replace("\\", "/")
+        name = path.name.lower()
+        if (
+            name.startswith("test_")
+            or name.endswith("_test.py")
+            or "__tests__" in rel.lower()
+            or "/tests/" in rel.lower()
+        ):
+            # Normalize later via suffix from the first "tests/" marker.
+            marker = "tests/"
+            result.append(rel[rel.find(marker) :] if marker in rel else path.name)
+    return result[:40]
+
+
+def _extract_architecture_hints(readme_text: str, files: list[Path]) -> list[str]:
+    hints: list[str] = []
+    for line in readme_text.splitlines():
+        stripped = line.strip(" -*#")
+        if not stripped or len(stripped) > 180:
+            continue
+        lowered = stripped.lower()
+        if any(
+            term in lowered
+            for term in (
+                "architecture",
+                "layer",
+                "pipeline",
+                "workflow",
+                "module",
+                "service",
+                "worker",
+                "checkpoint",
+                "backend/",
+                "frontend/",
+                "src/",
+                "tests",
             )
-        if not stack:
-            stack.add("unknown")
+        ):
+            hints.append(stripped)
 
-        return EvidenceBrief(
-            repository_path=str(repo),
-            stack=sorted(stack),
-            commands=commands,
-            architecture_hints=_dedupe(architecture_hints),
-            metrics=metrics,
-            evidence=_dedupe(evidence),
+    root = _common_repo_root(files)
+    dirs = []
+    for path in files:
+        try:
+            rel_parent = str(path.parent.relative_to(root)).replace("\\", "/") if root else str(path.parent)
+        except ValueError:
+            rel_parent = str(path.parent).replace("\\", "/")
+        dirs.append(rel_parent)
+    dirs = sorted(set(dirs))
+    for directory in dirs[:20]:
+        lowered = directory.lower()
+        if any(term in lowered for term in ("src", "app", "lib", "services", "workers", "tests", "scripts")):
+            hints.append(f"Directory: {directory}")
+
+    return [hint for hint in _dedupe_strings(hints) if "node_modules" not in hint and "dist" not in hint][:25]
+
+
+def _common_repo_root(files: list[Path]) -> Path | None:
+    if not files:
+        return None
+    candidates = [p.parent for p in files if p.name.lower() in {"readme.md", "package.json", "pyproject.toml"}]
+    if candidates:
+        return min(candidates, key=lambda p: len(p.parts))
+    common = Path(files[0])
+    for path in files[1:]:
+        while common not in path.parents and common != path:
+            if common.parent == common:
+                return None
+            common = common.parent
+    return common if common.is_dir() else common.parent
+
+
+def _extract_evidence(texts: dict[str, str], test_files: list[str]) -> list[str]:
+    evidence: list[str] = []
+    readme = texts.get("README.md") or texts.get("readme.md")
+    if readme:
+        for line in readme.splitlines():
+            stripped = line.strip(" #-*")
+            if len(stripped) >= 10 and not stripped.startswith("<") and "badge" not in stripped.lower():
+                evidence.append(f"README.md: {stripped[:180]}")
+                break
+
+    package_items = [(name, text) for name, text in texts.items() if name.endswith("package.json")]
+    for package_name, package in package_items:
+        try:
+            data = json.loads(package)
+            scripts = data.get("scripts", {})
+            if isinstance(scripts, dict):
+                for key, value in scripts.items():
+                    evidence.append(f"{package_name}: scripts.{key} = {value}")
+        except json.JSONDecodeError:
+            evidence.append(f"{package_name}: present but not parseable")
+
+    pyproject_items = [(name, text) for name, text in texts.items() if name.endswith("pyproject.toml")]
+    for pyproject_name, pyproject in pyproject_items:
+        deps = []
+        for dep in ("fastapi", "pydantic", "pytest", "httpx"):
+            if dep in pyproject.lower():
+                deps.append(dep)
+        evidence.append(
+            f"{pyproject_name}: dependencies include {', '.join(deps) if deps else 'project metadata'}"
         )
 
+    for test_file in test_files[:10]:
+        evidence.append(f"{test_file}: test file exists")
 
-def analyze_repository(repository_path: str | Path) -> EvidenceBrief:
-    return RepoAnalyzer().analyze(repository_path)
-
-
-def _iter_safe_files(repo: Path) -> list[Path]:
-    files: list[Path] = []
-    for path in repo.rglob("*"):
-        if not path.is_file():
-            continue
-        rel_parts = path.relative_to(repo).parts
-        if any(part in _SKIP_DIRS for part in rel_parts[:-1]):
-            continue
-        if path.name in _SKIP_FILES:
-            continue
-        rel = path.relative_to(repo)
-        is_safe_root = len(rel.parts) == 1 and path.name in _SAFE_ROOT_FILES
-        is_safe_test = _is_test_file(path, repo)
-        is_safe_app_hint = rel.as_posix() == "backend/app/main.py"
-        if (
-            is_safe_root or is_safe_test or is_safe_app_hint
-        ) and path.suffix in _SAFE_SUFFIXES:
-            files.append(path)
-    return sorted(files)
+    return _dedupe_strings(evidence)[:40]
 
 
-def _read_text(path: Path, limit: int = 80_000) -> str:
-    try:
-        return path.read_text(encoding="utf-8", errors="ignore")[:limit]
-    except OSError:
-        return ""
+def _command_name(command: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", command.lower()).strip("_")[:40] or "command"
 
 
-def _analyze_readme(
-    rel: str,
-    text: str,
-    stack: set[str],
-    architecture_hints: list[str],
-    evidence: list[str],
-) -> None:
-    lower = text.lower()
-    _detect_stack_from_text(lower, stack)
-    for hint in ("backend/app", "frontend/src", "api", "frontend", "backend", "tests"):
-        if hint in lower:
-            architecture_hints.append(f"{rel} mentions {hint}")
-    first_line = next(
-        (line.strip("# ").strip() for line in text.splitlines() if line.strip()),
-        "",
-    )
-    if first_line:
-        _add_evidence(evidence, rel, first_line)
-
-
-def _analyze_package_json(
-    rel: str,
-    text: str,
-    stack: set[str],
-    commands: dict[str, str],
-    evidence: list[str],
-) -> None:
-    try:
-        data: dict[str, Any] = json.loads(text)
-    except json.JSONDecodeError:
-        _add_evidence(evidence, rel, "package.json could not be parsed")
-        return
-
-    deps = {
-        **data.get("dependencies", {}),
-        **data.get("devDependencies", {}),
-    }
-    for name in deps:
-        normalized = name.lower()
-        if normalized in {"react", "next", "vitest", "typescript"}:
-            stack.add(normalized)
-
-    scripts = data.get("scripts", {})
-    if isinstance(scripts, dict):
-        if scripts.get("test"):
-            commands["frontend_test"] = str(scripts["test"])
-            _add_evidence(evidence, rel, f"scripts.test = {scripts['test']}")
-        if scripts.get("build"):
-            commands["frontend_build"] = str(scripts["build"])
-            _add_evidence(evidence, rel, f"scripts.build = {scripts['build']}")
-
-
-def _analyze_pyproject(
-    rel: str,
-    text: str,
-    stack: set[str],
-    commands: dict[str, str],
-    evidence: list[str],
-) -> None:
-    lower = text.lower()
-    stack.add("python")
-    _detect_stack_from_text(lower, stack)
-    if "pytest" in lower or "[tool.pytest" in lower:
-        stack.add("pytest")
-        commands.setdefault("backend_test", "pytest")
-        _add_evidence(evidence, rel, "pytest configured for backend tests")
-    elif "[project]" in lower:
-        _add_evidence(evidence, rel, "Python project metadata found")
-
-
-def _analyze_test_file(
-    rel: str,
-    text: str,
-    stack: set[str],
-    commands: dict[str, str],
-    evidence: list[str],
-) -> None:
-    stack.add("python")
-    if "pytest" in text or re.search(r"def test_", text):
-        stack.add("pytest")
-        commands.setdefault("backend_test", "pytest")
-    _add_evidence(evidence, rel, "test file found")
-
-
-def _detect_stack_from_text(lower_text: str, stack: set[str]) -> None:
-    signals = {
-        "python": ("python", "pyproject"),
-        "fastapi": ("fastapi",),
-        "pydantic": ("pydantic",),
-        "react": ("react",),
-        "next": ("next", "next.js"),
-        "pytest": ("pytest",),
-    }
-    for name, needles in signals.items():
-        if any(needle in lower_text for needle in needles):
-            stack.add(name)
-
-
-def _is_test_file(path: Path, repo: Path) -> bool:
-    rel = path.relative_to(repo).as_posix()
-    return (
-        "/tests/" in f"/{rel}"
-        and path.suffix == ".py"
-        and (path.name.startswith("test_") or path.name.endswith("_test.py"))
-    )
-
-
-def _add_evidence(evidence: list[str], rel: str, detail: str) -> None:
-    normalized_rel = rel.replace("\\", "/")
-    evidence.append(f"{normalized_rel}: {detail.strip()}")
-
-
-def _rel(path: Path, repo: Path) -> str:
-    return path.relative_to(repo).as_posix()
-
-
-def _dedupe(items: list[str]) -> list[str]:
+def _dedupe_strings(values: list[str]) -> list[str]:
     seen: set[str] = set()
     result: list[str] = []
-    for item in items:
-        if item not in seen:
-            result.append(item)
-            seen.add(item)
+    for value in values:
+        key = value.lower()
+        if key not in seen:
+            seen.add(key)
+            result.append(value)
     return result

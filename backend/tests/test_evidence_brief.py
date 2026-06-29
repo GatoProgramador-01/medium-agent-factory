@@ -84,6 +84,16 @@ class TestEvidenceBriefModel:
                 evidence=["tests/test_api.py exists"],
             )
 
+        with pytest.raises(ValidationError):
+            EvidenceBrief(
+                repository_path="   ",
+                stack=["python"],
+                commands={"test": "pytest"},
+                architecture_hints=["tests directory exists"],
+                metrics={"files_scanned": 1},
+                evidence=["tests/test_api.py exists"],
+            )
+
     def test_evidence_brief_requires_non_empty_stack(self) -> None:
         from app.models.evidence_brief import EvidenceBrief
 
@@ -119,3 +129,54 @@ class TestEvidenceBriefModel:
                 metrics={"files_scanned": 1},
                 evidence=[""],
             )
+
+        with pytest.raises(ValidationError):
+            EvidenceBrief(
+                repository_path="/tmp/example",
+                stack=["python"],
+                commands={"test": "pytest"},
+                architecture_hints=[""],
+                metrics={"files_scanned": 1},
+                evidence=["tests/test_api.py exists"],
+            )
+
+    def test_evidence_brief_rejects_blank_command_entries(self) -> None:
+        from app.models.evidence_brief import EvidenceBrief
+
+        with pytest.raises(ValidationError):
+            EvidenceBrief(
+                repository_path="/tmp/example",
+                stack=["python"],
+                commands={"": "pytest"},
+                architecture_hints=["tests directory exists"],
+                metrics={"files_scanned": 1},
+                evidence=["tests/test_api.py exists"],
+            )
+
+        with pytest.raises(ValidationError):
+            EvidenceBrief(
+                repository_path="/tmp/example",
+                stack=["python"],
+                commands={"backend_test": "   "},
+                architecture_hints=["tests directory exists"],
+                metrics={"files_scanned": 1},
+                evidence=["tests/test_api.py exists"],
+            )
+
+    def test_evidence_brief_rejects_invalid_metric_entries(self) -> None:
+        from app.models.evidence_brief import EvidenceBrief
+
+        for metrics in (
+            {"files_scanned": "1"},
+            {"files_scanned": True},
+            {"": 1},
+        ):
+            with pytest.raises(ValidationError):
+                EvidenceBrief(
+                    repository_path="/tmp/example",
+                    stack=["python"],
+                    commands={"test": "pytest"},
+                    architecture_hints=["tests directory exists"],
+                    metrics=metrics,
+                    evidence=["tests/test_api.py exists"],
+                )
