@@ -1,6 +1,4 @@
 from typing import Any, Dict
-from app.agents.logger import log_step
-from app.agents.repo_analyzer import RepoAnalyzer
 
 async def repo_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Optionally analyzes a local repository and stores structured evidence.
@@ -27,6 +25,8 @@ async def repo_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with evidence_brief (dict|None) and completed_steps.
         On FileNotFoundError or any exception: evidence_brief=None, error appended.
     """
+    from app.agents.orchestrator import log_step, RepoAnalyzer
+
     run_id = state["run_id"]
     repo_path = state.get("repo_path")
 

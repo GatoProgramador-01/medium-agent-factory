@@ -1,6 +1,4 @@
 from typing import Any, Dict
-from app.agents.logger import log_step
-from app.agents.title_optimizer import run_title_optimization
 
 async def title_optimization_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Generates 3–5 optimised title variants and selects the strongest one.
@@ -29,6 +27,8 @@ async def title_optimization_node(state: Dict[str, Any]) -> Dict[str, Any]:
         title strings), and "completed_steps". Returns empty dict on exception
         so the pipeline keeps the original title.
     """
+    from app.agents.orchestrator import log_step, run_title_optimization
+
     run_id = state["run_id"]
     post = state.get("post")
     if not post:

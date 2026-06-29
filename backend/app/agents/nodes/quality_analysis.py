@@ -1,11 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any, Dict, List, Tuple
 from app.config import settings
-from app.database import get_db
 from app.models.post import QualityIssue, QualityReport, ReadRatioFactor
-from app.agents.logger import log_step
-from app.agents.quality_analyzer import run_quality_analysis, _STRUCTURAL_CATEGORIES
-from app.agents.structural_checker import run_structural_checks
 from app.agents.read_ratio_analyzer import analyze_read_ratio
 
 async def quality_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -36,6 +32,8 @@ async def quality_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "quality_report" (QualityReport), "quality_history" list entry,
         and "completed_steps". Or "errors" dict on failure.
     """
+    from app.agents.orchestrator import log_step, run_quality_analysis, run_structural_checks
+
     run_id = state["run_id"]
     post = state["post"]
     if not post:
@@ -145,6 +143,7 @@ async def _log_and_persist_quality_metrics(
     gate_failures: List[str]
 ) -> None:
     """Logs the audit summary to state logger and writes records to MongoDB."""
+    from app.agents.orchestrator import log_step, get_db
     run_id = state["run_id"]
     level = "success" if passed else "warning"
     boost_label = "Boost-eligible" if report.medium_boost_eligible else "NOT Boost-eligible"

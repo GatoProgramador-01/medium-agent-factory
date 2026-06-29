@@ -2,12 +2,7 @@ import asyncio
 from datetime import UTC, datetime
 from typing import Any, Dict, List, Tuple
 from app.config import settings
-from app.database import get_db
 from app.models.post import PostStatus, QualityReport, VerificationResult
-from app.agents.logger import log_step
-from app.agents.post_processor import inject_captions, merge_sources_sections
-from app.agents.exemplar_store import EXEMPLAR_THRESHOLD, save_exemplar
-from app.agents.publication_matcher import run_publication_matching
 
 async def finalize_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Persists the approved post to MongoDB and computes publication recommendation.
@@ -37,6 +32,8 @@ async def finalize_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "completed_steps", "recommended_publication" (bool), and
         "publication_confidence" (float 0.0–1.0).
     """
+    from app.agents.orchestrator import get_db, log_step, inject_captions, merge_sources_sections
+
     run_id = state["run_id"]
     qr = state.get("quality_report")
     post = state.get("post")
@@ -140,6 +137,7 @@ def _extract_verified_sources(fc_results: List[VerificationResult]) -> list:
 
 async def _save_exemplar_if_qualified(run_id: str, title: str, content: str, score: float) -> None:
     """Saves the article into our exemplar collection if it meets high quality metrics."""
+    from app.agents.orchestrator import EXEMPLAR_THRESHOLD, save_exemplar, log_step
     if score >= EXEMPLAR_THRESHOLD:
         try:
             await save_exemplar(title=title, content=content, score=score)
@@ -233,6 +231,7 @@ async def _run_non_blocking_pub_matcher(
     topic_brief: Any
 ) -> None:
     """Matches the post to the top-3 publications in the background."""
+    from app.agents.orchestrator import run_publication_matching, get_db, log_step
     try:
         refined_angle = (topic_brief or {}).get("refined_angle", "") if topic_brief else ""
         result = await run_publication_matching(

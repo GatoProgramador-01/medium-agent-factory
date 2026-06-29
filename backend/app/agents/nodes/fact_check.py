@@ -1,12 +1,5 @@
 from typing import Any, Dict
 from app.config import settings
-from app.agents.logger import log_step
-from app.agents.fact_checker import (
-    extract_claims,
-    verify_claims,
-    inject_hyperlinks,
-    results_to_issues,
-)
 
 async def fact_check_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Extracts and verifies factual claims in the post using Tavily.
@@ -36,6 +29,14 @@ async def fact_check_node(state: Dict[str, Any]) -> Dict[str, Any]:
         claims), "fact_check_results" (all verification results), and "completed_steps".
         Returns empty lists if fact_check_enabled is False or no post.
     """
+    from app.agents.orchestrator import (
+        log_step,
+        extract_claims,
+        verify_claims,
+        inject_hyperlinks,
+        results_to_issues,
+    )
+
     run_id = state["run_id"]
     post = state["post"]
     if not post:

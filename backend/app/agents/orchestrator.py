@@ -34,11 +34,45 @@ from app.agents.nodes import (
 # Export run_series from its standalone runner module
 from app.agents.series_runner import run_series
 
-from app.agents.content_generator import GeneratedPost
+# Re-expose original imports to ensure full compatibility with unit test mocks/patches
+from app.agents.content_generator import (
+    GeneratedPost,
+    enforce_paragraph_sentence_limit,
+    expand_post,
+    generate_initial_post,
+    revise_post,
+)
+from app.agents.post_processor import inject_captions, merge_sources_sections
+from app.agents.exemplar_store import (
+    EXEMPLAR_THRESHOLD,
+    find_exemplar,
+    format_exemplar_injection,
+    save_exemplar,
+)
+from app.agents.fact_checker import (
+    extract_claims,
+    inject_hyperlinks,
+    results_to_issues,
+    run_fact_check,
+    verify_claims,
+)
+from app.agents.image_description_enricher import run_image_description_enrichment
+from app.agents.intro_ab_tester import run_intro_ab_test
+from app.agents.read_ratio_analyzer import format_factors_breakdown
+import app.agents.close_optimizer as _close_optimizer_module
+from app.agents.series_coherence_checker import run_series_coherence_check
+from app.agents.title_optimizer import run_title_optimization
+from app.agents.formatter import format_post
 from app.agents.logger import log_step
+from app.agents.quality_analyzer import run_quality_analysis
+from app.agents.structural_checker import run_structural_checks
+from app.agents.publication_matcher import run_publication_matching
+from app.agents.series_planner import plan_series
+from app.agents.web_researcher import research_topic
 from app.config import settings
 from app.database import get_db
 from app.models.post import PostStatus, QualityIssue, QualityReport, VerificationResult
+from app.agents.repo_analyzer import RepoAnalyzer
 
 class PipelineState(TypedDict):
     run_id: str
@@ -82,6 +116,15 @@ def route_after_quality(state: PipelineState) -> str:
     If gates fail and we still have revision cycles left in our budget, we loop back to
     revising the draft content.
 
+    The Flow (El Flujo):
+    1. Retrieve the quality report, revision count, and errors from the pipeline state.
+    2. If errors are present, route to "finalize" (bypassing revisions).
+    3. If no quality report is found, route to "finalize".
+    4. Call the gate check helper (`_gate_check`) to evaluate if the content meets all gates.
+    5. If all gates pass, route to "finalize" (proceeding to close optimization).
+    6. If revision cycles have reached the maximum budget threshold, route to "finalize".
+    7. Otherwise, route to "revision" to perform a targeted rewrite.
+
     Args:
         state: The current pipeline state.
 
@@ -104,7 +147,26 @@ def route_after_quality(state: PipelineState) -> str:
 
 
 def build_graph() -> Any:
-    """Compile and return the LangGraph StateGraph for the Medium post pipeline."""
+    """Compile and return the LangGraph StateGraph for the Medium post pipeline.
+
+    The Story (El Relato):
+    In the story of our pipeline architecture, this function is the System Architect.
+    It constructs the structural blueprint of the LangGraph, wiring together all 14 node workers
+    (from repo analysis to publication finalization). It establishes the execution sequence,
+    defining how drafts are written, revised, tested, and stored.
+
+    The Flow (El Flujo):
+    1. Initialize the `StateGraph` using the typed `PipelineState` schema.
+    2. Register the 14 agent node functions as active nodes in the graph.
+    3. Wire the linear sequence from `START` to `fact_check` using static edges.
+    4. Add a conditional routing edge from `quality_analysis` based on `route_after_quality`.
+    5. Wire loopback edges from `revision` back to `fact_check`.
+    6. Wire the finalization path from `close_optimization` through formatting to `finalize` and `END`.
+    7. Compile the graph and return the executable runner.
+
+    Returns:
+        A compiled LangGraph CompiledGraph ready for ainvoke.
+    """
     g = StateGraph(PipelineState)
     g.add_node("repo_analysis", repo_analysis_node)
     g.add_node("research", research_node)
@@ -163,6 +225,28 @@ async def run_pipeline(
     LangGraph pipeline state, and triggers the asynchronous graph execution. Upon
     completion, it records the final completion or failure status in MongoDB and returns
     a detailed summary report to the caller.
+
+    The Flow (El Flujo):
+    1. Initialize the MongoDB database helper client.
+    2. Assign a unique pipeline `run_id` (UUIDv4) if not supplied, and create/update the database run entry.
+    3. Log the pipeline initiation with the target topic.
+    4. Construct the initial dictionary state matching `PipelineState` requirements.
+    5. Asynchronously invoke the compiled LangGraph pipeline.
+    6. Determine run status (completed or failed) based on state errors.
+    7. Update MongoDB and write execution history log steps.
+    8. Extract the final post title, quality scores, boost eligibility, and publication confidence, returning a summary report.
+
+    Args:
+        custom_topic: Raw topic string.
+        run_id: Optional existing run ID to resume.
+        series_id: Optional series identifier if run is part of a series.
+        series_position: Optional installment position in the series.
+        series_context: Optional tone and topic notes for series installments.
+        grounding_context: Optional user grounding notes.
+        repo_path: Optional repository path for local scans.
+
+    Returns:
+        Dict detailing the final status, quality score, title, and metrics.
     """
     db = get_db()
 

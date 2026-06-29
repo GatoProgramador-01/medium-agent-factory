@@ -1,7 +1,4 @@
 from typing import Any, Dict
-from app.agents.logger import log_step
-from app.agents.content_generator import enforce_paragraph_sentence_limit
-from app.agents.series_coherence_checker import run_series_coherence_check
 
 async def series_coherence_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Checks whether a series installment fits its assigned series role.
@@ -30,6 +27,12 @@ async def series_coherence_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "series_coherence_score", optional updated "post", and
         "completed_steps". Returns empty dict for standalone posts or errors.
     """
+    from app.agents.orchestrator import (
+        log_step,
+        run_series_coherence_check,
+        enforce_paragraph_sentence_limit,
+    )
+
     run_id = state["run_id"]
     post = state.get("post")
     series_context = state.get("series_context", "")
