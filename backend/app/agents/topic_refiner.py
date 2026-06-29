@@ -106,6 +106,7 @@ async def run_topic_refinement(
     topic: str,
     research_results: str,
     grounding_context: str = "",
+    evidence_brief: str = "",
 ) -> TopicBrief:
     """Synthesizes raw topic, research data, and user grounding into a structured editorial brief.
 
@@ -144,6 +145,7 @@ async def run_topic_refinement(
                     if research_results
                     else "No research available."
                 ),
+                evidence_brief=evidence_brief or "(no repository evidence)",
                 grounding_context=grounding_context or "No grounding context provided.",
             )
         ),

@@ -4,6 +4,9 @@
 ## Research Data
 {research_results}
 
+## Repository Evidence
+{evidence_brief}
+
 ## User Grounding Context
 {grounding_context}
 

@@ -79,6 +79,7 @@ from app.agents.web_researcher import research_topic
 from app.config import settings
 from app.database import get_db
 from app.models.post import PostStatus, QualityIssue, QualityReport, VerificationResult
+from app.agents.repo_analyzer import RepoAnalyzer
 
 
 class PipelineState(TypedDict):
@@ -113,6 +114,8 @@ class PipelineState(TypedDict):
     intro_variants: list[str]  # candidate openings from intro_ab_testing_node
     series_coherence_score: float | None
     image_enrichment_changes: list[str]
+    repo_path: str | None          # optional local repo for RepoAnalyzer grounding; None = skip
+    evidence_brief: dict | None    # EvidenceBrief.model_dump() from repo_analysis_node; None when skipped
 
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
@@ -167,6 +170,58 @@ async def research_node(state: PipelineState) -> dict[str, Any]:
         return {"trend_context": "", "completed_steps": ["research"]}
 
 
+async def repo_analysis_node(state: PipelineState) -> dict[str, Any]:
+    """Optionally analyzes a local repository and stores structured evidence.
+
+    Runs before research_node. When repo_path is None the node is a no-op —
+    returns evidence_brief=None without calling the analyzer. When repo_path
+    is set the EvidenceBrief is serialized to a dict so downstream nodes can
+    inject it into topic_refiner as grounding context.
+
+    Args:
+        state: Pipeline state — only repo_path is read.
+
+    Returns:
+        Dict with evidence_brief (dict|None) and completed_steps.
+        On FileNotFoundError or any exception: evidence_brief=None, error appended.
+    """
+    run_id = state["run_id"]
+    repo_path = state.get("repo_path")
+
+    if not repo_path:
+        return {
+            "evidence_brief": None,
+            "completed_steps": ["repo_analysis_skipped"],
+        }
+
+    await log_step(run_id, "repo_analyzer", f"Analyzing repository: {repo_path}")
+
+    try:
+        brief = RepoAnalyzer().analyze(repo_path)
+        await log_step(
+            run_id,
+            "repo_analyzer",
+            f"Evidence extracted: {len(brief.stack)} stack items, {brief.metrics.get('files_scanned', 0)} files scanned",
+            level="success",
+        )
+        return {
+            "evidence_brief": brief.model_dump(),
+            "completed_steps": ["repo_analysis"],
+        }
+    except Exception as e:
+        await log_step(
+            run_id,
+            "repo_analyzer",
+            f"Repo analysis failed: {e} — continuing without evidence",
+            level="warning",
+        )
+        return {
+            "evidence_brief": None,
+            "errors": [f"repo_analysis failed: {e}"],
+            "completed_steps": ["repo_analysis_skipped"],
+        }
+
+
 async def topic_refinement_node(state: PipelineState) -> dict[str, Any]:
     """Refines raw topic + research into a structured editorial brief.
 
@@ -188,6 +243,10 @@ async def topic_refinement_node(state: PipelineState) -> dict[str, Any]:
     topic = state.get("custom_topic", "")
     research_results = state.get("trend_context", "")
     grounding_context = state.get("grounding_context", "")
+    raw_brief = state.get("evidence_brief") or {}
+    evidence_brief_str = (
+        "\n".join(f"- {k}: {v}" for k, v in raw_brief.items()) if raw_brief else ""
+    )
 
     await log_step(
         run_id,
@@ -202,6 +261,7 @@ async def topic_refinement_node(state: PipelineState) -> dict[str, Any]:
             topic=topic,
             research_results=research_results,
             grounding_context=grounding_context,
+            evidence_brief=evidence_brief_str,
         )
         await log_step(
             run_id,
@@ -1519,6 +1579,7 @@ def build_graph() -> Any:
         A compiled LangGraph CompiledGraph ready for ainvoke.
     """
     g = StateGraph(PipelineState)
+    g.add_node("repo_analysis", repo_analysis_node)
     g.add_node("research", research_node)
     g.add_node("topic_refinement", topic_refinement_node)
     g.add_node("content_generation", content_generation_node)
@@ -1533,7 +1594,8 @@ def build_graph() -> Any:
     g.add_node("format", format_node)
     g.add_node("finalize", finalize_node)
 
-    g.add_edge(START, "research")
+    g.add_edge(START, "repo_analysis")
+    g.add_edge("repo_analysis", "research")
     g.add_edge("research", "topic_refinement")
     g.add_edge("topic_refinement", "content_generation")
     g.add_edge("content_generation", "intro_ab_testing")
@@ -1567,6 +1629,7 @@ async def run_pipeline(
     series_position: int | None = None,
     series_context: str = "",
     grounding_context: str = "",
+    repo_path: str | None = None,
 ) -> dict[str, Any]:
     db = get_db()
 
@@ -1615,6 +1678,8 @@ async def run_pipeline(
         "intro_variants": [],
         "series_coherence_score": None,
         "image_enrichment_changes": [],
+        "repo_path": repo_path,
+        "evidence_brief": None,
     }
 
     final_state = await pipeline.ainvoke(initial_state)
