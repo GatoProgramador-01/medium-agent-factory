@@ -27,8 +27,8 @@ class TestRevisionLoopIncludesFactCheck:
 
     def test_fact_check_appears_twice_in_full_pipeline_path(self):
         # title_optimization sits between content_generation and fact_check
-        assert ("content_generation", "title_optimization") in self.edges, (
-            "content_generation must route to title_optimization first"
+        assert ("content_generation", "intro_ab_testing") in self.edges, (
+            "content_generation must route to intro_ab_testing first"
         )
         assert ("title_optimization", "fact_check") in self.edges, (
             "fact_check must run after title_optimization (initial path)"

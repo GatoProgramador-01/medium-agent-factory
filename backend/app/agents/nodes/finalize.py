@@ -48,7 +48,7 @@ async def finalize_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     # 3. Extract fact-checked source materials
     fc_results: List[VerificationResult] = state.get("fact_check_results") or []
-    quality_fields["sources"] = _extract_verified_sources(fc_results)
+    quality_fields["verified_sources"] = _extract_verified_sources(fc_results)
     if post:
         quality_fields["title"] = post.title
         quality_fields["content"] = post.content
@@ -64,7 +64,7 @@ async def finalize_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     # 5. Save as few-shot exemplar if score is outstanding
     if qr and post:
-        await _save_exemplar_if_qualified(run_id, post.title, post.content, qr.score)
+        await _save_exemplar_if_qualified(run_id, post, qr)
 
     # 6. Run publication matching heuristics
     rec, confidence = _compute_publication_recommendation(state)
@@ -134,17 +134,26 @@ def _extract_verified_sources(fc_results: List[VerificationResult]) -> list:
     ]
 
 
-async def _save_exemplar_if_qualified(run_id: str, title: str, content: str, score: float) -> None:
+async def _save_exemplar_if_qualified(run_id: str, post: Any, qr: Any) -> None:
     """Saves the article into our exemplar collection if it meets high quality metrics."""
     from app.agents.orchestrator import EXEMPLAR_THRESHOLD, save_exemplar, log_step
+    score = qr.score
     if score >= EXEMPLAR_THRESHOLD:
         try:
-            await save_exemplar(title=title, content=content, score=score)
+            await save_exemplar(
+                run_id=run_id,
+                title=post.title,
+                content=post.content,
+                tags=post.tags,
+                score=score,
+                read_ratio=qr.read_ratio_prediction,
+                hook_score=qr.read_ratio_hook_score,
+            )
             await log_step(
                 run_id,
                 "finalizer",
                 f'Outstanding quality (score {score:.2f} >= {EXEMPLAR_THRESHOLD}) '
-                f'— saved as new few-shot exemplar: "{title}"',
+                f'— saved as new few-shot exemplar: "{post.title}"',
                 level="success",
             )
         except Exception as e:

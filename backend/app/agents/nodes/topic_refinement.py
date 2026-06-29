@@ -28,7 +28,8 @@ async def topic_refinement_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "refined_topic" (formatted_brief string) and "topic_brief" (dict).
         On error, falls back: "refined_topic" = custom_topic, "topic_brief" = None.
     """
-    from app.agents.orchestrator import log_step, run_topic_refinement
+    from app.agents.orchestrator import log_step
+    from app.agents.topic_refiner import run_topic_refinement
 
     run_id = state.get("run_id", "unknown")
     topic = state.get("custom_topic", "")

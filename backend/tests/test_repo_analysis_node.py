@@ -72,7 +72,9 @@ async def test_repo_analysis_node_runs_analyzer_when_path_given() -> None:
         evidence=["backend/app/agents/orchestrator.py exists"],
     )
 
-    with patch("app.agents.orchestrator.RepoAnalyzer") as mock_cls:
+    with patch("app.agents.orchestrator.RepoAnalyzer") as mock_cls, patch(
+        "app.agents.orchestrator.log_step", new_callable=AsyncMock
+    ):
         instance = MagicMock()
         instance.analyze.return_value = mock_brief
         mock_cls.return_value = instance
