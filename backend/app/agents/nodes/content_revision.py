@@ -3,10 +3,6 @@ from app.models.post import PostStatus
 from app.agents.nodes.quality_analysis import _gate_check
 from app.agents.read_ratio_analyzer import format_factors_breakdown
 from app.agents.llm_factory import get_model_name as _get_model_name
-from app.agents.content_generator import (
-    expand_post,
-    revise_post,
-)
 
 async def content_revision_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Revises the post based on quality gate failures and the analyzer's feedback.
@@ -36,7 +32,7 @@ async def content_revision_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "post" (revised GeneratedPost), "revision_count" (incremented),
         and "completed_steps". Or "errors" dict on failure.
     """
-    from app.agents.orchestrator import log_step, settings
+    from app.agents.orchestrator import log_step, settings, expand_post, revise_post
     run_id = state["run_id"]
     post = state["post"]
     report = state["quality_report"]
@@ -71,7 +67,7 @@ async def content_revision_node(state: Dict[str, Any]) -> Dict[str, Any]:
     try:
         if word_count_only:
             # 1. Word count is the only deficit — apply expansion strategy
-            post = await _execute_expansion_strategy(run_id, post, revision_number)
+            post = await _execute_expansion_strategy(run_id, post, report, revision_number)
             return {
                 "post": post,
                 "revision_count": revision_number,
@@ -120,10 +116,10 @@ def _build_sticky_issues_summary(state: Dict[str, Any]) -> str:
     return prior_cycle_summary
 
 
-async def _execute_expansion_strategy(run_id: str, post: Any, revision_number: int) -> Any:
+async def _execute_expansion_strategy(run_id: str, post: Any, report: Any, revision_number: int) -> Any:
     """Generates a new paragraph section to append to the post for meeting word count targets."""
-    word_count_current = len(post.content.split())
-    deficit = settings.min_word_count - word_count_current + 150  # 150-word buffer
+    from app.agents.orchestrator import expand_post, settings
+    deficit = settings.min_word_count - report.word_count + 150  # 150-word buffer
     
     new_section = await expand_post(
         run_id=run_id,
@@ -160,6 +156,7 @@ async def _execute_rewrite_strategy(
         report.read_ratio_prediction, report.read_ratio_factors
     )
     
+    from app.agents.orchestrator import revise_post
     revised = await revise_post(
         run_id=run_id,
         title=post.title,
