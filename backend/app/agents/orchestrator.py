@@ -449,6 +449,7 @@ async def intro_ab_testing_node(state: PipelineState) -> dict[str, Any]:
             refined_angle=refined_angle or "",
         )
 
+        post = post.model_copy(deep=True)
         paragraphs = post.content.split("\n\n")
         first_idx = next((i for i, p in enumerate(paragraphs) if p.strip()), 0)
         original_intro = paragraphs[first_idx]
@@ -521,6 +522,7 @@ async def series_coherence_node(state: PipelineState) -> dict[str, Any]:
             refined_angle=refined_angle or "",
         )
         if result.revised_content.strip():
+            post = post.model_copy(deep=True)
             post.content = enforce_paragraph_sentence_limit(result.revised_content)
 
         await log_step(

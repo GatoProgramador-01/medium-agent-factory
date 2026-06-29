@@ -51,7 +51,16 @@ class ImageEnrichmentResult(BaseModel):
         try:
             return json.loads(v)
         except json.JSONDecodeError:
-            return []
+            cleaned = (
+                v.replace("‘", "'").replace("’", "'")
+                 .replace("“", '"').replace("”", '"')
+                 .replace("—", "-").replace("–", "-")
+                 .replace("…", "...")
+            )
+            try:
+                return json.loads(cleaned)
+            except json.JSONDecodeError:
+                return []
 
 
 async def run_image_description_enrichment(
