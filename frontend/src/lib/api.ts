@@ -163,10 +163,13 @@ export type CostComparison = {
 };
 
 export const api = {
-  triggerPipeline: (topic: string) =>
+  triggerPipeline: (topic: string, groundingContext = "") =>
     request<{ run_id: string; message: string }>("/pipeline/run", {
       method: "POST",
-      body: JSON.stringify({ custom_topic: topic }),
+      body: JSON.stringify({
+        custom_topic: topic,
+        grounding_context: groundingContext,
+      }),
     }),
 
   listRuns: () => request<PipelineRun[]>("/pipeline/runs"),

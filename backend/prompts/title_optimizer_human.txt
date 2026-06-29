@@ -1,0 +1,19 @@
+## Original Title
+{original_title}
+
+## Post Angle (from editorial brief)
+{refined_angle}
+
+## Hook Sentence (first sentence of the post)
+{hook_sentence}
+
+## Post Summary (first 300 words)
+{post_excerpt}
+
+Generate 3–5 title variants for this post. Each variant must:
+  1. Be grounded in the actual content of the post (no invented claims)
+  2. Be 6–12 words long
+  3. Use one of the four formulas described in your instructions
+  4. Score above 0.7 on specificity OR curiosity_gap
+
+Return a TitleOptimizationResult with variants, best_title, and original_title_weakness.

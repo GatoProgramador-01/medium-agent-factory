@@ -1,4 +1,18 @@
 # ── Stage 1: install dependencies ─────────────────────────────────────────────
+FROM node:24-alpine AS dev
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm install
+
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
+
 FROM node:24-alpine AS deps
 
 WORKDIR /app

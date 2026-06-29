@@ -46,7 +46,22 @@ def _provider(model: str) -> str:
 
 
 class AgentTokenTracker(AsyncCallbackHandler):
+    """LangChain async callback that records token usage and cost per LLM call.
+
+    Attach as a callback to any LangChain LLM via get_llm(..., callbacks=[tracker]).
+    Persists one AgentRunRecord to MongoDB agent_runs after each on_llm_end.
+    Accumulates totals across multiple calls for summary() reporting.
+    """
+
     def __init__(self, agent_name: str, run_id: str, model: str) -> None:
+        """Initialise the tracker for a single agent invocation scope.
+
+        Args:
+            agent_name: Human-readable name logged to agent_runs (e.g. "quality_analyzer").
+            run_id: Pipeline run UUID — links this record to posts / pipeline_runs.
+            model: Exact model identifier string (e.g. "claude-haiku-4-5-20251001")
+                used for cost lookup in _PRICING.
+        """
         super().__init__()
         self.agent_name = agent_name
         self.run_id = run_id
@@ -61,9 +76,27 @@ class AgentTokenTracker(AsyncCallbackHandler):
         prompts: list[str],
         **kwargs: Any,
     ) -> None:
+        """Record wall-clock start time when the LLM call begins.
+
+        Args:
+            serialized: LangChain-provided serialized LLM config (unused).
+            prompts: List of prompt strings sent to the LLM (unused).
+            **kwargs: Additional LangChain callback arguments (unused).
+        """
         self._start = time.perf_counter()
 
     async def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
+        """Extract token counts, compute cost, and persist to MongoDB.
+
+        Reads input/output token counts from response.llm_output["usage"],
+        supporting both Anthropic (input_tokens/output_tokens) and OpenAI
+        (prompt_tokens/completion_tokens) field names. Inserts one document
+        to db.agent_runs via AgentRunRecord.to_doc().
+
+        Args:
+            response: LangChain LLMResult containing llm_output usage metadata.
+            **kwargs: Additional LangChain callback arguments (unused).
+        """
         duration_ms = int((time.perf_counter() - (self._start or 0)) * 1000)
 
         usage: dict[str, int] = {}
@@ -90,6 +123,12 @@ class AgentTokenTracker(AsyncCallbackHandler):
         await db.agent_runs.insert_one(record.to_doc())
 
     def summary(self) -> dict[str, Any]:
+        """Return accumulated token usage and cost for all calls in this scope.
+
+        Returns:
+            Dict with keys "agent" (str), "tokens_in" (int), "tokens_out" (int),
+            and "cost_usd" (float rounded to 6 decimal places).
+        """
         return {
             "agent": self.agent_name,
             "tokens_in": self._tokens_in,

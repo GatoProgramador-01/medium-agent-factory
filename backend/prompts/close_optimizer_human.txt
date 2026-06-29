@@ -1,0 +1,12 @@
+﻿## Post Angle (from editorial brief)
+{refined_angle}
+
+## Hook Sentence (first sentence of the post)
+{hook_sentence}
+
+## Current Closing Section (last ~400 words)
+{closing_section}
+
+Generate 2–4 alternative closing paragraphs for this post. Each must be directly tied to the specific argument above — not generic engagement phrases. Score each on specificity_score (0.0 = could appear in any post, 1.0 = could only appear in this post).
+
+Return a CloseOptimizationResult with variants, best_close, and original_close_problem.

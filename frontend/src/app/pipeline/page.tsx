@@ -43,6 +43,41 @@ const LEVEL_COLOR: Record<string, string> = {
   error:   "var(--red)",
 };
 
+const MASTER_PROMPT_TEMPLATE = `Source repo: C:\\Users\\lanitaEmperadora\\Documents\\github\\claude-code-master-prompt
+Public repo: https://github.com/GatoProgramador-01/claude-code-master-prompt
+
+Write in English for senior software engineers, AI engineers, DevOps engineers, technical founders, and developers using Claude Code/Codex for real projects.
+
+Position claude-code-master-prompt as a production-grade operating system for Claude Code, not just a prompt.
+
+Grounded facts from the repo:
+- It is modular, lazy-loaded, token-efficient, and enforces parallel agents, TDD, Docker-first development, LLMOps standards, and web scraping expertise.
+- It evolved from a large 1,300-line CLAUDE.md into a shorter core plus lazy-loaded domain rules under .claude/rules/.
+- It defines a multi-agent workflow: Architect, Adversarial, Analyst, Drafter, Integrator, Validate.
+- It enforces minimum 3 agents per task, default 5, max 8.
+- Rules are born from real failures: Docker build gates, npm install vs npm ci lockfile issues, Motor event-loop reset in E2E tests, ruff config placement, branch verification before GitHub Actions workflows, unicode normalization for LLM JSON output, and build-log compression hooks.
+
+Case study: pj-peru-scraper
+- Delivered in 2 days.
+- Stack: TypeScript + axios + cheerio, HTTP-only, no browser automation.
+- 7-layer architecture.
+- 53 unit tests, 0 TypeScript errors, 0 lint errors.
+- OEFA test: 100 docs, 92 PDFs, 3m14s.
+- PJ Peru Suprema: about 43,750 docs in about 73 minutes.
+- PJ Peru Superior: 33/34 districts OK, 998 PDFs, 14 MB JSONL, 15m31s.
+- HTTP 429 events: 0.
+- Key hook: the portal returned HTTP 200 with empty AJAX bodies under ViewState contention, not HTTP 429. The scraper named this a soft-block, counted consecutive empty AJAX pages, checkpointed, aborted cleanly at 3 empty pages, and retried with fewer workers.
+
+Connect to medium-agent-factory:
+- LangGraph + FastAPI + Next.js + MongoDB.
+- Multi-agent content pipeline with research, writing, fact-checking, quality analysis, revision loops, formatting, SSE streaming, evals in CI, prompt versioning, and LangSmith tracing.
+
+Thesis:
+AI coding assistants become useful at senior-engineer level only when constrained by operating rules, validation gates, Docker, tests, evals, hooks, and adversarial review.
+
+Style:
+First-person, concrete, non-hype, technically credible. Avoid generic AI hype and banned phrases like delve, tapestry, game-changing, unlock, cutting-edge.`;
+
 // ── Derive stepper state from logs ─────────────────────────────────────────────
 type StepState = "done" | "active" | "pending";
 
@@ -698,6 +733,7 @@ export default function PipelinePage() {
 
   // Single-post state
   const [topic, setTopic] = useState("");
+  const [groundingContext, setGroundingContext] = useState("");
   const [phase, setPhase] = useState<RunPhase>("idle");
   const [runId, setRunId] = useState<string | null>(null);
   const [logs,  setLogs]  = useState<AgentLog[]>([]);
@@ -764,7 +800,10 @@ export default function PipelinePage() {
     setPost(null);
     setError(null);
     try {
-      const { run_id } = await api.triggerPipeline(topic.trim() || "trending topic");
+      const { run_id } = await api.triggerPipeline(
+        topic.trim() || "trending topic",
+        groundingContext.trim(),
+      );
       setRunId(run_id);
     } catch (e) {
       setError(String(e));
@@ -868,6 +907,57 @@ export default function PipelinePage() {
               onFocus={(e) => (e.target.style.borderColor = "var(--orange)")}
               onBlur={(e)  => (e.target.style.borderColor = "var(--border)")}
             />
+          </label>
+
+          <label className="block">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span
+                className="text-xs font-medium"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Grounding brief
+              </span>
+              <button
+                type="button"
+                data-testid="load-master-prompt-template"
+                onClick={() => setGroundingContext(MASTER_PROMPT_TEMPLATE)}
+                disabled={phase === "running"}
+                className="text-xs px-2 py-1 rounded-md"
+                style={{
+                  border: "1px solid var(--border)",
+                  color: "var(--text-muted)",
+                  background: "var(--surface-hover)",
+                }}
+              >
+                Master Prompt repo
+              </button>
+            </div>
+            <textarea
+              data-testid="grounding-context-input"
+              value={groundingContext}
+              onChange={(e) => setGroundingContext(e.target.value)}
+              disabled={phase === "running"}
+              maxLength={12000}
+              placeholder="Paste source notes, repo facts, metrics, links, and must-use claims. The pipeline treats this as evidence, not prose to copy."
+              className="w-full rounded-lg px-4 py-3 text-sm outline-none transition-colors"
+              style={{
+                minHeight: 210,
+                resize: "vertical",
+                background: "var(--bg)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+                fontFamily: "var(--mono)",
+                lineHeight: 1.5,
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "var(--orange)")}
+              onBlur={(e)  => (e.target.style.borderColor = "var(--border)")}
+            />
+            <div
+              className="mt-1 text-xs"
+              style={{ color: "var(--text-dim)", textAlign: "right" }}
+            >
+              {groundingContext.length.toLocaleString()} / 12,000
+            </div>
           </label>
 
           {phase === "done" ? (

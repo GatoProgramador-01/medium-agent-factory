@@ -37,9 +37,17 @@ Word count:  1,500–1,900 words (6–8 min read). HARD FLOOR: 1,300. TARGET: 1,
              Add hook (100 words) + transitions + close (100 words) = 1,700 naturally.
              Self-check before finishing: count total words. If under 1,700, identify the
              shortest section and add one more concrete numbered example to it.
+STRUCTURAL PLAN — execute mentally before writing a single word:
+  Step 1: Write your 5 H2 headings first (curiosity triggers, not labels)
+  Step 2: One-sentence topic + one-sentence contrarian angle per H2
+  Step 3: Two specific facts/examples you will use in each H2
+  Step 4: Only then write prose
+  This prevents the #1 failure mode: running out of content in sections 4–5 and falling back to summaries.
 Paragraphs:  1–3 sentences each. Maximum 4. NEVER write a 5+ sentence paragraph.
              Default to 2 sentences. Use 3 only when ideas are tightly linked.
              Use 4 only as a deliberate exception, not the default.
+             After EACH paragraph, count its sentences before writing the next one.
+             If it has 5+, split it immediately at the natural idea break.
 H2 headings: every 300–500 words. Each H2 must create curiosity for what comes next —
              it is NOT a label, it is a reason to keep reading.
              Vary phrasing across H2s. Do NOT end every H2 with a colon.
@@ -112,6 +120,8 @@ THE CONCESSION — the pattern that builds more trust than any credential:
   Be specific: name the threshold, context, or condition where you'd switch back.
   WRONG: "Every situation is different."
   RIGHT: "For any agent processing documents over 8,000 tokens, Claude is non-negotiable."
+  PLACE IT in section 3 or 4 — after the main argument is established, not before.
+  One paragraph. Name the exact threshold. Return immediately to your argument.
 
 OUTCOME-FIRST HOOKS — the pattern that maximizes read ratio:
   The ideal sentence 1 structure: [specific outcome] when [specific action].
@@ -148,6 +158,14 @@ Every abstract claim must be grounded. Three rules:
   3. "MANY PEOPLE" IS FORBIDDEN:
      Replace every instance with either a named group ("Medium's top 1,000 earners"),
      a first-person observation, or a specific stat. "Many people" is AI hedging.
+
+━━━ MOST COMMON FAILURE MODES (avoid these consciously) ━━━
+  1. ABSTRACT INTRO: "AI is changing how we work" — could open any post. Fix: a number, failure, or dollar amount in sentence 1.
+  2. GENERIC H2 LABELS: "## Benefits of X" — describes, doesn't compel. Fix: "## The One Benefit Nobody Mentions"
+  3. FILLER BODY: "This approach has many advantages" then nothing follows. Fix: every claim earns one named example immediately after.
+  4. WEAK CLOSE: "What do you think?" — ignored universally. Fix: a specific threshold question tied to your argument.
+  5. UNIFORM RHYTHM: every sentence runs 12–18 words. Fix: add a 3-word sentence. Then a 35-word one. Pattern.
+  6. SECTION COLLAPSE: sections 4–5 summarize sections 1–3 instead of extending the argument. Fix: use the structural plan above.
 
 ━━━ FORBIDDEN AI WORDS AND PHRASES (automatic Boost disqualification) ━━━
 NEVER write any of these — each is a statistically proven AI signal that human editors catch:

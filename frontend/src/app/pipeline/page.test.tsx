@@ -74,7 +74,30 @@ describe("PipelinePage", () => {
     render(<PipelinePage />);
     await user.type(screen.getByTestId("topic-input"), "my topic");
     await user.click(screen.getByTestId("run-button"));
-    expect(api.triggerPipeline).toHaveBeenCalledWith("my topic");
+    expect(api.triggerPipeline).toHaveBeenCalledWith("my topic", "");
+  });
+
+  it("renders a grounding brief textarea for source notes", () => {
+    render(<PipelinePage />);
+    expect(screen.getByTestId("grounding-context-input")).toBeInTheDocument();
+  });
+
+  it("calls triggerPipeline with the grounding brief", async () => {
+    const user = userEvent.setup();
+    (api.triggerPipeline as jest.Mock).mockReturnValue(new Promise(() => {}));
+    render(<PipelinePage />);
+    await user.type(screen.getByTestId("topic-input"), "my topic");
+    await user.type(screen.getByTestId("grounding-context-input"), "repo metric: 53 tests");
+    await user.click(screen.getByTestId("run-button"));
+    expect(api.triggerPipeline).toHaveBeenCalledWith("my topic", "repo metric: 53 tests");
+  });
+
+  it("loads the master prompt repo template", async () => {
+    const user = userEvent.setup();
+    render(<PipelinePage />);
+    await user.click(screen.getByTestId("load-master-prompt-template"));
+    const textarea = screen.getByTestId("grounding-context-input") as HTMLTextAreaElement;
+    expect(textarea.value).toContain("claude-code-master-prompt");
   });
 
   it("log terminal appears when SSE events arrive", async () => {

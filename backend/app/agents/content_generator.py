@@ -12,6 +12,7 @@ Cost comparison vs always-Sonnet:
 """
 
 import json
+import re
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -22,6 +23,87 @@ from app.agents.llm_factory import get_llm, get_model_name
 from app.agents.retry import with_langchain_retry
 from app.config import settings
 from app.prompt_loader import load_prompt, load_template
+
+
+def enforce_paragraph_sentence_limit(
+    content: str,
+    max_sentences: int = 4,
+) -> str:
+    """Split prose paragraphs before structural checks can trigger revisions.
+
+    This is intentionally mechanical: it only inserts blank lines between
+    existing sentences. It does not rewrite words, headings, code blocks, image
+    placeholders, or separators.
+    """
+    if max_sentences < 1:
+        raise ValueError("max_sentences must be at least 1")
+
+    parts = re.split(r"(\n\s*\n)", content)
+    fixed: list[str] = []
+    for part in parts:
+        if not part or re.fullmatch(r"\n\s*\n", part):
+            fixed.append(part)
+            continue
+
+        paragraph = part.strip()
+        if _should_skip_paragraph_split(paragraph):
+            fixed.append(part)
+            continue
+
+        split_paragraph = _split_paragraph_by_sentence_limit(
+            paragraph,
+            max_sentences=max_sentences,
+        )
+        fixed.append(
+            split_paragraph
+            if part == paragraph
+            else part.replace(paragraph, split_paragraph)
+        )
+
+    return "".join(fixed)
+
+
+def _should_skip_paragraph_split(paragraph: str) -> bool:
+    lines = paragraph.splitlines()
+    return (
+        paragraph.startswith("#")
+        or re.fullmatch(r"-{3,}", paragraph) is not None
+        or paragraph.startswith("```")
+        or "```" in paragraph
+        or re.match(r"^\[IMAGE:", paragraph, re.IGNORECASE) is not None
+        or any(line.lstrip().startswith("|") for line in lines)
+        or any(re.match(r"^\s*(-|\*|\d+\.)\s+", line) for line in lines)
+    )
+
+
+def _split_paragraph_by_sentence_limit(
+    paragraph: str,
+    max_sentences: int,
+) -> str:
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", paragraph) if s.strip()]
+    if _count_full_sentences(sentences) <= max_sentences:
+        return paragraph
+
+    chunks: list[list[str]] = []
+    current: list[str] = []
+    current_count = 0
+    for sentence in sentences:
+        sentence_count = 1 if len(sentence.split()) >= 3 else 0
+        if current and current_count + sentence_count > max_sentences:
+            chunks.append(current)
+            current = []
+            current_count = 0
+        current.append(sentence)
+        current_count += sentence_count
+
+    if current:
+        chunks.append(current)
+
+    return "\n\n".join(" ".join(chunk) for chunk in chunks)
+
+
+def _count_full_sentences(sentences: list[str]) -> int:
+    return sum(1 for sentence in sentences if len(sentence.split()) >= 3)
 
 
 class GeneratedPost(BaseModel):
@@ -63,16 +145,43 @@ class GeneratedPost(BaseModel):
                 return []
 
 
-def _pick_role(revision_number: int) -> str:
-    """
-    Always use 'worker' when DeepSeek or a local LLM is configured —
-    there is only one model so escalation is meaningless.
-    For Anthropic only: escalate to 'supervisor' (Sonnet) on revision 2+
-    as a last-resort quality upgrade over Haiku.
+def _pick_role(
+    revision_number: int,
+    score: float | None = None,
+    min_score: float = 0.70,
+    has_high_ai_pattern: bool = False,
+) -> str:
+    """Selects the LLM role for revision based on cycle number and score proximity.
+
+    Escalates to supervisor (Sonnet) early when the post is close to passing
+    (within 0.06 of min_score) or has a HIGH ai_pattern issue (which requires
+    stronger rewriting ability than Haiku provides reliably).
+
+    For Anthropic: use supervisor (Sonnet) when score is within 0.06 of min_score,
+    or always on revision 2+, or when HIGH ai_pattern issues are present.
+
+    For DeepSeek/local LLM: always use 'worker' regardless.
+
+    Args:
+        revision_number: Current revision cycle (0-indexed from caller).
+        score: Current quality score, or None if unknown.
+        min_score: Minimum passing score threshold from config.
+        has_high_ai_pattern: True if the quality report has a HIGH severity
+            ai_pattern issue.
+
+    Returns:
+        "supervisor" for Sonnet (strong model) or "worker" for Haiku (fast/cheap).
     """
     if settings.use_deepseek or settings.use_local_llm:
         return "worker"
-    return "worker" if revision_number < 2 else "supervisor"
+
+    if revision_number >= 2:
+        return "supervisor"
+    if has_high_ai_pattern:
+        return "supervisor"
+    if score is not None and score >= min_score - 0.06:
+        return "supervisor"
+    return "worker"
 
 
 async def generate_initial_post(
@@ -84,9 +193,24 @@ async def generate_initial_post(
     exemplar_section: str = "",
     series_context: str = "",
 ) -> GeneratedPost:
-    role = _pick_role(0)
+    """Generate initial post from topic and context.
+
+    Args:
+        run_id: Unique run identifier.
+        topic: Post topic to write about.
+        trend_context: Current trend info and timing context.
+        tags: List of Medium tags to apply.
+        audience: Target audience description.
+        exemplar_section: Optional few-shot exemplar blueprint for injection.
+        series_context: Optional series position context for multi-part series.
+
+    Returns:
+        GeneratedPost with title, subtitle, content, tags, and image suggestions.
+    """
+    role = _pick_role(revision_number=0, score=None)
     series_block = (
-        f"SERIES CONTEXT (position this post correctly within the series):\n{series_context}\n"
+        "SERIES CONTEXT (position this post correctly within the series):\n"
+        f"{series_context}\n"
         if series_context
         else ""
     )
@@ -123,11 +247,45 @@ async def revise_post(
     revision_number: int = 1,
     prior_cycle_summary: str = "",
 ) -> GeneratedPost:
-    role = _pick_role(revision_number)
+    """Revise post based on quality feedback.
+
+    Applies targeted fixes from quality_analyzer and prior_cycle failures.
+    Escalates to Sonnet on revision 2+ if Haiku revisions haven't met gates.
+
+    Args:
+        run_id: Unique run identifier.
+        title: Current post title.
+        content: Current post markdown.
+        score: Quality score from analyzer (0.0-1.0).
+        revision_prompt: Specific LLM rewrite instructions.
+        issues: List of QualityIssue dicts (severity, category, location, suggestion).
+        strengths: List of phrases to preserve (optional).
+        gate_failures: Hard gate failures preventing publication (optional).
+        read_ratio_breakdown: Detailed read ratio analysis (optional).
+        revision_number: Iteration count (1 = first revision, etc.).
+        prior_cycle_summary: Summary of changes from prior iteration (optional).
+
+    Returns:
+        GeneratedPost with revised content.
+    """
+    has_high_ai_pattern = any(
+        i.get("severity") == "HIGH" and i.get("category") == "ai_pattern"
+        for i in (issues or [])
+    )
+    role = _pick_role(
+        revision_number=revision_number,
+        score=score,
+        min_score=settings.min_quality_score,
+        has_high_ai_pattern=has_high_ai_pattern,
+    )
     word_count = len(content.split())
 
     # Compute intro word count so the reviser sees it as a number before STEP 0
-    intro_text = content.split("---")[0].split("## ")[0] if ("---" in content or "## " in content) else content[:500]
+    intro_text = (
+        content.split("---")[0].split("## ")[0]
+        if ("---" in content or "## " in content)
+        else content[:500]
+    )
     intro_word_count = len(intro_text.split())
 
     issues_list = "\n".join(
@@ -200,27 +358,37 @@ async def expand_post(
     llm = with_langchain_retry(get_llm(role, max_tokens=1024, callbacks=[tracker]))
 
     messages: list[Any] = [
-        SystemMessage(content=(
-            "You are a technical writer adding one new section to an existing Medium post. "
-            "Output ONLY the new section — nothing else, no preamble, no sign-off. "
-            "Start with a Markdown H2 heading (## Section Title). "
-            "Every sentence must contain a specific fact, number, named tool, or concrete example. "
-            "Do not summarize, repeat, or conclude — add new information only."
-        )),
-        HumanMessage(content=(
-            f"Post title: {title}\n\n"
-            f"Existing content:\n{content}\n\n"
-            f"---\n"
-            f"The post needs approximately {deficit} more words. "
-            f"Write ONE new H2 section (~{deficit} words) covering the most obvious follow-up "
-            f"topic a reader would ask about after reading the existing content. "
-            f"Use specific numbers, tool names, and real examples — no vague generalizations. "
-            f"Output the new section only, starting with ##"
-        )),
+        SystemMessage(
+            content=(
+                "You are a technical writer adding one new section to an existing "
+                "Medium post. "
+                "Output ONLY the new section — nothing else, no preamble, no "
+                "sign-off. "
+                "Start with a Markdown H2 heading (## Section Title). "
+                "Every sentence must contain a specific fact, number, named tool, "
+                "or concrete example. "
+                "Do not summarize, repeat, or conclude — add new information only."
+            )
+        ),
+        HumanMessage(
+            content=(
+                f"Post title: {title}\n\n"
+                f"Existing content:\n{content}\n\n"
+                f"---\n"
+                f"The post needs approximately {deficit} more words. "
+                f"Write ONE new H2 section (~{deficit} words) covering the most "
+                "obvious follow-up "
+                "topic a reader would ask about after reading the existing content. "
+                "Use specific numbers, tool names, and real examples — no vague "
+                "generalizations. "
+                "Output the new section only, starting with ##"
+            )
+        ),
     ]
 
     result = await llm.ainvoke(messages)
-    return result.content if hasattr(result, "content") else str(result)
+    content = result.content if hasattr(result, "content") else str(result)
+    return enforce_paragraph_sentence_limit(content)
 
 
 async def _call_generator(
@@ -229,6 +397,17 @@ async def _call_generator(
     role: str,
     messages: list[Any],
 ) -> GeneratedPost:
+    """Call LLM with structured output for post generation/revision.
+
+    Args:
+        run_id: Unique run identifier for token tracking.
+        agent_label: Agent name for logging (e.g., 'content_generator_initial').
+        role: LLM role ('worker' or 'supervisor').
+        messages: LangChain message list (SystemMessage, HumanMessage, etc).
+
+    Returns:
+        GeneratedPost with structured fields.
+    """
     model_name = get_model_name(role)
     tracker = AgentTokenTracker(
         agent_name=agent_label,
@@ -243,4 +422,5 @@ async def _call_generator(
     )
 
     result: GeneratedPost = await llm.ainvoke(messages)
+    result.content = enforce_paragraph_sentence_limit(result.content)
     return result

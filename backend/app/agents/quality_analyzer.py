@@ -25,6 +25,14 @@ from app.agents.retry import with_langchain_retry
 from app.models.post import QualityIssue, QualityReport, ReadRatioFactor
 from app.prompt_loader import load_prompt, load_template
 
+_STRUCTURAL_CATEGORIES = frozenset({
+    "word_count",
+    "paragraph_length",
+    "heading_cadence",
+    "intro_length",
+    "image_missing",
+})
+
 
 class _Issue(BaseModel):
     category: str
@@ -39,6 +47,17 @@ def _compute_content_score(
     voice_authenticity: float,
     insight_value: float,
 ) -> float:
+    """Compute content quality score as mean of 4 axes.
+
+    Args:
+        hook_strength: Hook quality (0.0-1.0).
+        specificity: Named data points (0.0-1.0).
+        voice_authenticity: Human voice authenticity (0.0-1.0).
+        insight_value: Original insight (0.0-1.0).
+
+    Returns:
+        Mean score rounded to 2 decimal places.
+    """
     return round(mean([hook_strength, specificity, voice_authenticity, insight_value]), 2)
 
 
@@ -109,6 +128,22 @@ async def run_quality_analysis(
     title: str,
     content: str,
 ) -> QualityReport:
+    """Run G-Eval quality analysis on post title and content.
+
+    Scores on 4 axes (hook_strength, specificity, voice_authenticity, insight_value),
+    merges structural issues, analyzes read ratio, and produces revision guidance.
+
+    Args:
+        run_id: Unique run identifier for token tracking.
+        title: Post title.
+        content: Post markdown content.
+
+    Returns:
+        QualityReport with all analysis results.
+
+    Raises:
+        ValueError: If structured LLM output fails.
+    """
     model_name = get_model_name("worker")
     tracker = AgentTokenTracker(
         agent_name="quality_analyzer",
@@ -136,6 +171,8 @@ async def run_quality_analysis(
 
     rr = await analyze_read_ratio(run_id=run_id, content=content)
 
+    filtered_issues = [i for i in output.issues if i.category not in _STRUCTURAL_CATEGORIES]
+
     issues = [
         QualityIssue(
             category=i.category,
@@ -143,7 +180,7 @@ async def run_quality_analysis(
             location=i.location,
             suggestion=i.suggestion,
         )
-        for i in output.issues
+        for i in filtered_issues
     ]
 
     score = _compute_content_score(

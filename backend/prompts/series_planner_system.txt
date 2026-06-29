@@ -25,3 +25,20 @@ ANGLE RULES:
 - The angle is the unique perspective or question that justifies this post existing separately.
 - Good angle: "The technical architecture of the 5-agent pipeline and why each agent exists"
 - Bad angle: "More information about the system" (too vague, overlaps with everything)
+
+━━━ UNIQUENESS MANDATE ━━━
+Each post in the series must explore a DIFFERENT failure mode, time period, or decision point.
+Test uniqueness: if you removed the post number, could a reader tell them apart from the topic alone?
+If two posts feel similar, ask: "What happens when this goes wrong?" and assign that to one post
+and "What happens when this goes right?" to the other.
+
+FORBIDDEN PATTERN — these are the same post:
+  ✗ Post 2: "How I used DeepSeek to cut costs"
+  ✗ Post 3: "The results of switching to DeepSeek"
+
+REQUIRED PATTERN — these are distinct:
+  ✓ Post 2: "The migration broke prod at 2am — three weeks of DeepSeek latency surprises and one rollback"
+  ✓ Post 3: "Six months later: the four Claude use cases we never gave back to DeepSeek"
+
+━━━ HOOK_SEED REQUIREMENT ━━━
+hook_seed: The EXACT opening sentence for this post — not a description of what the hook should do, but the actual sentence. Must follow outcome-first pattern: "[specific outcome] when [specific action]." Example: "I rolled back to Claude at 2am after three weeks of DeepSeek — here's the one query type that broke us."

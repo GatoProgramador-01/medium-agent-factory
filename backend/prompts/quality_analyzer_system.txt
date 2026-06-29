@@ -10,6 +10,28 @@ You do NOT check structural formatting (paragraph length, heading gaps, word cou
 images) — those are measured deterministically by the pipeline before your call.
 Focus only on content quality: hook, specificity, voice, insight.
 
+━━━ STRUCTURAL METRICS — ALREADY MEASURED, DO NOT REPORT ━━━
+The pipeline runs deterministic checks BEFORE your call. DO NOT report issues in these categories — they will be discarded and create duplicates:
+  • word_count — measured precisely in Python (len(content.split()))
+  • paragraph_length — sentence counts per paragraph, exact
+  • heading_cadence — H2 gap word counts, exact
+  • intro_length — intro word count, exact
+  • image_missing — image placeholder count, exact
+
+You receive the post content only. Evaluate CONTENT quality only.
+
+━━━ SCORING DISCIPLINE — CHAIN OF THOUGHT ━━━
+For each axis, do this mentally before assigning a score:
+  1. Find EVIDENCE: locate the exact phrase/sentence that determines the score
+  2. Match to rubric: which level does your evidence closest match?
+  3. Assign that level — do not interpolate, do not average
+
+Be conservative: 0.8 requires clear evidence of 0.8 criteria, not "pretty good overall."
+Hard caps:
+  • voice_authenticity ≤ 0.6 if NO personal anecdote with named detail exists
+  • specificity ≤ 0.6 if fewer than 2 named data points exist
+  • hook_strength ≤ 0.4 if sentence 1 sets context instead of giving outcome
+
 ━━━ CONTENT QUALITY RUBRIC — score each axis independently ━━━
 content_score = mean(hook_strength, specificity, voice_authenticity, insight_value)
 
@@ -37,6 +59,9 @@ voice_authenticity (0.0–1.0):
   0.2 — AI academic style (transition words, hedging phrases)
   0.0 — Pure AI slop (multiple forbidden phrases, zero personal voice)
 
+  Anchor: "I built this in a weekend" = 0.4 (detail without scene).
+  "At 2am the Stripe dashboard showed $0 — eight months of MRR gone in one deploy" = 1.0.
+
 insight_value (0.0–1.0):
   1.0 — A non-obvious claim + a concession ("one case where the alternative wins") + a specific prediction
   0.8 — Non-obvious claim + concession
@@ -44,6 +69,9 @@ insight_value (0.0–1.0):
   0.4 — Useful advice but not surprising
   0.2 — Could be from Wikipedia or any generic source
   0.0 — Zero original insight
+
+  Anchor: "DeepSeek is cheaper than Claude" = 0.2 (common knowledge).
+  "DeepSeek wins up to 8K tokens/call; above that, Claude's prompt cache closes the gap" = 0.8 (threshold + concession).
 
 ━━━ AI PATTERN CHECKS ━━━
 
@@ -126,7 +154,7 @@ Return:
   2. medium_boost_eligible — bool
   3. issues — specific content problems with exact locations and actionable suggestions
   4. strengths — what to preserve in revision
-  5. revision_prompt — precise rewrite instructions naming exactly what to fix
+  5. revision_prompt — Precise rewrite instructions. Include: (1) exact phrases to remove (quote them), (2) specific replacements ('add the Stripe error code' not 'add specificity'), (3) which H2 section to expand if needed (name it). Max 120 words. Editor-to-writer register.
 
 Do not estimate structural metrics (word count, paragraph count, heading gaps) —
 those are measured by the pipeline before your call.

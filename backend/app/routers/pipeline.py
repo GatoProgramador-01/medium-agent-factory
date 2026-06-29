@@ -10,15 +10,18 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.agents.orchestrator import run_pipeline
+from app.agents.prompt_analyst import PromptAnalysisReport, run_prompt_analysis
 from app.database import get_db
 from app.limiter import limiter
 from app.utils.cost_guard import check_daily_run_limit
+from scripts.analyze_quality_snapshots import analyze
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
 
 class PipelineRequest(BaseModel):
     custom_topic: str = Field(min_length=10, max_length=500)
+    grounding_context: str = Field(default="", max_length=12000)
 
 
 @limiter.limit("2/hour")
@@ -36,12 +39,16 @@ async def trigger_pipeline(
         {
             "run_id": run_id,
             "custom_topic": req.custom_topic,
+            "grounding_context": req.grounding_context,
             "status": "queued",
             "created_at": datetime.now(UTC),
         }
     )
     background_tasks.add_task(
-        run_pipeline, custom_topic=req.custom_topic, run_id=run_id
+        run_pipeline,
+        custom_topic=req.custom_topic,
+        run_id=run_id,
+        grounding_context=req.grounding_context,
     )
     return {"run_id": run_id, "message": "Pipeline started"}
 
@@ -54,7 +61,10 @@ async def trigger_pipeline_sync(
     _: None = Depends(check_daily_run_limit),
 ) -> dict[str, Any]:
     """Run pipeline synchronously — blocks until complete."""
-    return await run_pipeline(custom_topic=req.custom_topic)
+    return await run_pipeline(
+        custom_topic=req.custom_topic,
+        grounding_context=req.grounding_context,
+    )
 
 
 @router.get("/runs")
@@ -126,3 +136,50 @@ async def stream_logs(run_id: str, request: Request) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+class ImprovePromptsResponse(BaseModel):
+    """Response payload for POST /pipeline/improve-prompts."""
+
+    run_count: int
+    top_issue: str
+    regression_rate: float
+    summary: str
+    suggestions: list[dict[str, Any]]
+    analyzed_at: str
+
+
+@router.post("/improve-prompts", response_model=ImprovePromptsResponse)
+async def improve_prompts(
+    runs: int = Query(default=20, ge=5, le=100),
+) -> dict[str, Any]:
+    """Analyze quality_snapshots and return prioritized prompt improvement suggestions.
+
+    Args:
+        runs: Number of recent pipeline runs to include in the analysis (5–100, default 20).
+
+    Returns:
+        JSON with run_count, top_issue, regression_rate, summary, suggestions, analyzed_at.
+
+    Raises:
+        404: When no quality_snapshots exist in the database.
+    """
+    analysis = await analyze(n_runs=runs)
+
+    if "error" in analysis:
+        raise HTTPException(status_code=404, detail=analysis["error"])
+
+    report: PromptAnalysisReport = await run_prompt_analysis(
+        run_id=str(uuid.uuid4()),
+        analysis_data=analysis,
+        prompt_files={},
+    )
+
+    return {
+        "run_count": report.run_count,
+        "top_issue": report.top_issue,
+        "regression_rate": report.regression_rate,
+        "summary": report.summary,
+        "suggestions": [s.model_dump() for s in report.suggestions],
+        "analyzed_at": datetime.now(UTC).isoformat(),
+    }

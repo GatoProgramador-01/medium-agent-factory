@@ -30,7 +30,14 @@ _FORBIDDEN_PHRASES: list[str] = [
 ]
 
 def _count_sentences(text: str) -> int:
-    """Count full sentences (≥3 words) to avoid treating emphasis fragments as sentences."""
+    """Count full sentences (≥3 words) to avoid treating emphasis fragments as sentences.
+
+    Args:
+        text: Text to analyze.
+
+    Returns:
+        Number of sentences with 3+ words.
+    """
     text = text.strip()
     if not text:
         return 0
@@ -39,10 +46,26 @@ def _count_sentences(text: str) -> int:
 
 
 def _paragraphs(content: str) -> list[str]:
+    """Split content into paragraphs by blank lines.
+
+    Args:
+        content: Text content to split.
+
+    Returns:
+        List of stripped paragraphs.
+    """
     return [p.strip() for p in re.split(r"\n\s*\n", content) if p.strip()]
 
 
 def _strip_markdown(text: str) -> str:
+    """Remove markdown formatting (headings, separators, image placeholders).
+
+    Args:
+        text: Markdown text to clean.
+
+    Returns:
+        Text with Markdown syntax removed.
+    """
     text = re.sub(r"^#{1,6}\s.*$", "", text, flags=re.MULTILINE)
     text = re.sub(r"^---+\s*$", "", text, flags=re.MULTILINE)
     text = re.sub(r"\[IMAGE:.*?\]", "", text, flags=re.IGNORECASE)
@@ -50,6 +73,14 @@ def _strip_markdown(text: str) -> str:
 
 
 def _check_paragraph_length(content: str) -> list[QualityIssue]:
+    """Check paragraphs for excessive length (max 4 sentences).
+
+    Args:
+        content: Post content to analyze.
+
+    Returns:
+        List of QualityIssue objects for paragraphs exceeding 4 sentences.
+    """
     issues: list[QualityIssue] = []
     for para in _paragraphs(content):
         if para.startswith("#") or re.match(r"^-{3,}$", para):
@@ -74,7 +105,14 @@ def _check_paragraph_length(content: str) -> list[QualityIssue]:
 
 
 def _split_into_sections(content: str) -> list[tuple[str, str]]:
-    """Return list of (heading_text, section_body) pairs, including a None heading for pre-first-heading text."""
+    """Split content into sections by H1-H6 headings.
+
+    Args:
+        content: Post content to split.
+
+    Returns:
+        List of (heading_text, section_body) pairs. Empty string heading for pre-first-heading text.
+    """
     parts: list[tuple[str, str]] = []
     heading_re = re.compile(r"^(#{1,6}\s.+)$", re.MULTILINE)
     positions = [(m.start(), m.group(1)) for m in heading_re.finditer(content)]
@@ -90,11 +128,27 @@ def _split_into_sections(content: str) -> list[tuple[str, str]]:
 
 
 def _word_count_text(text: str) -> int:
+    """Count words in text after stripping Markdown.
+
+    Args:
+        text: Text to analyze.
+
+    Returns:
+        Word count.
+    """
     clean = _strip_markdown(text)
     return len(clean.split())
 
 
 def _check_heading_cadence(content: str) -> list[QualityIssue]:
+    """Check H2 heading spacing (min 200, max 500 words between headings).
+
+    Args:
+        content: Post content to analyze.
+
+    Returns:
+        List of QualityIssue objects for heading cadence problems.
+    """
     issues: list[QualityIssue] = []
     h2_re = re.compile(r"^#{2}\s.+$", re.MULTILINE)
     h2_matches = list(h2_re.finditer(content))
@@ -136,6 +190,14 @@ def _check_heading_cadence(content: str) -> list[QualityIssue]:
 
 
 def _intro_text(content: str) -> str:
+    """Extract intro section (before first H2 or frontmatter separator).
+
+    Args:
+        content: Post content.
+
+    Returns:
+        Intro text or first 500 chars if no separator found.
+    """
     if "---" in content:
         return content.split("---")[0]
     h2_match = re.search(r"^#{2}\s", content, re.MULTILINE)
@@ -145,6 +207,14 @@ def _intro_text(content: str) -> str:
 
 
 def _check_intro_length(content: str) -> list[QualityIssue]:
+    """Check intro length (max 110 words).
+
+    Args:
+        content: Post content to analyze.
+
+    Returns:
+        List with single QualityIssue if intro exceeds max, else empty.
+    """
     intro = _intro_text(content)
     wc = len(intro.split())
     if wc > 110:
@@ -162,30 +232,54 @@ def _check_intro_length(content: str) -> list[QualityIssue]:
     return []
 
 
-def _check_word_count(content: str) -> list[QualityIssue]:
+def _check_word_count(content: str, min_word_count: int = 1300) -> list[QualityIssue]:
+    """Check total word count against min_word_count threshold.
+
+    Args:
+        content: Post content to analyze.
+        min_word_count: Minimum word count gate (default 1300).
+
+    Returns:
+        List with HIGH severity QualityIssue if under threshold, else empty.
+    """
     wc = len(_strip_markdown(content).split())
-    if wc < 1000:
+    if wc < 700:
+        needed = min_word_count - wc
         return [
             QualityIssue(
                 category="word_count",
                 severity="HIGH",
                 location=f"Total word count: {wc}",
-                suggestion=f"Post is only {wc} words. Minimum is 1,300.",
+                suggestion=(
+                    f"critically short ({wc} words) — add at least {needed} words of concrete examples."
+                ),
             )
         ]
-    if wc < 1300:
+    if wc < min_word_count:
+        needed = min_word_count - wc
         return [
             QualityIssue(
                 category="word_count",
-                severity="LOW",
+                severity="HIGH",
                 location=f"Total word count: {wc}",
-                suggestion=f"Post is {wc} words — below the 1,300-word target.",
+                suggestion=(
+                    f"below gate threshold ({wc} words) — needs {needed} more words; "
+                    "expand the shortest section with one numbered example."
+                ),
             )
         ]
     return []
 
 
 def _check_forbidden_phrases(content: str) -> list[QualityIssue]:
+    """Detect AI-generated patterns (forbidden phrases list).
+
+    Args:
+        content: Post content to analyze.
+
+    Returns:
+        List of QualityIssue objects for each AI pattern found.
+    """
     issues: list[QualityIssue] = []
     for phrase in _FORBIDDEN_PHRASES:
         pattern = re.compile(re.escape(phrase), re.IGNORECASE)
@@ -202,6 +296,14 @@ def _check_forbidden_phrases(content: str) -> list[QualityIssue]:
 
 
 def _check_image_missing(content: str) -> list[QualityIssue]:
+    """Check image count for posts over 1300 words (min 2 images required).
+
+    Args:
+        content: Post content to analyze.
+
+    Returns:
+        List with QualityIssue if under-imaged, else empty.
+    """
     wc = len(_strip_markdown(content).split())
     if wc < 1300:
         return []
@@ -222,6 +324,17 @@ def _check_image_missing(content: str) -> list[QualityIssue]:
 
 
 def run_structural_checks(content: str) -> list[QualityIssue]:
+    """Run all deterministic structural quality checks.
+
+    Runs paragraph_length, heading_cadence, intro_length, word_count,
+    forbidden phrases (ai_pattern), and image_missing checks in sequence.
+
+    Args:
+        content: Post content to check.
+
+    Returns:
+        Aggregated list of QualityIssue objects from all checks.
+    """
     issues: list[QualityIssue] = []
     issues.extend(_check_paragraph_length(content))
     issues.extend(_check_heading_cadence(content))

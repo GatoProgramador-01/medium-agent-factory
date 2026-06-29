@@ -23,7 +23,20 @@ from app.config import settings
 
 
 def get_model_name(role: str = "worker") -> str:
-    """Return the effective model identifier string for the given role."""
+    """Return the effective model identifier string for the given role.
+
+    Respects the same priority order as get_llm: local > DeepSeek > Anthropic.
+    Use this when you need the model name for AgentTokenTracker before calling
+    get_llm, so the tracker and the LLM always agree on the model string.
+
+    Args:
+        role: "worker" (default, cheaper model) or "supervisor" (more capable
+            model). Ignored when USE_LOCAL_LLM or USE_DEEPSEEK are set.
+
+    Returns:
+        Model identifier string, e.g. "claude-haiku-4-5-20251001" or
+        "deepseek-chat" or the value of settings.local_llm_model.
+    """
     if settings.use_local_llm:
         return settings.local_llm_model
     if settings.use_deepseek:
@@ -32,14 +45,27 @@ def get_model_name(role: str = "worker") -> str:
 
 
 def get_llm(role: str = "worker", **kwargs: Any) -> BaseChatModel:
-    """
-    Instantiate the correct LLM for the given role.
+    """Instantiate the correct LLM backend for the given agent role.
 
-    role: "supervisor" | "worker"
-      supervisor → more capable model (Sonnet / same DeepSeek/local model)
-      worker     → cheaper model (Haiku / same DeepSeek/local model)
+    Priority order (first true wins):
+        USE_LOCAL_LLM=true  → ChatOllama at local_llm_base_url
+        USE_DEEPSEEK=true   → _DeepSeekChatOpenAI with json_mode structured output
+                              and automatic schema injection into SystemMessage
+        default             → ChatAnthropic (Haiku for worker, Sonnet for supervisor)
 
-    Extra kwargs are forwarded to the LLM constructor (e.g. max_tokens, callbacks).
+    The DeepSeek variant wraps with_structured_output to inject the Pydantic schema
+    as a JSON block into the first SystemMessage, working around DeepSeek V3's
+    tendency to wrap outputs under a single generic key.
+
+    Args:
+        role: "worker" (default, Claude Haiku / DeepSeek V3 / local) or
+            "supervisor" (Claude Sonnet / same DeepSeek/local model).
+        **kwargs: Additional keyword arguments forwarded to the LLM constructor,
+            e.g. max_tokens=4096, callbacks=[tracker].
+
+    Returns:
+        An instantiated BaseChatModel ready for .with_structured_output() or
+        direct .ainvoke() calls.
     """
     if settings.use_local_llm:
         from langchain_ollama import ChatOllama  # only imported when needed

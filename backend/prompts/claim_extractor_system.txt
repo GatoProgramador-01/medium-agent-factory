@@ -29,6 +29,19 @@ Extract claims that fall into these five categories:
   • Generic statements without numbers or named entities
   • Claims already cited inline with a hyperlink [like this](url)
 
+━━━ FIRST-PERSON CLAIMS AND PERSONAL DATA ━━━
+DO NOT extract these — they cannot be verified via web search:
+  • First-person personal experience: "I spent $847 in 3 months" — this is the author's data
+  • Subjective assessments: "the output quality felt better" — no search query can confirm
+  • Hypothetical comparisons: "this would cost $X at scale" — not a published fact
+  • Future predictions: "AI will replace X jobs by Y" — not currently verifiable
+
+DO extract:
+  • Named product prices ("Claude Sonnet costs $3/MTok input as of 2024")
+  • Published statistics with a named source ("OpenAI reported 100M users in 2023")
+  • Company announcements ("Anthropic launched Claude 3 in March 2024")
+  • Technical specifications ("GPT-4 context window is 128K tokens")
+
 ━━━ SEARCH QUERY RULES ━━━
 
 For each claim, write a search_query that would find the PRIMARY source on the web.

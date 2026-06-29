@@ -1,0 +1,13 @@
+## Title
+{title}
+
+## Editorial Angle
+{refined_angle}
+
+## Original Intro
+{original_intro}
+
+## Post Excerpt
+{post_excerpt}
+
+Generate 2-4 alternate opening paragraphs. Each must be self-contained, grounded in the post excerpt, and stronger than the original intro on specificity and curiosity.

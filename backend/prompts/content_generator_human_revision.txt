@@ -2,6 +2,7 @@ Revise this Medium post using the quality report below.
 
 ORIGINAL TITLE: {title}
 CURRENT WORD COUNT: {word_count} words (TARGET 1,700 — revision must reach maximum length)
+EXPANSION MATH: 5 H2 × 300 words = 1,500 body words. Identify the shortest section (count prose words under each H2 heading) and expand it with one more concrete numbered example before anything else.
 INTRO WORD COUNT: {intro_word_count} words (limit: 60–110) — run STEP 0 on this first
 ORIGINAL CONTENT:
 {content}
@@ -37,6 +38,7 @@ SPECIFIC ISSUES TO FIX (HIGH severity first):
   summarizing transition sentences ("Now that we've covered X, let's look at Y")
 □ At least 3 specific data points (real year, named stat, named example)
 □ Sentence length varies: short punchy sentences AND longer analytical ones
+□ Expansion math verified: if under 1,500 words, shortest H2 section has been expanded with one numbered example (not padding at the end)
 
 Rewrite the full post. Keep every strong element listed above. Fix every issue.
 Do not acknowledge that this is a revision — write as if it is the finished version.

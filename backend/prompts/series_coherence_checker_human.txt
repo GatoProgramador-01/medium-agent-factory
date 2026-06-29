@@ -1,0 +1,16 @@
+## Title
+{title}
+
+## Series Position
+{series_position}
+
+## Editorial Angle
+{refined_angle}
+
+## Series Context
+{series_context}
+
+## Post Excerpt
+{post_excerpt}
+
+Assess series coherence. If the post repeats, spoils, or drifts, provide specific issues and a revised_content body that preserves the original argument while fixing the series fit.

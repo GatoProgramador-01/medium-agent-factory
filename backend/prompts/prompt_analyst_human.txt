@@ -1,0 +1,9 @@
+## Quality Snapshot Analysis
+{analysis_json}
+
+## Current Prompt Files
+{prompt_files}
+
+Analyze the snapshot data and return targeted prompt improvement suggestions.
+Prioritize patterns appearing in the most runs or surviving multiple revision cycles.
+Each suggestion must be directly actionable: exact file, section, and replacement text.

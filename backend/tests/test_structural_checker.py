@@ -148,11 +148,12 @@ def test_under_1000_words_flagged_high() -> None:
     assert wc[0].severity.upper() == "HIGH"
 
 
-def test_1000_to_1299_words_flagged_low() -> None:
+def test_1000_to_1299_words_flagged_high() -> None:
+    # Old behavior was LOW; new spec: ANY count below min_word_count is HIGH.
     issues = run_structural_checks(_post_with_words(1100))
     wc = [i for i in issues if i.category == "word_count"]
     assert len(wc) == 1
-    assert wc[0].severity.upper() == "LOW"
+    assert wc[0].severity.upper() == "HIGH"
 
 
 def test_1300_plus_words_not_flagged() -> None:

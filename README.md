@@ -61,6 +61,151 @@ A single well-written post is fine. A three-post series that reads like chapters
 
 ---
 
+## Editorial Monetization Roadmap
+
+The next phase is not "generate more posts." The next phase is to turn real
+software projects into evidence-backed posts, guides, and series that can earn
+reader trust on Medium.
+
+Medium rewards direct experience, useful explanation, strong narrative, and
+specific evidence. For this project, the most valuable source material is not a
+generic AI topic. It is a working repository with scars: architecture decisions,
+failed runs, test output, performance numbers, debugging notes, and code that
+actually shipped.
+
+The first flagship case study is
+[`GatoProgramador-01/pj-peru-scraper`](https://github.com/GatoProgramador-01/pj-peru-scraper):
+a real scraper for Peruvian judiciary portals with HTTP-only scraping, JSF
+ViewState edge cases, soft-block detection, PDF downloads, checkpointing,
+parallel workers, tests, and concrete runtime metrics.
+
+### Target Publishing Modes
+
+| Mode | Goal | Best For | Output |
+|------|------|----------|--------|
+| Post Mode | One strong argument with a clear hook | Lessons learned, failure stories, launches | 1,400-1,800 word Medium post |
+| Guide Mode | Teach the reader how to build or debug something end-to-end | Architecture walkthroughs, scraping guides, LLMOps patterns | Deep technical tutorial with commands, code, screenshots, and gotchas |
+| Series Mode | Build repeat readership and follow-through | Complex repos like `pj-peru-scraper` | 4-7 connected posts with continuity and non-repetition |
+
+### New Agent Roadmap
+
+| Agent | Purpose | Why It Matters for Revenue |
+|-------|---------|----------------------------|
+| `RepoAnalyzer` | Reads README, package files, tests, scripts, modules, and commit history to extract the real project story | Prevents generic posts by grounding every article in real evidence |
+| `RunbookExecutor` | Runs safe local commands, tests, dry-runs, benchmarks, and captures outputs | Turns claims into verifiable proof readers can trust |
+| `EvidenceWeaver` | Converts logs, metrics, code paths, and failure notes into publishable narrative | Makes the writing feel first-hand instead of AI-generated |
+| `GuidePlanner` | Decides whether a topic should become a post, guide, or series | Optimizes for reader intent and follow potential |
+| `CodeSnippetCurator` | Selects short, explainable snippets and avoids dumping large code blocks | Improves technical clarity and read ratio |
+| `SeriesContinuityEditor` | Maintains callbacks, progression, and non-repetition across a series | Creates repeat readership instead of isolated posts |
+| `MediumMoneyEvaluator` | Scores Boost fit, reader value, follow potential, AI-policy risk, and publication fit | Keeps the system focused on posts that can actually earn |
+| `PublicationPitcher` | Produces publication-specific pitch notes and submission strategy | Increases distribution odds beyond self-publishing |
+
+### Sprint Plan
+
+#### Sprint M1: Evidence-First Repo Analysis
+
+- Add `RepoAnalyzer` for local and GitHub repositories.
+- Extract project purpose, stack, architecture, commands, tests, scripts, notable
+  files, metrics, and unresolved risks.
+- Produce an `EvidenceBrief` document stored in MongoDB and usable by all writer
+  agents.
+- First target: `pj-peru-scraper`.
+
+Success criteria:
+
+- The system can explain what the repo does without hallucinating.
+- Every numeric claim in a generated post traces back to repo evidence, run
+  output, or explicit user-provided context.
+
+#### Sprint M2: Runbook and Local Proof
+
+- Add `RunbookExecutor` with safe command allowlists.
+- Run tests, lint, dry-runs, sample scraper commands, and benchmark scripts when
+  available.
+- Capture stdout/stderr summaries, durations, pass/fail status, and artifact
+  paths.
+- Store `RunEvidence` records linked to the post or series run.
+
+Success criteria:
+
+- The post generator can cite local test output and measured runtime.
+- Failed commands become story material and debugging notes, not silent errors.
+
+#### Sprint M3: Guide Mode
+
+- Add `GuidePlanner` and a guide-specific prompt set.
+- Generate tutorial structures with prerequisites, setup, commands, expected
+  output, failure modes, and "why this design" sections.
+- Add `CodeSnippetCurator` to select compact snippets from real files.
+
+Success criteria:
+
+- The system can produce a complete technical guide from `pj-peru-scraper`
+  without inventing architecture or commands.
+- Code snippets are short, contextual, and linked to source files.
+
+#### Sprint M4: Series Mode for Real Projects
+
+- Upgrade current series planning into a project-aware editorial arc.
+- Add `SeriesContinuityEditor` to track what each post already explained.
+- Generate 4-7 post series plans from one evidence brief.
+
+Candidate `pj-peru-scraper` series:
+
+1. The HTTP 200 That Lied: detecting soft-blocks in legacy portals.
+2. Why HTTP-only scraping beat browser automation.
+3. The 7-layer scraper architecture.
+4. Concurrency, checkpointing, and avoiding 429s.
+5. Testing a scraper against hostile legacy systems.
+6. How Claude Code helped, where it failed, and the control plane that fixed it.
+
+Success criteria:
+
+- Each post has a distinct promise and no repeated setup.
+- The series creates a natural follow path for readers.
+
+#### Sprint M5: Medium Money Evaluator
+
+- Add a scoring agent focused on monetization signals: direct experience,
+  practical utility, specificity, originality, read ratio, Boost fit,
+  publication fit, and AI-policy risk.
+- Add a "publish / revise / hold" verdict.
+- Add title, subtitle, CTA, and publication pitch recommendations.
+
+Success criteria:
+
+- The pipeline does not approve posts that are merely well-written.
+- Approval requires credible earning potential and low AI-policy risk.
+
+#### Sprint M6: DeepSeek Cost and LangSmith Observability
+
+- Update DeepSeek model defaults and pricing tables.
+- Fix token accounting for OpenAI-compatible usage metadata: `usage`,
+  `token_usage`, and `AIMessage.usage_metadata`.
+- Add LangSmith metadata tags for provider, model, run_id, series_id, agent, and
+  editorial mode.
+- Show per-post estimated cost, latency, revision count, and quality deltas in
+  analytics.
+
+Success criteria:
+
+- Every generated post has an estimated cost and trace link.
+- DeepSeek can be compared against Claude for quality, latency, and cost.
+
+#### Sprint M7: Publish-Ready Export
+
+- Add an export step for Medium-ready Markdown.
+- Include title, subtitle, canonical tags, image briefs, source list, disclosure
+  note when AI assistance should be disclosed, and publication pitch.
+- Add a final human checklist before paywall submission.
+
+Success criteria:
+
+- The final artifact can be pasted into Medium with minimal editing.
+- The system flags claims that need manual verification before publication.
+
+---
+
 ## Architecture
 
 ### Full Pipeline

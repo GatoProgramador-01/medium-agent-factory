@@ -1,0 +1,19 @@
+## Raw Topic
+{topic}
+
+## Research Data
+{research_results}
+
+## User Grounding Context
+{grounding_context}
+
+Synthesize the above into a precise editorial brief. The angle must be grounded in the research data or grounding context — do not invent statistics. If the research is thin, use the grounding context and acknowledge what needs to be verified in key_claims.
+
+Return a TopicBrief with:
+1. refined_angle: The single specific argument (not the topic, the TAKE)
+2. hook_seed: The exact first sentence of the post
+3. target_audience: Specific reader profile and assumption you're challenging
+4. h2_structure: Array of 4-6 H2 headings in post order (curiosity-driven, not labels)
+5. key_claims: Array of 2-6 verifiable factual claims for the fact_checker
+6. concession: The one scenario where the alternative wins (with specific threshold)
+7. formatted_brief: Complete brief as a single string (150-250 words) for injection into generator

@@ -33,7 +33,15 @@ _STOP_WORDS = {
 
 
 def _extract_intro(content: str, max_words: int = 150) -> tuple[str, int]:
-    """Return (intro_text, word_count) before the first ## or --- separator."""
+    """Extract intro section before first H2 or frontmatter separator.
+
+    Args:
+        content: Post markdown content.
+        max_words: Maximum words to include (default 150).
+
+    Returns:
+        Tuple of (intro_text, actual_word_count).
+    """
     split = re.split(r"\n##\s|\n---\n", content, maxsplit=1)
     raw = split[0].strip()
     words = raw.split()
@@ -42,17 +50,41 @@ def _extract_intro(content: str, max_words: int = 150) -> tuple[str, int]:
 
 
 def _extract_hook(intro: str) -> str:
-    """Return the first sentence."""
+    """Extract first sentence from intro text.
+
+    Args:
+        intro: Intro section text.
+
+    Returns:
+        First sentence (up to first period/exclamation/question mark).
+    """
     parts = re.split(r"(?<=[.!?])\s+", intro.replace("\n", " "), maxsplit=1)
     return parts[0].strip()
 
 
 def _extract_first_code_block(content: str, max_chars: int = 600) -> str | None:
+    """Extract first code block from content.
+
+    Args:
+        content: Post markdown content.
+        max_chars: Maximum characters to include (default 600).
+
+    Returns:
+        Code block with triple backticks, or None if not found.
+    """
     match = re.search(r"```[\s\S]*?```", content)
     return match.group(0)[:max_chars] if match else None
 
 
 def _topic_keywords(title: str) -> list[str]:
+    """Extract keywords from title (words > 3 chars, excluding stop words).
+
+    Args:
+        title: Post title.
+
+    Returns:
+        List of lowercase keywords.
+    """
     return list({
         w.lower().strip(".,!?:;\"'")
         for w in title.split()
@@ -69,7 +101,20 @@ async def save_exemplar(
     read_ratio: float,
     hook_score: float,
 ) -> None:
-    """Compress and upsert a high-scoring post as a few-shot exemplar."""
+    """Compress and upsert a high-scoring post as few-shot exemplar.
+
+    Extracts hook, intro, and code block for efficient prompt injection.
+    Called when post score >= EXEMPLAR_THRESHOLD (0.95).
+
+    Args:
+        run_id: Unique post identifier.
+        title: Post title.
+        content: Full markdown content.
+        tags: Medium tags list.
+        score: Quality score (0.0-1.0).
+        read_ratio: Predicted read ratio (0.0-1.0).
+        hook_score: Hook effectiveness score.
+    """
     intro, intro_word_count = _extract_intro(content)
     hook = _extract_hook(intro)
     code_block = _extract_first_code_block(content)
@@ -100,9 +145,15 @@ async def save_exemplar(
 
 
 async def promote_post_to_exemplar(run_id: str) -> bool:
-    """
-    Retroactively promote an existing post to exemplar status.
-    Returns True if the post was found and saved, False if not found.
+    """Retroactively promote an existing post to exemplar status.
+
+    Retrieves post from MongoDB and saves as exemplar if found.
+
+    Args:
+        run_id: Unique post identifier.
+
+    Returns:
+        True if post found and promoted, False if not found.
     """
     db = get_db()
     post = await db.posts.find_one({"run_id": run_id}, {"_id": 0})
@@ -127,10 +178,17 @@ async def find_exemplar(
     tags: list[str] | None = None,
     min_overlap: float = 0.10,
 ) -> dict[str, Any] | None:
-    """
-    Find the best-matching exemplar for this topic.
-    Scores by (keyword overlap × 0.7 + tag overlap × 0.3) × exemplar_score.
-    Returns None if no exemplar meets min_overlap.
+    """Find best-matching exemplar by topic and tag overlap.
+
+    Scores exemplars by (keyword_overlap × 0.7 + tag_overlap × 0.3) × exemplar_score.
+
+    Args:
+        topic: Post topic to find exemplar for.
+        tags: List of Medium tags (optional).
+        min_overlap: Minimum score threshold (default 0.10).
+
+    Returns:
+        Best exemplar dict if score >= min_overlap, else None.
     """
     db = get_db()
     exemplars = await db.exemplars.find({}, {"_id": 0}).to_list(length=200)
@@ -157,9 +215,16 @@ async def find_exemplar(
 
 
 def format_exemplar_injection(ex: dict[str, Any]) -> str:
-    """
-    Return an annotated blueprint for injection into the generation prompt.
-    Shows structure and quality bar — not a template to copy word-for-word.
+    """Format exemplar as annotated blueprint for prompt injection.
+
+    Shows quality bar, hook pattern, and structure reference without prescribing
+    verbatim copying. Emphasizes patterns, not templates.
+
+    Args:
+        ex: Exemplar dict from MongoDB (with title, hook, intro, code_block, etc).
+
+    Returns:
+        Formatted blueprint string for injection into generation prompt.
     """
     parts = [
         "━━━ QUALITY REFERENCE — this is your hook and structure target ━━━━━━━━━",

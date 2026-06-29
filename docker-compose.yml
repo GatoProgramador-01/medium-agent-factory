@@ -18,7 +18,9 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: dev
     container_name: medium-factory-web
     ports:
       - "3000:3000"
@@ -38,7 +40,7 @@ services:
       - /app/.next
     depends_on:
       - backend
-    command: sh -c "npm install && npm run dev"
+    command: npm run dev
 
   # ── Local LLM (optional Docker Ollama — not needed if Ollama is native) ───
   # Native Ollama on Windows is preferred: https://ollama.com/download/windows

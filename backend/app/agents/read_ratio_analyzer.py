@@ -62,6 +62,22 @@ class _HookScore(BaseModel):
 
 
 def _measure_structure(content: str) -> dict[str, Any]:
+    """Extract all structural signals needed by _apply_formula from raw Markdown.
+
+    Pure Python — no LLM call. Measurements include word count, intro length,
+    first sentence text (passed to _score_hook), average paragraph sentence
+    count, reading time, H2 heading count, sentence length CV, and whether a
+    pattern interrupt exists in the middle third of the content.
+
+    Args:
+        content: Raw Markdown post content as a string.
+
+    Returns:
+        Dict with keys: "word_count" (int), "intro_words" (int),
+        "first_sentence" (str), "avg_para_sentences" (float),
+        "reading_time_min" (float), "h2_count" (int), "sentence_cv" (float),
+        "has_pattern_interrupt" (bool).
+    """
     words = content.split()
     word_count = len(words)
 
@@ -132,6 +148,24 @@ def _apply_formula(
     signals: dict[str, Any],
     hook_score: float,
 ) -> tuple[float, list[ReadRatioFactor]]:
+    """Apply the read-ratio deduction formula to measured signals and hook score.
+
+    Starts from BASE 0.82 and subtracts per-factor deductions for: hook quality,
+    intro length, reading time (too short or too long), paragraph density,
+    missing pattern interrupt, and sentence length uniformity. Result is clamped
+    to [0.20, 0.95]. Factors are returned sorted by deduction descending so the
+    highest-impact item is always first in revision prompts.
+
+    Args:
+        signals: Dict returned by _measure_structure containing all structural
+            measurements (word_count, intro_words, avg_para_sentences, etc.).
+        hook_score: Float 0.0–1.0 from _score_hook (LLM judgment of sentence 1).
+
+    Returns:
+        Tuple of (predicted_ratio: float, factors: list[ReadRatioFactor]) where
+        factors are ordered highest deduction first and each carries a guidance
+        string for injection into revision prompts.
+    """
     factors: list[ReadRatioFactor] = []
     total = 0.0
 

@@ -1,0 +1,16 @@
+## Post Title
+{title}
+
+## Tags
+{tags}
+
+## Quality Score
+{quality_score}/1.0
+
+## Boost Eligible
+{boost_eligible}
+
+## Post Argument
+{refined_angle}
+
+Recommend 3-5 publications ordered by fit. Give a submission strategy in 2 sentences.

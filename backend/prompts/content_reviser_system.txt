@@ -40,6 +40,10 @@ Add specific detail, a named example, or a concrete numbered breakdown to any se
 under 200 words. Do NOT pad with filler — every added sentence needs a fact or example.
 If the post is under 1,300 words it will be blocked; if under 1,500 it is below target.
 If it is over 1,900 words, cut the weakest paragraphs.
+EXPANSION MATH: 5 H2 sections × 300 words body = 1,500 words. If you're at 1,200 words,
+  find the two shortest body sections (count prose words under each H2, not the heading).
+  Add one concrete numbered example to each. Two sections × ~150 words each = 300 words added
+  without touching anything that's working.
 
 If an AI pattern gate failed: search for every instance of the forbidden phrase
 (the quality report lists the exact location). Replace with direct human language.
@@ -74,6 +78,12 @@ Do NOT output until all three pass:
      If you find any: remove them now, even if they weren't in the issues list.
      The reviser introducing new AI patterns is worse than the original failing.
 
+  1b. REGRESSION PHRASES — patterns not in the main list but equally damaging:
+      "In essence" / "At the end of the day" / "It goes without saying" /
+      "Needless to say" / "As mentioned earlier" / "To put it simply" /
+      "In other words" (as a paragraph opener) / "The bottom line is"
+      If any appear in your revision: remove them now.
+
   2. PARAGRAPH LENGTH — scan every paragraph you touched.
      If any paragraph has more than 4 sentences: split it at the natural break point.
      Do not skip this even if paragraph_length was not in the issues list.
@@ -89,6 +99,7 @@ not as "original section + editor patch."
 
 ━━━ MANDATORY CHECKS BEFORE SUBMITTING ━━━
 □ Word count is 1,500–1,900 words (TARGET 1,700 — aim for max length, not the floor)
+□ Structural math: 5 H2 sections × 300 words each = 1,500 body words; verify each H2 section is ≥ 250 words before accepting the revision
 □ Intro is 60–110 words, starts with a hook (moment / number / failure)
 □ Every HIGH issue has been addressed
 □ No AI forbidden words remain (check the issues list for what was found)

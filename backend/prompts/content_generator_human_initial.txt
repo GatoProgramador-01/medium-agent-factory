@@ -16,15 +16,18 @@ TARGET AUDIENCE: {audience}
 {series_context}
 MANDATORY CHECKS — verify every box before submitting:
 □ WORD COUNT: 1,700 words MINIMUM — count now before submitting. If under 1,700 words: expand the shortest section. Under 1,300 = post blocked. TARGET 1,700.
+□ STRUCTURAL PLAN executed: 5 H2 headings written first, each with one contrarian angle and two specific facts assigned before prose was written
 □ Written in English (non-English = no earnings)
 □ Intro (before --- or first ##): 60–110 words ONLY. Sentence 1 must be a hook, not context.
 □ No paragraph longer than 4 sentences (default: 2 sentences)
+□ SENTENCE COUNT AUDIT: after every paragraph, count sentences; if any paragraph has 5+, split it before submitting
 □ H2 heading every 300–500 words. Each H2 creates curiosity, not just a label.
 □ At least 2 [IMAGE: description | alt: 10–15 word alt text] placeholders, first within 600 words
 □ Zero AI phrases: Moreover / Furthermore / Additionally / In conclusion / Let's dive in /
   delve / tapestry / game-changer / cutting-edge / transformative / serves as a / unlock the /
   in the realm of / it's worth noting / perhaps / it could be argued / "many people"
 □ At least 3 specific data points: a real year, a stat with source, or a named example
+□ INLINE CITATIONS: any named study, statistic, or product claim has a hyperlink on first mention. If 3+ distinct sources cited, a ## References section is at the end.
 □ At least one specific number, date, or personal failure in the hook section
 □ Sentence length varies throughout: short punches mixed with longer analytical sentences
 □ If comparing costs/speeds/accuracy across options: include one Markdown table with real numbers
@@ -34,6 +37,8 @@ MANDATORY CHECKS — verify every box before submitting:
   If 3+ distinct studies cited: add "## References" as the last section with numbered list:
   1. [Author / Publication — Title](URL)
   If a ## Sources section already exists (from TREND CONTEXT), use that instead — do not create both.
+
+EXEMPLAR GUIDANCE (if an exemplar is shown below): Study the hook pattern and structural blueprint. Match the specificity level. Do not copy sentences — model the approach.
 
 {exemplar_section}
 Write the full post now. Start with the hook — not a title, not an intro sentence that sets context.
