@@ -110,16 +110,33 @@ async def run_topic_refinement(
 ) -> TopicBrief:
     """Synthesizes raw topic, research data, and user grounding into a structured editorial brief.
 
+    The Story (El Relato):
+    In the story of our agent pipeline, this function is where raw, unpolished ideas are transformed
+    into structured editorial blueprints. Often, a user will supply a generic topic. The topic refiner
+    takes this raw topic, the evidence brief gathered from scanning a codebase, the web research findings,
+    and user-provided grounding notes, and feeds them to our supervisor model (Claude Sonnet). The supervisor
+    analyzes these materials to formulate a contrarian perspective, identify the reader persona, organize
+    the section outline, list verifiable key claims, and write a specific concession to build author trust.
+
+    The Flow (El Flujo):
+    1. Initialize the token tracker and retrieve the supervisor model (Sonnet).
+    2. Load system and human templates from prompts.
+    3. Truncate web research results to fit context limits (4000 characters).
+    4. Call the LLM with structured output mapping to the `TopicBrief` schema.
+    5. Ensure the LLM returned a valid `TopicBrief` model, raising an error if it returned None.
+    6. Return the finalized editorial blueprint.
+
     Args:
         run_id: Pipeline run identifier for cost tracking.
         topic: Raw topic string from the user (may be vague).
         research_results: Aggregated output from the web_researcher (Tavily results).
         grounding_context: Optional user-provided facts and context from the UI
             grounding brief. Empty string if not provided.
+        evidence_brief: Optional repository evidence brief (as a formatted string).
 
     Returns:
-        TopicBrief with refined_angle, hook_seed, target_audience, h2_structure,
-        key_claims, concession, and formatted_brief for injection into the generator.
+        TopicBrief containing refined_angle, hook_seed, target_audience, h2_structure,
+        key_claims, concession, and formatted_brief.
 
     Raises:
         ValueError: If the LLM returns None (structured output failure).
