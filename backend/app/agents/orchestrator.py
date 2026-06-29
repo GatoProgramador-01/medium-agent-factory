@@ -150,15 +150,31 @@ async def content_generation_node(state: PipelineState) -> dict[str, Any]:
                 f'(score {exemplar["score"]:.2f}) — injecting as few-shot reference',
                 data={"exemplar_title": exemplar["title"], "exemplar_score": exemplar["score"]},
             )
+        trend_context = state.get("trend_context", "")
         post = await generate_initial_post(
             run_id=run_id,
             topic=topic,
-            trend_context=state.get("trend_context", ""),
+            trend_context=trend_context,
             tags=[],
             audience="software engineers and developers building LLM agents and AI pipelines",
             exemplar_section=exemplar_section,
             series_context=state.get("series_context", ""),
         )
+        # Deterministic guard: if research included source URLs but the LLM
+        # skipped the Sources section, append it rather than relying on revision.
+        if "SOURCE URLS" in trend_context and "## Sources" not in post.content:
+            url_block = trend_context.split("SOURCE URLS")[1].strip()
+            source_lines = [
+                ln.strip() for ln in url_block.splitlines()
+                if ln.strip().startswith("- http")
+            ]
+            if source_lines:
+                post.content += "\n\n## Sources\n" + "\n".join(source_lines)
+                await log_step(
+                    run_id, "content_generator",
+                    f"Sources section auto-appended ({len(source_lines)} URLs — LLM skipped it)",
+                    level="warning",
+                )
         word_count = len(post.content.split())
         await log_step(
             run_id,

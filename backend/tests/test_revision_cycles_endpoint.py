@@ -50,6 +50,12 @@ class TestRevisionCyclesEndpoint:
         assert len(data) == 2
         assert data[0]["iteration"] == 0
         assert data[1]["passed"] is True
+        # Verify the actual MongoDB query — projection must exclude heavy fields
+        mock_db.quality_snapshots.find.assert_called_once_with(
+            {"run_id": "run-abc"},
+            {"_id": 0, "issues": 0, "revision_prompt": 0},
+            sort=[("run_id", 1), ("iteration", 1)],
+        )
 
     @pytest.mark.asyncio
     async def test_revision_cycles_empty_for_unknown_run(self):

@@ -53,17 +53,18 @@ class TestResearchTopicCollectsUrls:
             {"url": "https://source2.com", "title": "T2", "content": "Content 2"},
         ]
         with patch.object(settings, "tavily_api_key", "fake-key"):
-            with patch("app.agents.web_researcher._generate_queries", new=AsyncMock(return_value=["q1"])):
-                with patch("app.agents.web_researcher._run_search", new=AsyncMock(return_value=fake_results)):
-                    with patch("app.agents.web_researcher._synthesize") as mock_syn:
-                        from app.agents.web_researcher import ResearchBrief
-                        mock_syn.return_value = ResearchBrief(
-                            key_facts=["Fact"],
-                            named_examples=["Ex"],
-                            trend_summary="Trend",
-                            surprising_finding="Find",
-                        )
-                        result = await research_topic("run-123", "test topic")
+            with patch("app.agents.web_researcher.TavilyClient", MagicMock()):
+                with patch("app.agents.web_researcher._generate_queries", new=AsyncMock(return_value=["q1"])):
+                    with patch("app.agents.web_researcher._run_search", new=AsyncMock(return_value=fake_results)):
+                        with patch("app.agents.web_researcher._synthesize") as mock_syn:
+                            from app.agents.web_researcher import ResearchBrief
+                            mock_syn.return_value = ResearchBrief(
+                                key_facts=["Fact"],
+                                named_examples=["Ex"],
+                                trend_summary="Trend",
+                                surprising_finding="Find",
+                            )
+                            result = await research_topic("run-123", "test topic")
         assert "SOURCE URLS" in result
         assert "https://source1.com" in result
         assert "https://source2.com" in result

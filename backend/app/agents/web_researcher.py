@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.agents.base import AgentTokenTracker
 from app.agents.llm_factory import get_llm, get_model_name
+from app.agents.logger import log_step
 from app.config import settings
 
 try:
@@ -205,6 +206,13 @@ async def research_topic(run_id: str, topic: str) -> str:
     """
     if not settings.tavily_api_key:
         return ""
+    if TavilyClient is None:
+        await log_step(
+            run_id, "web_researcher",
+            "tavily package not installed — set TAVILY_API_KEY and install tavily",
+            level="error",
+        )
+        return ""
 
     queries = await _generate_queries(run_id, topic)
 
@@ -218,7 +226,7 @@ async def research_topic(run_id: str, topic: str) -> str:
 
     source_urls: list[str] = list(
         dict.fromkeys(
-            r.get("url", "")
+            r.get("url", "").rstrip("/").replace("http://", "https://")
             for batch in successful
             for r in batch
             if r.get("url")
