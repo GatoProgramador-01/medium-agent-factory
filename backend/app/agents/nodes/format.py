@@ -1,7 +1,6 @@
 from typing import Any, Dict
 from app.agents.logger import log_step
 from app.models.post import PostStatus
-from app.agents.orchestrator import _upsert_post
 from app.agents.fact_checker import inject_hyperlinks
 from app.agents.formatter import format_post
 
@@ -71,6 +70,7 @@ async def format_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 "pull_quote": result.pull_quote,
             },
         )
+        from app.agents.orchestrator import _upsert_post
         await _upsert_post(
             run_id,
             post,

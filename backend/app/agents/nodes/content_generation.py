@@ -2,7 +2,6 @@ from typing import Any, Dict
 from app.config import settings
 from app.agents.logger import log_step
 from app.models.post import PostStatus
-from app.agents.orchestrator import _upsert_post
 from app.agents.content_generator import (
     generate_initial_post,
     enforce_paragraph_sentence_limit,
@@ -70,6 +69,7 @@ async def content_generation_node(state: Dict[str, Any]) -> Dict[str, Any]:
         )
 
         # 5. Save the post draft to MongoDB
+        from app.agents.orchestrator import _upsert_post
         await _upsert_post(run_id, post, PostStatus.DRAFT, revision_count=0)
 
         return {
