@@ -86,7 +86,9 @@ testpaths = ["tests"]
 
 
 class TestRepoAnalyzer:
-    def test_analyze_returns_evidence_brief_for_local_repo(self, tmp_path: Path) -> None:
+    def test_analyze_returns_evidence_brief_for_local_repo(
+        self, tmp_path: Path
+    ) -> None:
         from app.agents.repo_analyzer import RepoAnalyzer
         from app.models.evidence_brief import EvidenceBrief
 
@@ -131,7 +133,10 @@ class TestRepoAnalyzer:
         from app.agents.repo_analyzer import RepoAnalyzer
 
         repo = tmp_path / "python-only"
-        _write(repo / "README.md", "# Worker\n\nAsync Python service with pytest tests.\n")
+        _write(
+            repo / "README.md",
+            "# Worker\n\nAsync Python service with pytest tests.\n",
+        )
         _write(
             repo / "pyproject.toml",
             """[project]
@@ -141,7 +146,10 @@ dependencies = ["pydantic>=2", "httpx>=0.28"]
 dev = ["pytest>=8"]
 """,
         )
-        _write(repo / "tests" / "test_worker.py", "def test_worker():\n    assert True\n")
+        _write(
+            repo / "tests" / "test_worker.py",
+            "def test_worker():\n    assert True\n",
+        )
 
         brief = RepoAnalyzer().analyze(repo)
 
@@ -151,7 +159,9 @@ dev = ["pytest>=8"]
         assert brief.metrics["package_manifests"] == 1
         assert brief.metrics["test_files"] == 1
 
-    def test_analyze_detects_pytest_from_test_file_content(self, tmp_path: Path) -> None:
+    def test_analyze_detects_pytest_from_test_file_content(
+        self, tmp_path: Path
+    ) -> None:
         from app.agents.repo_analyzer import RepoAnalyzer
 
         repo = tmp_path / "tests-only-signal"
@@ -159,7 +169,12 @@ dev = ["pytest>=8"]
         _write(repo / "pyproject.toml", "[project]\ndependencies = []\n")
         _write(
             repo / "tests" / "test_cli.py",
-            "import pytest\n\n@pytest.mark.parametrize('value', [1])\ndef test_cli(value):\n    assert value\n",
+            (
+                "import pytest\n\n"
+                "@pytest.mark.parametrize('value', [1])\n"
+                "def test_cli(value):\n"
+                "    assert value\n"
+            ),
         )
 
         brief = RepoAnalyzer().analyze(repo)
