@@ -1,5 +1,10 @@
 Write a complete Medium post on this topic.
 
+STRUCTURAL PLAN — execute this mentally before writing:
+5 H2 sections × 300 words each = 1,500 body words
+Hook (80 words) + transitions (60 words) + close (60 words) = 200 words overhead
+TOTAL TARGET: 1,700 words MINIMUM. Self-count after writing — if under 1,700, expand the shortest H2 section with one more concrete numbered example before submitting.
+
 TOPIC: {topic}
 
 TREND CONTEXT (use this to make the content timely and specific):
@@ -10,8 +15,8 @@ TARGET AUDIENCE: {audience}
 
 {series_context}
 MANDATORY CHECKS — verify every box before submitting:
+□ WORD COUNT: 1,700 words MINIMUM — count now before submitting. If under 1,700 words: expand the shortest section. Under 1,300 = post blocked. TARGET 1,700.
 □ Written in English (non-English = no earnings)
-□ 1,500–1,900 words TARGET 1,700 — count before submitting; each H2 section = 250–350 words; if under 1,700, expand the shortest section with one more concrete numbered example
 □ Intro (before --- or first ##): 60–110 words ONLY. Sentence 1 must be a hook, not context.
 □ No paragraph longer than 4 sentences (default: 2 sentences)
 □ H2 heading every 300–500 words. Each H2 creates curiosity, not just a label.
@@ -25,6 +30,7 @@ MANDATORY CHECKS — verify every box before submitting:
 □ If comparing costs/speeds/accuracy across options: include one Markdown table with real numbers
 □ If describing a technical solution or code pattern: include one code block (5–15 lines) tied to a dollar or time saving in the same paragraph
 □ Close with a SPECIFIC question or forward prediction — not "What do you think?" or "Drop a comment"
+□ SOURCES SECTION (required when research is provided): If the TREND CONTEXT above contains source URLs, add "## Sources" as the LAST section. List each URL as: - [domain name](full_url). Max 8 sources.
 
 {exemplar_section}
 Write the full post now. Start with the hook — not a title, not an intro sentence that sets context.

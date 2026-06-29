@@ -132,6 +132,20 @@ export type Summary = {
   deepseek_cost_usd: number;
 };
 
+export type RevisionSnapshot = {
+  run_id: string;
+  iteration: number;
+  score: number;
+  read_ratio: number;
+  word_count: number;
+  medium_boost_eligible: boolean;
+  passed: boolean;
+  gate_failures: string[];
+  issue_summary: { high: number; medium: number; low: number; total: number };
+  strengths: string[];
+  topic?: string;
+};
+
 export type CostComparison = {
   claude_cost_usd: number;
   claude_tokens_in: number;
@@ -213,6 +227,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ theme, context: context ?? "" }),
     }),
+
+  revisionCycles: (limit = 100) =>
+    request<RevisionSnapshot[]>(`/analytics/revision-cycles?limit=${limit}`),
 
   /** Open an SSE connection to the live log stream for a run. */
   streamLogs: (runId: string): EventSource =>

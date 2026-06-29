@@ -122,6 +122,24 @@ async def summary() -> dict[str, Any]:
     }
 
 
+@router.get("/revision-cycles")
+async def revision_cycles(run_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    """Quality score progression across revision cycles for a run (or recent runs)."""
+    db = get_db()
+    query: dict[str, Any] = {"run_id": run_id} if run_id else {}
+    cursor = db.quality_snapshots.find(
+        query,
+        {"_id": 0, "issues": 0, "revision_prompt": 0},  # exclude heavy fields
+        sort=[("run_id", 1), ("iteration", 1)],
+    )
+    docs = cast(list[dict[str, Any]], await cursor.to_list(length=limit))
+    # Ensure score is rounded
+    for doc in docs:
+        doc["score"] = round(doc.get("score", 0), 3)
+        doc["read_ratio"] = round(doc.get("read_ratio", 0), 3)
+    return docs
+
+
 @router.get("/cost-comparison")
 async def cost_comparison() -> dict[str, Any]:
     """Claude historical cost vs DeepSeek current cost with savings calculation.

@@ -159,7 +159,11 @@ async def _synthesize(
     return brief
 
 
-def _format_brief(brief: ResearchBrief, queries: list[str]) -> str:
+def _format_brief(
+    brief: ResearchBrief,
+    queries: list[str],
+    source_urls: list[str] | None = None,
+) -> str:
     facts = (
         "\n".join(f"• {f}" for f in brief.key_facts)
         if brief.key_facts
@@ -172,6 +176,11 @@ def _format_brief(brief: ResearchBrief, queries: list[str]) -> str:
     )
     query_list = " | ".join(f'"{q}"' for q in queries)
 
+    sources_block = (
+        "\n\nSOURCE URLS (add a ## Sources section at the end of your post with these):\n"
+        + "\n".join(f"- {url}" for url in (source_urls or [])[:8])
+    ) if source_urls else ""
+
     return (
         "RESEARCH FINDINGS — ground your post with these verified data points "
         "(do not cite anything not listed here):\n\n"
@@ -180,6 +189,7 @@ def _format_brief(brief: ResearchBrief, queries: list[str]) -> str:
         f"CURRENT TREND:\n{brief.trend_summary}\n\n"
         f"SURPRISING FINDING:\n{brief.surprising_finding}\n\n"
         f"Search queries used: {query_list}"
+        f"{sources_block}"
     )
 
 
@@ -206,5 +216,14 @@ async def research_topic(run_id: str, topic: str) -> str:
     if not successful:
         return ""
 
+    source_urls: list[str] = list(
+        dict.fromkeys(
+            r.get("url", "")
+            for batch in successful
+            for r in batch
+            if r.get("url")
+        )
+    )[:8]
+
     brief = await _synthesize(run_id, topic, successful)
-    return _format_brief(brief, queries)
+    return _format_brief(brief, queries, source_urls)

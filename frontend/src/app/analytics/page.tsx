@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { api, type AgentUsage, type RunUsage, type CostComparison } from "@/lib/api";
+import { api, type AgentUsage, type RunUsage, type CostComparison, type RevisionSnapshot } from "@/lib/api";
 import CostComparisonPanel from "@/components/CostComparisonPanel";
+import RevisionCyclesPanel from "@/components/RevisionCyclesPanel";
 
 const AgentCharts = dynamic(() => import("@/components/AgentCharts"), { ssr: false });
 
@@ -32,17 +33,24 @@ function MetricCard({
 }
 
 export default function AnalyticsPage() {
-  const [usage, setUsage]                       = useState<AgentUsage[]>([]);
-  const [byRun, setByRun]                       = useState<RunUsage[]>([]);
-  const [costComparison, setCostComparison]     = useState<CostComparison | null>(null);
-  const [loading, setLoading]                   = useState(true);
+  const [usage, setUsage]                         = useState<AgentUsage[]>([]);
+  const [byRun, setByRun]                         = useState<RunUsage[]>([]);
+  const [costComparison, setCostComparison]       = useState<CostComparison | null>(null);
+  const [revisionCycles, setRevisionCycles]       = useState<RevisionSnapshot[]>([]);
+  const [loading, setLoading]                     = useState(true);
 
   useEffect(() => {
-    Promise.all([api.tokenUsage(), api.tokenUsageByRun(), api.costComparison()])
-      .then(([u, r, c]) => {
+    Promise.all([
+      api.tokenUsage(),
+      api.tokenUsageByRun(),
+      api.costComparison(),
+      api.revisionCycles(),
+    ])
+      .then(([u, r, c, rc]) => {
         setUsage(u);
         setByRun(r);
         setCostComparison(c);
+        setRevisionCycles(rc);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -58,7 +66,7 @@ export default function AnalyticsPage() {
 
       {/* ── Page heading ── */}
       <div>
-        <span className="section-label">Overview</span>
+        <span className="section-label">DeepSeek V3</span>
         <h1
           className="text-3xl font-bold mt-1"
           data-testid="page-heading"
@@ -67,7 +75,7 @@ export default function AnalyticsPage() {
           Analytics
         </h1>
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-          LLM cost &amp; performance breakdown
+          Real-time cost tracking · all figures from MongoDB, not LangSmith
         </p>
       </div>
 
@@ -165,6 +173,9 @@ export default function AnalyticsPage() {
           </div>
         )}
       </div>
+
+      {/* ── Revision Cycles Panel ── */}
+      <RevisionCyclesPanel snapshots={revisionCycles} loading={loading} />
 
       {/* ── Cost by run table ── */}
       <div className="panel" data-testid="by-run-table">
