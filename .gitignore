@@ -30,3 +30,8 @@ frontend/tsconfig.tsbuildinfo
 .codex/
 .agents/
 .vscode/
+
+# Docusaurus
+website/node_modules/
+website/.docusaurus/
+website/build/
