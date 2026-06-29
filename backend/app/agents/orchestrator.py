@@ -73,6 +73,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.post import PostStatus, QualityIssue, QualityReport, VerificationResult
 from app.agents.repo_analyzer import RepoAnalyzer
+from app.agents.topic_refiner import run_topic_refinement
 
 class PipelineState(TypedDict):
     run_id: str

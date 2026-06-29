@@ -1,6 +1,5 @@
 from datetime import UTC, datetime
 from typing import Any, Dict, List, Tuple
-from app.config import settings
 from app.models.post import QualityIssue, QualityReport, ReadRatioFactor
 from app.agents.read_ratio_analyzer import analyze_read_ratio
 
@@ -101,6 +100,7 @@ def _gate_check(report: QualityReport) -> Tuple[bool, List[str]]:
     Returns:
         Tuple of (passed, list of failure reasons).
     """
+    from app.agents.orchestrator import settings
     failures: List[str] = []
 
     if report.score < settings.min_quality_score:

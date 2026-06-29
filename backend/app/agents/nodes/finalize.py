@@ -1,7 +1,6 @@
 import asyncio
 from datetime import UTC, datetime
 from typing import Any, Dict, List, Tuple
-from app.config import settings
 from app.models.post import PostStatus, QualityReport, VerificationResult
 
 async def finalize_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -165,6 +164,7 @@ def _compute_publication_recommendation(state: dict) -> tuple[bool, float]:
       - confidence: 0.0-1.0 score weighted by quality_score (0.5), read_ratio (0.3),
                     and revision progress (0.2); capped at 0.70 when max revisions exhausted
     """
+    from app.agents.orchestrator import settings
     if state.get("errors") or state.get("quality_report") is None:
         return (False, 0.0)
 

@@ -1,6 +1,4 @@
 from typing import Any, Dict
-from app.config import settings
-from app.agents.logger import log_step
 from app.models.post import PostStatus
 from app.agents.nodes.quality_analysis import _gate_check
 from app.agents.read_ratio_analyzer import format_factors_breakdown
@@ -38,6 +36,7 @@ async def content_revision_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "post" (revised GeneratedPost), "revision_count" (incremented),
         and "completed_steps". Or "errors" dict on failure.
     """
+    from app.agents.orchestrator import log_step, settings
     run_id = state["run_id"]
     post = state["post"]
     report = state["quality_report"]
@@ -135,6 +134,7 @@ async def _execute_expansion_strategy(run_id: str, post: Any, revision_number: i
     post.content = post.content + "\n\n" + new_section
     word_count_new = len(post.content.split())
     
+    from app.agents.orchestrator import log_step, _upsert_post
     await log_step(
         run_id,
         "content_generator",
@@ -143,7 +143,6 @@ async def _execute_expansion_strategy(run_id: str, post: Any, revision_number: i
         level="success",
         data={"title": post.title, "word_count": word_count_new, "mode": "expand"},
     )
-    from app.agents.orchestrator import _upsert_post
     await _upsert_post(run_id, post, PostStatus.REVISED, revision_count=revision_number)
     return post
 
@@ -184,6 +183,7 @@ async def _execute_rewrite_strategy(
     )
     word_count = len(revised.content.split())
     
+    from app.agents.orchestrator import log_step, _upsert_post
     await log_step(
         run_id,
         "content_generator",
@@ -192,6 +192,5 @@ async def _execute_rewrite_strategy(
         level="success",
         data={"title": revised.title, "word_count": word_count},
     )
-    from app.agents.orchestrator import _upsert_post
     await _upsert_post(run_id, revised, PostStatus.REVISED, revision_count=revision_number)
     return revised

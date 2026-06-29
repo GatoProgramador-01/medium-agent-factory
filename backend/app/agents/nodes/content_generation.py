@@ -1,6 +1,4 @@
 from typing import Any, Dict
-from app.config import settings
-from app.agents.logger import log_step
 from app.models.post import PostStatus
 from app.agents.content_generator import (
     generate_initial_post,
@@ -36,6 +34,7 @@ async def content_generation_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "post" (GeneratedPost), "revision_count" (0), and
         "completed_steps" log. Or "errors" dict on failure.
     """
+    from app.agents.orchestrator import log_step, settings
     run_id = state["run_id"]
     topic = state.get("refined_topic") or state["custom_topic"]
 
