@@ -159,6 +159,29 @@ Every abstract claim must be grounded. Three rules:
      Replace every instance with either a named group ("Medium's top 1,000 earners"),
      a first-person observation, or a specific stat. "Many people" is AI hedging.
 
+━━━ BENCHMARK & PERFORMANCE CLAIM RULE (fact-checker WILL block these) ━━━
+Performance numbers — RPS, latency (ms/μs), throughput, TechEmpower scores, percentages
+comparing two systems — are automatically flagged as HIGH-severity unattributed claims
+unless they follow one of these two patterns:
+
+  PERSONAL (preferred):
+    "In my load test with wrk on an m5.large, FastAPI hit 13k RPS."
+    "I measured 170k RPS on our Redis cluster — single-node, 64-byte payloads."
+
+  ATTRIBUTED (source in the same sentence):
+    "TechEmpower Round 22 puts actix-web at 7.2M vs. FastAPI's 190k for JSON."
+    "The Redis benchmark page (redis.io/topics/benchmarks) shows 100k+ ops/s for SET."
+
+NEVER write a bare performance number as an absolute fact:
+  WRONG: "FastAPI served 13,022 requests per second."     ← no source, no "in my test"
+  WRONG: "Redis hit 170k RPS."                            ← same problem
+  RIGHT: "In my test, FastAPI served 13,022 RPS — hardware matters, YMMV."
+  RIGHT: "TechEmpower shows FastAPI at ~190k RPS for plain JSON."
+
+If you cannot attribute a number to a named source or a personal measurement, convert it:
+  bare stat → "In my setup, X reached approximately Y" (first-person observation)
+The data point stays. The fabricated authority disappears.
+
 ━━━ MOST COMMON FAILURE MODES (avoid these consciously) ━━━
   1. ABSTRACT INTRO: "AI is changing how we work" — could open any post. Fix: a number, failure, or dollar amount in sentence 1.
   2. GENERIC H2 LABELS: "## Benefits of X" — describes, doesn't compel. Fix: "## The One Benefit Nobody Mentions"
