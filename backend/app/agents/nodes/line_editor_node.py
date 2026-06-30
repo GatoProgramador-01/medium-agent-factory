@@ -24,11 +24,47 @@ from typing import Any, Dict
 
 from app.agents.nodes._sentence_utils import compute_sentence_variance, strip_code_blocks
 
-# Passive voice: auxiliary verb + past participle pattern
-_PASSIVE_PATTERN = re.compile(
+# Passive voice — Part 1: regular suffix passives (auxiliary + word ending -ed/-en)
+_PASSIVE_SUFFIX_RE = re.compile(
     r"\b(was|were|is|are|has been|have been|had been|will be|being)\s+\w+(ed|en)\b",
     re.IGNORECASE,
 )
+
+# Passive voice — Part 2: irregular past participles that suffix check misses
+_IRREGULAR_VBN = {
+    "built", "written", "known", "done", "made", "found", "sent", "sold",
+    "told", "shown", "seen", "given", "brought", "caught", "kept", "left",
+    "put", "set", "held", "led", "read", "run", "come", "become", "begun",
+    "broken", "chosen", "driven", "fallen", "grown", "risen", "spoken",
+    "stolen", "taken", "thrown", "worn", "won",
+}
+
+_PASSIVE_IRREGULAR_RE = re.compile(
+    r"\b(was|were|is|are|has been|have been|had been|will be|being)\s+("
+    + "|".join(sorted(_IRREGULAR_VBN))
+    + r")\b",
+    re.IGNORECASE,
+)
+
+
+def _is_passive_sentence(sentence: str) -> bool:
+    """Return True if sentence contains a passive-voice construction."""
+    return bool(_PASSIVE_SUFFIX_RE.search(sentence) or _PASSIVE_IRREGULAR_RE.search(sentence))
+
+
+# Abbreviation protection — prevents false sentence splits on "Dr. Smith", "U.S. companies", etc.
+_ABBREV_RE = re.compile(
+    r"\b(Dr|Mr|Mrs|Ms|Prof|Sr|Jr|vs|Fig|etc|approx|U\.S|U\.K|e\.g|i\.e)\."
+)
+
+
+def _protect_abbreviations(text: str) -> str:
+    """Replace abbreviation dots with a placeholder to prevent false sentence splits."""
+    return _ABBREV_RE.sub(lambda m: m.group(0).replace(".", "ABBREVDOT"), text)
+
+
+def _restore_abbreviations(text: str) -> str:
+    return text.replace("ABBREVDOT", ".")
 
 
 async def line_editor_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -76,8 +112,10 @@ async def line_editor_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "completed_steps": ["line_edit_check"],
         }
 
-    # 1. Split into sentences
-    sentences = [s.strip() for s in re.split(r"[.!?]+\s+", prose_content.strip()) if s.strip()]
+    # 1. Split into sentences (protect abbreviations first to avoid false splits)
+    protected = _protect_abbreviations(prose_content.strip())
+    raw_sentences = re.split(r"[.!?]+\s+", protected)
+    sentences = [_restore_abbreviations(s.strip()) for s in raw_sentences if s.strip()]
     sentence_count = len(sentences)
 
     word_counts = [len(s.split()) for s in sentences]
@@ -89,9 +127,9 @@ async def line_editor_node(state: Dict[str, Any]) -> Dict[str, Any]:
     long_sentences = sum(1 for wc in word_counts if wc > 30)
     long_sentence_ratio = long_sentences / sentence_count if sentence_count else 0.0
 
-    # 4. Passive voice ratio
-    passive_matches = len(_PASSIVE_PATTERN.findall(prose_content))
-    passive_voice_ratio = passive_matches / sentence_count if sentence_count else 0.0
+    # 4. Passive voice ratio (per-sentence check covers both suffix and irregular forms)
+    passive_count = sum(1 for s in sentences if _is_passive_sentence(s))
+    passive_voice_ratio = passive_count / sentence_count if sentence_count else 0.0
 
     # 5. Sentence length standard deviation (compute_sentence_variance already returns stdev)
     stdev_result = compute_sentence_variance(prose_content)
@@ -100,7 +138,8 @@ async def line_editor_node(state: Dict[str, Any]) -> Dict[str, Any]:
     # 6. Scoring
     passive_penalty = min(0.50, passive_voice_ratio * 2.0)
     long_penalty = min(0.30, long_sentence_ratio * 0.60)
-    variety_bonus = min(0.20, (stdev / 15.0) * 0.20)
+    # Suppress variety bonus when post is already dominated by long sentences (≥50%)
+    variety_bonus = 0.0 if long_sentence_ratio >= 0.5 else min(0.20, (stdev / 15.0) * 0.20)
 
     line_edit_score = round(
         max(0.0, min(1.0, 1.0 - passive_penalty - long_penalty + variety_bonus)),

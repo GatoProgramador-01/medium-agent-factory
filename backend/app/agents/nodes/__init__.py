@@ -46,6 +46,9 @@ from app.agents.nodes.truth_enforcer_node import (
 from app.agents.nodes.line_editor_node import (
     line_editor_node as line_editor_node,
 )
+from app.agents.nodes.copy_editor_node import (
+    copy_editor_node as copy_editor_node,
+)
 from app.agents.nodes.structure_validator_node import (
     structure_validator_node as structure_validator_node,
 )

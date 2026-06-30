@@ -23,21 +23,16 @@ import re
 import statistics
 from typing import Any, Dict
 
-_HEADING_PATTERN = re.compile(r"^#{1,3} \w", re.MULTILINE)
+_HEADING_PATTERN = re.compile(r"^#{2,3} \w", re.MULTILINE)
 _BULLET_LIST_PATTERN = re.compile(r"^[\-\*\+] \w", re.MULTILINE)
 _NUMBERED_LIST_PATTERN = re.compile(r"^\d+\. \w", re.MULTILINE)
 
 _CONCLUSION_SIGNALS = [
-    "in summary",
-    "in conclusion",
-    "key takeaway",
-    "remember",
-    "final thought",
-    "to summarize",
-    "bottom line",
-    "in short",
-    "takeaway",
-    "conclusion",
+    "in summary", "in conclusion", "key takeaway", "key insight",
+    "remember", "final thought", "to summarize", "bottom line",
+    "in short", "takeaway", "what this means", "to recap",
+    "the key lesson", "what you should", "to put it simply",
+    "the main point", "going forward", "at the end of the day",
 ]
 
 
@@ -89,7 +84,8 @@ async def structure_validator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     has_conclusion_signals = any(signal in tail for signal in _CONCLUSION_SIGNALS)
 
     # 5. Scoring
-    heading_score = min(0.30, (heading_count / 4.0) * 0.30)
+    # 5+ headings = full score (more generous for long-form technical posts)
+    heading_score = min(0.30, (heading_count / 5.0) * 0.30)
     list_score = 0.20 if has_lists else 0.0
     conclusion_score = 0.25 if has_conclusion_signals else 0.0
 

@@ -76,6 +76,9 @@ from app.agents.nodes.line_editor_node import (
 from app.agents.nodes.structure_validator_node import (
     structure_validator_node as structure_validator_node,
 )
+from app.agents.nodes.copy_editor_node import (
+    copy_editor_node as copy_editor_node,
+)
 from app.agents.nodes import (
     content_generation_node as content_generation_node,
 )
@@ -198,6 +201,9 @@ class PipelineState(TypedDict):
     structure_score: float | None
     structure_metrics: dict[str, Any] | None
     structure_passed: bool | None
+    copy_edit_score: float | None
+    copy_edit_metrics: dict[str, Any] | None
+    copy_edit_passed: bool | None
 
 
 def route_after_quality(state: PipelineState) -> str:
@@ -249,7 +255,7 @@ def build_graph() -> Any:
     (from repo analysis to publication finalization). It establishes the execution sequence,
     defining how drafts are written, revised, tested, and stored.
 
-    Pipeline ASCII diagram (Sprint 28):
+    Pipeline ASCII diagram (Sprint 29):
 
         START
           |
@@ -257,7 +263,7 @@ def build_graph() -> Any:
           → intro_ab_testing → series_coherence → title_optimization
           → fact_check → ai_slop_check → truth_enforcement
           → human_voice_check → line_edit_check → structure_check
-          → quality_analysis
+          → copy_edit_check → quality_analysis
                 |
           [route_after_quality]
           /              \\
@@ -293,6 +299,7 @@ def build_graph() -> Any:
     g.add_node("human_voice_check", cast(Any, human_voice_scorer_node))
     g.add_node("line_edit_check", cast(Any, line_editor_node))
     g.add_node("structure_check", cast(Any, structure_validator_node))
+    g.add_node("copy_edit_check", cast(Any, copy_editor_node))
     g.add_node("quality_analysis", cast(Any, quality_analysis_node))
     g.add_node("revision", cast(Any, content_revision_node))
     g.add_node("close_optimization", cast(Any, close_optimization_node))
@@ -313,7 +320,8 @@ def build_graph() -> Any:
     g.add_edge("truth_enforcement", "human_voice_check")
     g.add_edge("human_voice_check", "line_edit_check")
     g.add_edge("line_edit_check", "structure_check")
-    g.add_edge("structure_check", "quality_analysis")
+    g.add_edge("structure_check", "copy_edit_check")
+    g.add_edge("copy_edit_check", "quality_analysis")
     g.add_conditional_edges(
         "quality_analysis",
         route_after_quality,
@@ -419,6 +427,24 @@ async def run_pipeline(
         "image_enrichment_changes": [],
         "repo_path": repo_path,
         "evidence_brief": None,
+        "structural_check_issues": [],
+        "ai_slop_issues": [],
+        "ai_slop_score": 0.0,
+        "ai_slop_passed": None,
+        "unattributed_numbers": [],
+        "truth_enforcer_passed": None,
+        "human_voice_score": None,
+        "human_voice_metrics": None,
+        "human_voice_passed": None,
+        "line_edit_score": None,
+        "line_edit_metrics": None,
+        "line_edit_passed": None,
+        "structure_score": None,
+        "structure_metrics": None,
+        "structure_passed": None,
+        "copy_edit_score": None,
+        "copy_edit_metrics": None,
+        "copy_edit_passed": None,
     }
 
     final_state = await pipeline.ainvoke(initial_state)

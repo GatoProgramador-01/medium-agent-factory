@@ -113,6 +113,14 @@ async def quality_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 level="warning",
                 data={"structure_score": state.get("structure_score"), "structure_metrics": state.get("structure_metrics")},
             )
+        if state.get("copy_edit_passed") is False:
+            await log_step(
+                run_id,
+                "quality_analyzer",
+                "copy_edit_check_failed — copy editing issues detected",
+                level="warning",
+                data={"copy_edit_score": state.get("copy_edit_score"), "copy_edit_metrics": state.get("copy_edit_metrics")},
+            )
 
         # 3. Evaluate quality gates
         passed, gate_failures = _gate_check(report)
