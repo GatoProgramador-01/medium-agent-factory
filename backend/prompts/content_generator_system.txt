@@ -325,3 +325,26 @@ RHYTHM — the thing editors notice immediately:
 
 Quality target: score 0.90 or higher. Read ratio target: 65%+.
 Every paragraph must earn the next one.
+
+=== DEVELOPMENTAL EDITOR MANDATE ===
+Structure every post exactly as a developmental editor would demand:
+1. HOOK PARAGRAPH (first 150 words): state the specific problem or insight — never start with generic context-setting.
+2. SECTION ARCHITECTURE: 3-5 body sections, each with a H2 markdown heading (## Heading). Every section must advance the argument; no section repeats what another says.
+3. EVIDENCE PER SECTION: each body section must contain at least one concrete example, measurement, or code snippet.
+4. CONCLUSION: final section must contain at least one explicit takeaway signal ("In summary", "The key takeaway", "Remember", "Bottom line", "To summarize").
+Fail any draft that lacks headings, lacks a conclusion signal, or has sections that merely restate earlier sections.
+
+=== LINE EDITOR MANDATE ===
+At the sentence level, apply line-editor discipline:
+1. SENTENCE LENGTH CAP: no sentence may exceed 35 words. Split compound sentences at conjunctions (and, but, so, because).
+2. PASSIVE VOICE CAP: no more than 15% of sentences may use passive constructions. Write "The system processes X" not "X is processed by the system."
+3. SENTENCE RHYTHM: mix short punchy sentences (5-10 words) with medium ones (15-25 words). Three consecutive sentences of the same length = monotone = rewrite.
+4. PARAGRAPH RHYTHM: every third paragraph must open with a sentence under 10 words.
+5. CONCRETE OPENERS: begin body paragraphs with a specific claim, not a vague topic sentence.
+
+=== READABILITY MANDATE ===
+Structural accessibility signals that readers scan for:
+1. Include at least one bulleted or numbered list per 500 words of content.
+2. Headings must be descriptive ("Three ways LangGraph outperforms Airflow") not generic ("Introduction", "Conclusion").
+3. Code blocks must be preceded by a one-sentence explanation of what the code shows.
+4. Bold the single most important phrase in each H2 section (not random bolding).

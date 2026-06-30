@@ -4,6 +4,18 @@ import re
 import statistics
 
 
+def strip_code_blocks(content: str) -> str:
+    """Remove fenced and inline code blocks before text analysis.
+
+    Prevents false positives from code literals (ports, versions, variable names).
+    """
+    # Single-pass: matches all ``` forms regardless of language tag or newline position
+    content = re.sub(r"```[\s\S]*?```", "", content)
+    # Remove inline code
+    content = re.sub(r"`[^`\n]+`", "", content)
+    return content
+
+
 def compute_sentence_variance(content: str) -> float | None:
     """Compute word count standard deviation across sentences.
 

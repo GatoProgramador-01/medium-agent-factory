@@ -97,6 +97,22 @@ async def quality_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 level="warning",
                 data={"human_voice_score": state.get("human_voice_score"), "human_voice_metrics": state.get("human_voice_metrics")},
             )
+        if state.get("line_edit_passed") is False:
+            await log_step(
+                run_id,
+                "quality_analyzer",
+                "line_edit_check_failed — poor prose quality detected",
+                level="warning",
+                data={"line_edit_score": state.get("line_edit_score"), "line_edit_metrics": state.get("line_edit_metrics")},
+            )
+        if state.get("structure_passed") is False:
+            await log_step(
+                run_id,
+                "quality_analyzer",
+                "structure_check_failed — structural completeness issues",
+                level="warning",
+                data={"structure_score": state.get("structure_score"), "structure_metrics": state.get("structure_metrics")},
+            )
 
         # 3. Evaluate quality gates
         passed, gate_failures = _gate_check(report)
@@ -167,6 +183,20 @@ def _gate_check(report: QualityReport) -> Tuple[bool, List[str]]:
             failures.append(
                 f"{len(ai_blocks)} high-severity AI pattern(s): "
                 + "; ".join(i.category for i in ai_blocks[:2])
+            )
+
+    # Block on unattributed numbers — any HIGH truth-enforcement failure blocks publication.
+    # category="unattributed_number" does NOT start with "ai_" so it was previously invisible
+    # to the ai_patterns gate above; this explicit check closes that blind spot.
+    if settings.block_unattributed_numbers:
+        unattributed_blocks = [
+            i
+            for i in report.issues
+            if i.category == "unattributed_number" and i.severity.lower() == "high"
+        ]
+        if unattributed_blocks:
+            failures.append(
+                f"{len(unattributed_blocks)} unattributed number(s) require source attribution"
             )
 
     if report.word_count < settings.min_word_count:

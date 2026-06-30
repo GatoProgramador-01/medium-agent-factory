@@ -36,12 +36,18 @@ class TestRevisionLoopIncludesFactCheck:
         assert ("revision", "fact_check") in self.edges, (
             "fact_check must re-run after every revision"
         )
-        # fact_check now chains through slop/truth/voice checks before quality_analysis
+        # fact_check chains through slop/truth/voice/line_edit/structure before quality_analysis
         assert ("fact_check", "ai_slop_check") in self.edges, (
             "fact_check must feed ai_slop_check"
         )
-        assert ("human_voice_check", "quality_analysis") in self.edges, (
-            "human_voice_check must always feed into quality_analysis"
+        assert ("human_voice_check", "line_edit_check") in self.edges, (
+            "human_voice_check must feed line_edit_check (Sprint 28)"
+        )
+        assert ("line_edit_check", "structure_check") in self.edges, (
+            "line_edit_check must feed structure_check (Sprint 28)"
+        )
+        assert ("structure_check", "quality_analysis") in self.edges, (
+            "structure_check must always feed into quality_analysis"
         )
 
     def test_revision_loop_does_not_bypass_fact_check(self):
@@ -58,7 +64,7 @@ class TestFactCheckGraphConnectivity:
 
     def test_all_paths_to_quality_analysis_pass_through_fact_check(self):
         predecessors = {src for src, tgt in self.edges if tgt == "quality_analysis"}
-        # human_voice_check is the last in the chain: fact_check → ai_slop_check → truth_enforcement → human_voice_check → quality_analysis
-        assert predecessors == {"human_voice_check"}, (
-            f"Only human_voice_check should feed quality_analysis directly, got: {predecessors}"
+        # structure_check is last in chain: fact_check → ai_slop_check → truth_enforcement → human_voice_check → line_edit_check → structure_check → quality_analysis
+        assert predecessors == {"structure_check"}, (
+            f"Only structure_check should feed quality_analysis directly, got: {predecessors}"
         )

@@ -63,6 +63,7 @@ class _FakeSettings:
     min_quality_score = 0.70
     min_read_ratio = 0.40
     block_high_ai_patterns = True
+    block_unattributed_numbers = True
     min_word_count = 800
 
 
@@ -198,3 +199,127 @@ class TestQualityAnalysisNodeStructuralMerge:
         assert len(report.issues) == 0, (
             "Empty structural_check_issues must not inject phantom issues"
         )
+
+    # ------------------------------------------------------------------
+    # Gate-contract tests (Codex Finding 1 — unattributed_number blind spot)
+    # ------------------------------------------------------------------
+
+    def test_unattributed_number_blocks_gate(self) -> None:
+        """_gate_check must return False when a HIGH unattributed_number issue is present.
+
+        Before the fix, category='unattributed_number' did not start with 'ai_' so the
+        ai_patterns gate skipped it entirely — truth-enforcement failures silently passed.
+        """
+        from app.agents.nodes.quality_analysis import _gate_check
+        from app.models.post import QualityIssue, QualityReport
+
+        class _Settings:
+            min_quality_score = 0.70
+            min_read_ratio = 0.40
+            block_high_ai_patterns = True
+            block_unattributed_numbers = True
+            min_word_count = 800
+
+        report = QualityReport(
+            score=0.85,
+            read_ratio_prediction=0.70,
+            medium_boost_eligible=True,
+            issues=[
+                QualityIssue(
+                    category="unattributed_number",
+                    severity="high",
+                    location="paragraph 2",
+                    suggestion="Cite the source for '42%'.",
+                )
+            ],
+            strengths=[],
+            revision_prompt="",
+            word_count=1400,
+        )
+
+        with patch("app.agents.orchestrator.settings", _Settings()):
+            passed, failures = _gate_check(report)
+
+        assert passed is False, (
+            "_gate_check must return False for HIGH unattributed_number — "
+            "truth-enforcement failures must block publication"
+        )
+        assert any("unattributed" in f for f in failures), (
+            "Failure message must mention unattributed numbers"
+        )
+
+    def test_ai_slop_still_blocks_gate(self) -> None:
+        """Regression: HIGH ai_slop issues must still block the gate after the fix."""
+        from app.agents.nodes.quality_analysis import _gate_check
+        from app.models.post import QualityIssue, QualityReport
+
+        class _Settings:
+            min_quality_score = 0.70
+            min_read_ratio = 0.40
+            block_high_ai_patterns = True
+            block_unattributed_numbers = True
+            min_word_count = 800
+
+        report = QualityReport(
+            score=0.85,
+            read_ratio_prediction=0.70,
+            medium_boost_eligible=True,
+            issues=[
+                QualityIssue(
+                    category="ai_slop",
+                    severity="high",
+                    location="paragraph 1",
+                    suggestion="Remove 'in the ever-evolving landscape of'.",
+                )
+            ],
+            strengths=[],
+            revision_prompt="",
+            word_count=1400,
+        )
+
+        with patch("app.agents.orchestrator.settings", _Settings()):
+            passed, failures = _gate_check(report)
+
+        assert passed is False, (
+            "HIGH ai_slop must still block the gate — regression check"
+        )
+        assert any("AI pattern" in f for f in failures), (
+            "Failure message must mention AI patterns"
+        )
+
+    def test_clean_report_passes_gate(self) -> None:
+        """A report with no HIGH issues and all metrics above thresholds must pass."""
+        from app.agents.nodes.quality_analysis import _gate_check
+        from app.models.post import QualityIssue, QualityReport
+
+        class _Settings:
+            min_quality_score = 0.70
+            min_read_ratio = 0.40
+            block_high_ai_patterns = True
+            block_unattributed_numbers = True
+            min_word_count = 800
+
+        report = QualityReport(
+            score=0.82,
+            read_ratio_prediction=0.68,
+            medium_boost_eligible=True,
+            issues=[
+                QualityIssue(
+                    category="readability",
+                    severity="low",
+                    location="paragraph 3",
+                    suggestion="Shorten this sentence.",
+                )
+            ],
+            strengths=["Strong hook"],
+            revision_prompt="",
+            word_count=1500,
+        )
+
+        with patch("app.agents.orchestrator.settings", _Settings()):
+            passed, failures = _gate_check(report)
+
+        assert passed is True, (
+            "A clean report with no HIGH issues and all metrics above thresholds must pass"
+        )
+        assert failures == [], f"Unexpected gate failures: {failures}"

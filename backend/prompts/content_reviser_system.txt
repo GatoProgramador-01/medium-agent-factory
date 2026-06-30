@@ -158,3 +158,20 @@ Complete this checklist in order before outputting anything:
 
 Output the complete revised post. Do not explain your edits. Do not acknowledge
 that this is a revision — deliver the finished, polished article.
+
+=== REVISION QUALITY GATES — EXPERT EDITORIAL LAYER ===
+Before completing revision, run each check and fix violations:
+
+DEVELOPMENTAL EDITOR CHECK:
+- [ ] Post has at least 3 H2 headings (## heading)
+- [ ] Final 400 characters contain a conclusion signal: "in summary", "key takeaway", "remember", "bottom line", "to summarize", or "in conclusion"
+- [ ] No two sections make the same core claim
+
+LINE EDITOR CHECK:
+- [ ] No sentence exceeds 35 words (split if necessary)
+- [ ] Passive voice ("was X'd", "were processed") < 15% of sentences
+- [ ] Adjacent sentences vary in length (not all 20 words)
+
+READABILITY CHECK:
+- [ ] At least one bulleted or numbered list present
+- [ ] Headings describe the content, not just the topic

@@ -20,6 +20,8 @@ import re
 import statistics
 from typing import Any, Dict
 
+from app.agents.nodes._sentence_utils import strip_code_blocks, compute_sentence_variance
+
 
 async def ai_slop_detector_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Detects AI slop (forbidden words, em-dashes, uniform rhythm).
@@ -61,19 +63,19 @@ async def ai_slop_detector_node(state: Dict[str, Any]) -> Dict[str, Any]:
     ai_slop_issues: list[dict[str, Any]] = []
 
     # 1. Strip code fences from content before scanning
-    stripped_content = _strip_code_blocks(content)
+    stripped_content = strip_code_blocks(content)
 
     # 2. Check for forbidden words
     forbidden_word_issues = _check_forbidden_words(stripped_content, forbidden_words)
     ai_slop_issues.extend(forbidden_word_issues)
 
-    # 3. Count em-dashes
-    em_dash_count = content.count("—")
+    # 3. Count em-dashes (use stripped content)
+    em_dash_count = stripped_content.count("—")
     if em_dash_count > 6:
         ai_slop_issues.append({"type": "EM_DASH_EXCESS", "count": em_dash_count})
 
-    # 4. Compute sentence length variance
-    variance = _compute_sentence_variance(content)
+    # 4. Compute sentence length variance (use stripped content)
+    variance = compute_sentence_variance(stripped_content)
     if variance is not None and variance < 5.0:
         ai_slop_issues.append({"type": "UNIFORM_RHYTHM", "std_dev": round(variance, 2)})
 
@@ -118,24 +120,6 @@ async def ai_slop_detector_node(state: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def _strip_code_blocks(content: str) -> str:
-    """Remove code fences from content before scanning.
-
-    Removes triple-backtick code blocks (both markdown and fenced styles).
-
-    Args:
-        content: The post content.
-
-    Returns:
-        Content with code blocks stripped out.
-    """
-    # Remove triple-backtick code blocks (markdown)
-    content = re.sub(r"```[^`]*```", "", content, flags=re.DOTALL)
-    # Remove triple-backtick with language specifier
-    content = re.sub(r"```\w*\n[^`]*\n```", "", content, flags=re.DOTALL)
-    return content
-
-
 def _check_forbidden_words(
     content: str, forbidden_words: list[str]
 ) -> list[dict[str, Any]]:
@@ -159,31 +143,3 @@ def _check_forbidden_words(
         if matches:
             issues.append({"type": "FORBIDDEN_WORD", "word": word, "count": len(matches)})
     return issues
-
-
-def _compute_sentence_variance(content: str) -> float | None:
-    """Compute word count variance across sentences.
-
-    Args:
-        content: The post content.
-
-    Returns:
-        Standard deviation of sentence word counts, or None if < 2 sentences.
-    """
-    # Split on sentence boundaries: ". ", "! ", "? "
-    sentences = re.split(r"[.!?]\s+", content.strip())
-    sentences = [s.strip() for s in sentences if s.strip()]
-
-    if len(sentences) < 2:
-        return None
-
-    word_counts = [len(s.split()) for s in sentences]
-    if len(set(word_counts)) == 1:
-        # All same length
-        return 0.0
-
-    try:
-        variance = statistics.stdev(word_counts)
-        return variance
-    except statistics.StatisticsError:
-        return None

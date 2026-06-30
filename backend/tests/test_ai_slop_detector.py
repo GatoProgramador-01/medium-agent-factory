@@ -294,3 +294,29 @@ class TestAISlopDetectorNode:
         ]
         total_hits = sum(i.get("count", 0) for i in forbidden_word_issues)
         assert total_hits == 4
+
+    @pytest.mark.asyncio
+    async def test_em_dash_in_code_block_not_counted(self) -> None:
+        """ai_slop_detector_node should skip em-dashes inside code fences."""
+        from app.agents.nodes.ai_slop_detector import ai_slop_detector_node
+        from app.agents.content_generator import GeneratedPost
+
+        # 8 em-dashes ONLY inside a code block
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content="This is clean prose with no em-dashes. Here is code: ```def fn():\n    # — — — — — — — —\n    pass```",
+            tags=[],
+            image_suggestions=[],
+        )
+
+        state = {"run_id": "test-123", "post": mock_post}
+
+        result = await ai_slop_detector_node(state)
+
+        # Em-dashes in code block should not be counted
+        em_dash_issues = [
+            i for i in result["ai_slop_issues"] if i["type"] == "EM_DASH_EXCESS"
+        ]
+        assert len(em_dash_issues) == 0, "Em-dashes in code blocks should not trigger EM_DASH_EXCESS"
+        assert result["ai_slop_score"] > 0.9, "Clean prose without code em-dashes should score high"

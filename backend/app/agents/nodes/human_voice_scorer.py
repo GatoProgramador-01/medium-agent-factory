@@ -20,7 +20,7 @@ The Flow (El Flujo):
 import re
 from typing import Any, Dict
 
-from app.agents.nodes._sentence_utils import compute_sentence_variance
+from app.agents.nodes._sentence_utils import compute_sentence_variance, strip_code_blocks
 
 
 async def human_voice_scorer_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -39,31 +39,53 @@ async def human_voice_scorer_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     content = post.content
     if not content:
-        return {}
+        return {
+            "human_voice_score": 0.0,
+            "human_voice_passed": False,
+            "human_voice_metrics": {
+                "sentence_length_variance": 0.0,
+                "personal_pronoun_density": 0.0,
+                "contraction_rate": 0.0,
+                "em_dash_per_100_words": 0.0,
+            },
+            "completed_steps": ["human_voice_scoring"],
+        }
 
-    # Count total words
-    words = content.split()
-    total_words = len(words)
-    if total_words == 0:
-        return {}
+    # Strip code blocks so code literals don't inflate word counts or skew metrics
+    prose_content = strip_code_blocks(content)
 
-    # 1. Sentence length variance
-    variance = compute_sentence_variance(content)
+    # Count prose words (excluding code)
+    prose_words = len(prose_content.split())
+    if prose_words == 0:
+        return {
+            "human_voice_score": 0.0,
+            "human_voice_passed": False,
+            "human_voice_metrics": {
+                "sentence_length_variance": 0.0,
+                "personal_pronoun_density": 0.0,
+                "contraction_rate": 0.0,
+                "em_dash_per_100_words": 0.0,
+            },
+            "completed_steps": ["human_voice_scoring"],
+        }
+
+    # 1. Sentence length variance (from prose only)
+    variance = compute_sentence_variance(prose_content)
     variance_norm = min(1.0, (variance / 20.0) if variance else 0.0)
 
-    # 2. Personal pronoun density (per 100 words)
-    pronoun_count = _count_personal_pronouns(content)
-    pronoun_density = (pronoun_count / total_words) * 100
+    # 2. Personal pronoun density (per 100 prose words)
+    pronoun_count = _count_personal_pronouns(prose_content)
+    pronoun_density = (pronoun_count / prose_words) * 100
     pronoun_norm = min(1.0, pronoun_density / 10.0)
 
-    # 3. Contraction rate (per 100 words)
-    contraction_count = _count_contractions(content)
-    contraction_rate = (contraction_count / total_words) * 100
+    # 3. Contraction rate (per 100 prose words)
+    contraction_count = _count_contractions(prose_content)
+    contraction_rate = (contraction_count / prose_words) * 100
     contraction_norm = min(1.0, contraction_rate / 5.0)
 
-    # 4. Em-dash penalty
-    em_dash_count = content.count("—")
-    em_dash_per_100 = (em_dash_count / total_words) * 100
+    # 4. Em-dash penalty (from prose only — code block em-dashes are not style markers)
+    em_dash_count = prose_content.count("—")
+    em_dash_per_100 = (em_dash_count / prose_words) * 100
     em_dash_penalty_norm = min(1.0, em_dash_per_100 / 2.0)
 
     # 5. Compute weighted score
@@ -85,6 +107,7 @@ async def human_voice_scorer_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "personal_pronoun_density": round(pronoun_density, 2),
             "contraction_rate": round(contraction_rate, 2),
             "em_dash_per_100_words": round(em_dash_per_100, 2),
+            "prose_word_count": prose_words,
         },
         "human_voice_passed": human_voice_passed,
         "completed_steps": ["human_voice_scoring"],

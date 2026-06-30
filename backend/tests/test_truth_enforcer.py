@@ -213,3 +213,53 @@ class TestTruthEnforcerNode:
             issues2 = result2.get("structural_check_issues", [])
             truth_issues2 = [i for i in issues2 if i.get("category") == "unattributed_number"]
             assert len(truth_issues2) == 1
+
+    @pytest.mark.asyncio
+    async def test_code_block_numbers_not_flagged(self) -> None:
+        """truth_enforcer_node ignores numbers inside fenced code blocks (e.g., 8080 in ```python block)."""
+        from app.agents.nodes.truth_enforcer_node import truth_enforcer_node
+        from app.agents.content_generator import GeneratedPost
+
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content="My server runs on this configuration. ```python\nport = 8080\nmax_workers = 16\n``` These are defaults.",
+            tags=[],
+            image_suggestions=[],
+        )
+
+        state = {"run_id": "test-123", "post": mock_post}
+
+        result = await truth_enforcer_node(state)
+
+        assert "truth_enforcer_passed" in result
+        assert result["truth_enforcer_passed"] is True
+        # 8080 and 16 inside the code block should not be in unattributed_numbers
+        unattributed = result.get("unattributed_numbers", [])
+        assert "8080" not in unattributed
+        assert "16" not in unattributed
+
+    @pytest.mark.asyncio
+    async def test_inline_code_numbers_not_flagged(self) -> None:
+        """truth_enforcer_node ignores numbers inside inline code (e.g., `3.11` in backticks)."""
+        from app.agents.nodes.truth_enforcer_node import truth_enforcer_node
+        from app.agents.content_generator import GeneratedPost
+
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content="I use Python `3.11` which requires `2048` MB. This is the standard.",
+            tags=[],
+            image_suggestions=[],
+        )
+
+        state = {"run_id": "test-123", "post": mock_post}
+
+        result = await truth_enforcer_node(state)
+
+        assert "truth_enforcer_passed" in result
+        assert result["truth_enforcer_passed"] is True
+        # 3.11 and 2048 inside inline code should not be in unattributed_numbers
+        unattributed = result.get("unattributed_numbers", [])
+        assert "3.11" not in unattributed
+        assert "2048" not in unattributed

@@ -43,3 +43,9 @@ from app.agents.nodes.topic_refinement import (
 from app.agents.nodes.truth_enforcer_node import (
     truth_enforcer_node as truth_enforcer_node,
 )
+from app.agents.nodes.line_editor_node import (
+    line_editor_node as line_editor_node,
+)
+from app.agents.nodes.structure_validator_node import (
+    structure_validator_node as structure_validator_node,
+)

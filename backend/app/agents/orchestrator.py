@@ -70,6 +70,12 @@ from app.agents.nodes import (
 from app.agents.nodes import (
     truth_enforcer_node as truth_enforcer_node,
 )
+from app.agents.nodes.line_editor_node import (
+    line_editor_node as line_editor_node,
+)
+from app.agents.nodes.structure_validator_node import (
+    structure_validator_node as structure_validator_node,
+)
 from app.agents.nodes import (
     content_generation_node as content_generation_node,
 )
@@ -186,6 +192,12 @@ class PipelineState(TypedDict):
     human_voice_score: float
     human_voice_metrics: dict[str, Any]
     human_voice_passed: bool
+    line_edit_score: float | None
+    line_edit_metrics: dict[str, Any] | None
+    line_edit_passed: bool | None
+    structure_score: float | None
+    structure_metrics: dict[str, Any] | None
+    structure_passed: bool | None
 
 
 def route_after_quality(state: PipelineState) -> str:
@@ -233,13 +245,31 @@ def build_graph() -> Any:
 
     The Story (El Relato):
     In the story of our pipeline architecture, this function is the System Architect.
-    It constructs the structural blueprint of the LangGraph, wiring together all 14 node workers
+    It constructs the structural blueprint of the LangGraph, wiring together all 16 node workers
     (from repo analysis to publication finalization). It establishes the execution sequence,
     defining how drafts are written, revised, tested, and stored.
 
+    Pipeline ASCII diagram (Sprint 28):
+
+        START
+          |
+        repo_analysis → research → topic_refinement → content_generation
+          → intro_ab_testing → series_coherence → title_optimization
+          → fact_check → ai_slop_check → truth_enforcement
+          → human_voice_check → line_edit_check → structure_check
+          → quality_analysis
+                |
+          [route_after_quality]
+          /              \\
+      revision        close_optimization
+          |                  |
+       fact_check    image_description_enrichment
+                             |
+                           format → finalize → END
+
     The Flow (El Flujo):
     1. Initialize the `StateGraph` using the typed `PipelineState` schema.
-    2. Register the 14 agent node functions as active nodes in the graph.
+    2. Register the 16 agent node functions as active nodes in the graph.
     3. Wire the linear sequence from `START` to `fact_check` using static edges.
     4. Add a conditional routing edge from `quality_analysis` based on `route_after_quality`.
     5. Wire loopback edges from `revision` back to `fact_check`.
@@ -261,6 +291,8 @@ def build_graph() -> Any:
     g.add_node("ai_slop_check", cast(Any, ai_slop_detector_node))
     g.add_node("truth_enforcement", cast(Any, truth_enforcer_node))
     g.add_node("human_voice_check", cast(Any, human_voice_scorer_node))
+    g.add_node("line_edit_check", cast(Any, line_editor_node))
+    g.add_node("structure_check", cast(Any, structure_validator_node))
     g.add_node("quality_analysis", cast(Any, quality_analysis_node))
     g.add_node("revision", cast(Any, content_revision_node))
     g.add_node("close_optimization", cast(Any, close_optimization_node))
@@ -279,7 +311,9 @@ def build_graph() -> Any:
     g.add_edge("fact_check", "ai_slop_check")
     g.add_edge("ai_slop_check", "truth_enforcement")
     g.add_edge("truth_enforcement", "human_voice_check")
-    g.add_edge("human_voice_check", "quality_analysis")
+    g.add_edge("human_voice_check", "line_edit_check")
+    g.add_edge("line_edit_check", "structure_check")
+    g.add_edge("structure_check", "quality_analysis")
     g.add_conditional_edges(
         "quality_analysis",
         route_after_quality,

@@ -264,3 +264,30 @@ class TestHumanVoiceScorerNode:
             low_voice_issues = [i for i in issues if i.get("category") == "low_human_voice"]
             assert len(low_voice_issues) > 0
             assert low_voice_issues[0]["severity"] == "MEDIUM"
+
+    @pytest.mark.asyncio
+    async def test_code_block_excluded_from_metrics(self) -> None:
+        """human_voice_scorer_node should exclude code blocks from all metrics."""
+        from app.agents.nodes.human_voice_scorer import human_voice_scorer_node
+        from app.agents.content_generator import GeneratedPost
+
+        # Content is ONLY a code block with markdown formatting and em-dashes
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content="```python\n# Code block with — em-dashes\n# Line — two — three — four — five\ndef fn():\n    pass\n```",
+            tags=[],
+            image_suggestions=[],
+        )
+
+        state = {"run_id": "test-123", "post": mock_post}
+
+        result = await human_voice_scorer_node(state)
+
+        # Should not crash and should compute metrics based only on non-code prose
+        assert "human_voice_score" in result
+        # With only code (no prose), metrics should be minimal
+        metrics = result.get("human_voice_metrics", {})
+        assert "em_dash_per_100_words" in metrics
+        # Code-only content has no em-dashes in prose, so penalty should be 0
+        assert metrics["em_dash_per_100_words"] == 0.0, "Code blocks should not count toward em-dash metric"

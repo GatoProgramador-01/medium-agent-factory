@@ -19,6 +19,8 @@ The Flow (El Flujo):
 import re
 from typing import Any, Dict
 
+from app.agents.nodes._sentence_utils import strip_code_blocks
+
 
 async def truth_enforcer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Enforces attribution for numbers > 10 in post content.
@@ -36,11 +38,18 @@ async def truth_enforcer_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     content = post.content
     if not content:
-        return {}
+        return {
+            "unattributed_numbers": [],
+            "truth_enforcer_passed": True,
+            "completed_steps": ["truth_enforcement"],
+        }
 
-    # 1. Extract all numbers > 10
+    # Strip code blocks from scannable content, but keep full content for sentence context
+    scannable_content = strip_code_blocks(content)
+
+    # 1. Extract all numbers > 10 from stripped content
     number_pattern = r"\b(\d+(?:,\d{3})*(?:\.\d+)?)\b"
-    matches = re.finditer(number_pattern, content)
+    matches = re.finditer(number_pattern, scannable_content)
 
     numbers_with_context = []
     for match in matches:
@@ -79,9 +88,7 @@ async def truth_enforcer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     unattributed_numbers: list[str] = []
     for num_info in numbers_with_context:
         sentence = num_info["sentence"]
-        has_anchor = any(
-            anchor.lower() in sentence.lower() for anchor in attribution_anchors
-        )
+        has_anchor = any(anchor.lower() in sentence.lower() for anchor in attribution_anchors)
         if not has_anchor:
             unattributed_numbers.append(num_info["number"])
 
@@ -97,7 +104,11 @@ async def truth_enforcer_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     # 5. Update structural issues if not passed
     if not truth_enforcer_passed:
-        existing = [i for i in state.get("structural_check_issues", []) if i.get("category") != "unattributed_number"]
+        existing = [
+            i
+            for i in state.get("structural_check_issues", [])
+            if i.get("category") != "unattributed_number"
+        ]
         result["structural_check_issues"] = [
             *existing,
             {
@@ -123,9 +134,7 @@ def _get_sentence_for_position(content: str, position: int) -> str:
 
     def _is_sentence_boundary(text: str, idx: int) -> bool:
         """True only when punctuation is followed by whitespace or end-of-string (not URLs/decimals)."""
-        return text[idx] in ".!?" and (
-            idx + 1 >= len(text) or text[idx + 1] in " \n\r\t"
-        )
+        return text[idx] in ".!?" and (idx + 1 >= len(text) or text[idx + 1] in " \n\r\t")
 
     # Find sentence start (previous . ! or ? followed by whitespace)
     start = position
