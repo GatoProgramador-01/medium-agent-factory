@@ -164,3 +164,18 @@ HOOK_REVISION_INSTRUCTION = (
 ```
 
 No prompt change ships without a passing eval regression. This keeps prompt iteration from accidentally regressing a dimension that was previously passing.
+
+## Sprint 25: Prompt-Free Quality (Deterministic Gates)
+
+The three new Sprint 25 nodes require **zero LLM calls** — they enforce quality deterministically. This is the preferred approach when a rule can be expressed as code:
+
+| Approach | Cost | Latency | Reliability |
+|----------|------|---------|-------------|
+| LLM-as-judge | ~$0.005/call | 2-5s | Variable |
+| Deterministic node | $0 | <1ms | 100% |
+
+When writing prompts for content generators, keep these rules in mind — the detectors will catch violations regardless:
+1. Every number >10 must have an attribution anchor in the same sentence
+2. Avoid: delve, tapestry, leverage, moreover, furthermore, game-changer, cutting-edge, transformative
+3. Vary sentence length — mix 5-word punches with 25-word explanations
+4. Use first-person voice: I, my, we — contractions: I've, it's, don't

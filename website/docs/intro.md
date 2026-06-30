@@ -7,20 +7,20 @@ sidebar_position: 1
 
 # Medium Agent Factory
 
-**Medium Agent Factory** is a 16-node LangGraph pipeline that autonomously researches, writes, evaluates, and revises Medium posts using a multi-agent architecture. Built as a production-grade LLMOps project, it demonstrates the full spectrum from prompt engineering and structured output to eval-in-CI and quality observability.
+**Medium Agent Factory** is an 18-node LangGraph pipeline that autonomously researches, writes, evaluates, and revises Medium posts using a multi-agent architecture. Built as a production-grade LLMOps project, it demonstrates the full spectrum from prompt engineering and structured output to eval-in-CI and quality observability.
 
 ## What it does
 
 The pipeline takes a topic string and produces a publication-ready Medium article by:
 
-- Running **16 coordinated LangGraph nodes** from research through final formatting
+- Running **18 coordinated LangGraph nodes** from research through final formatting
 - Applying a **3-layer quality system**: deterministic structural checks, G-Eval LLM-judge scoring, and config-driven thresholds
 - Executing a **conditional revision loop** (up to 6 cycles) until quality thresholds are met
 - Storing **quality snapshots** in MongoDB for every iteration — enabling score-over-time analysis
 - Supporting **A/B title testing** and **intro variant optimization**
 - Enforcing **prompt versioning discipline** with documented fixes tracked in version history
 
-The project has **463 passing tests** across unit, integration, and evaluation layers, with a full CI/CD pipeline via GitHub Actions.
+The project has **583 passing tests** across unit, integration, and evaluation layers, with a full CI/CD pipeline via GitHub Actions.
 
 ## Recent pipeline results
 
@@ -35,9 +35,21 @@ All four posts produced in the last sprint cleared the 0.90 quality threshold wi
 
 All posts were flagged **Boost-eligible** by Medium's internal distribution model.
 
+## Quality Intelligence Pipeline (Sprint 24-25)
+
+Three new non-blocking analysis nodes run on every post before the quality gate:
+
+| Node | What It Catches | Threshold |
+|------|----------------|-----------|
+| **AI Slop Detector** | Forbidden buzzwords (delve, tapestry, leverage…), em-dash excess, uniform rhythm | ≤3 total hits |
+| **Truth Enforcer** | Numbers >10 without URL or personal-measurement anchor | 0 unattributed |
+| **Human Voice Scorer** | First-person density, contractions, sentence variance | Score ≥0.45 |
+
+All three feed their findings into the quality gate via `structural_check_issues` — a failed node adds a HIGH/MEDIUM severity issue that can block publication.
+
 ## Explore the docs
 
-- [Pipeline Overview](./pipeline-overview) — all 16 nodes with a Mermaid flowchart
+- [Pipeline Overview](./pipeline-overview) — all 18 nodes with a Mermaid flowchart
 - [Quality Gates](./quality-gates) — 3-layer quality architecture and threshold config
 - [Prompt Engineering](./prompt-engineering) — versioned prompt fixes and the revision loop design
 - [GitHub Repository](https://github.com/GatoProgramador-01/medium-agent-factory) — source code, issues, and releases
@@ -53,5 +65,5 @@ All posts were flagged **Boost-eligible** by Medium's internal distribution mode
 | Storage | MongoDB (articles + quality snapshots) |
 | API | FastAPI + async Motor driver |
 | Frontend | Next.js 15 (App Router) + React Query + SSE streaming |
-| Tests | pytest (backend) + Jest + RTL (frontend) — 463 total |
+| Tests | pytest (backend) + Jest + RTL (frontend) — 583 total |
 | CI/CD | GitHub Actions (5-job matrix) |

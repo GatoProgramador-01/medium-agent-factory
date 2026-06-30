@@ -204,3 +204,63 @@ class TestHumanVoiceScorerNode:
         assert "completed_steps" in result
         assert isinstance(result["completed_steps"], list)
         assert "human_voice_scoring" in result["completed_steps"]
+
+    @pytest.mark.asyncio
+    async def test_threshold_is_045(self) -> None:
+        """human_voice_scorer_node uses 0.45 threshold, not 0.6."""
+        from app.agents.nodes.human_voice_scorer import human_voice_scorer_node
+        from app.agents.content_generator import GeneratedPost
+
+        # Content with minimal first-person and low variance
+        # Should score below 0.6 but above 0.45 to test threshold boundary
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content="I tested this twice. The system works. It performs well. Results show improvement.",
+            tags=[],
+            image_suggestions=[],
+        )
+
+        state = {"run_id": "test-123", "post": mock_post}
+
+        result = await human_voice_scorer_node(state)
+
+        assert "human_voice_score" in result
+        score = result["human_voice_score"]
+        assert "human_voice_passed" in result
+        # Verify threshold is 0.45, not 0.6
+        if score < 0.45:
+            assert result["human_voice_passed"] is False
+        elif score >= 0.45:
+            assert result["human_voice_passed"] is True
+
+    @pytest.mark.asyncio
+    async def test_low_human_voice_adds_to_structural_issues(self) -> None:
+        """human_voice_scorer_node appends to structural_check_issues when human_voice_passed is False."""
+        from app.agents.nodes.human_voice_scorer import human_voice_scorer_node
+        from app.agents.content_generator import GeneratedPost
+
+        # Content with no first-person pronouns or contractions (low human voice)
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content="The system performs well. One can observe improvements. Performance metrics show results. Users report satisfaction.",
+            tags=[],
+            image_suggestions=[],
+        )
+
+        state = {
+            "run_id": "test-123",
+            "post": mock_post,
+            "structural_check_issues": [],
+        }
+
+        result = await human_voice_scorer_node(state)
+
+        # If score is below threshold, should append to structural_check_issues
+        if not result.get("human_voice_passed", True):
+            assert "structural_check_issues" in result
+            issues = result["structural_check_issues"]
+            low_voice_issues = [i for i in issues if i.get("category") == "low_human_voice"]
+            assert len(low_voice_issues) > 0
+            assert low_voice_issues[0]["severity"] == "MEDIUM"

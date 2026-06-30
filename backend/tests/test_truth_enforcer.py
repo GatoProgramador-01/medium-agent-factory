@@ -178,3 +178,38 @@ class TestTruthEnforcerNode:
                 if i.get("category") == "unattributed_number"
             ]
             assert len(truth_issues) > 0
+
+    @pytest.mark.asyncio
+    async def test_no_state_mutation_on_revision_loop(self) -> None:
+        """truth_enforcer_node does not mutate state.structural_check_issues (no state aliasing)."""
+        from app.agents.nodes.truth_enforcer_node import truth_enforcer_node
+        from app.agents.content_generator import GeneratedPost
+
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content="The bill was 2,800 dollars and I saved 94%. This happened automatically.",
+            tags=[],
+            image_suggestions=[],
+        )
+
+        state = {
+            "run_id": "test-123",
+            "post": mock_post,
+            "structural_check_issues": [],
+        }
+
+        # Call truth_enforcer_node twice with the same state
+        result1 = await truth_enforcer_node(state)
+        result2 = await truth_enforcer_node(state)
+
+        # Both should have exactly 1 unattributed_number issue, not 2
+        if not result1.get("truth_enforcer_passed", True):
+            issues1 = result1.get("structural_check_issues", [])
+            truth_issues1 = [i for i in issues1 if i.get("category") == "unattributed_number"]
+            assert len(truth_issues1) == 1
+
+        if not result2.get("truth_enforcer_passed", True):
+            issues2 = result2.get("structural_check_issues", [])
+            truth_issues2 = [i for i in issues2 if i.get("category") == "unattributed_number"]
+            assert len(truth_issues2) == 1

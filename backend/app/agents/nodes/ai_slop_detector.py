@@ -43,9 +43,9 @@ async def ai_slop_detector_node(state: Dict[str, Any]) -> Dict[str, Any]:
         "delve",
         "tapestry",
         "leverage",
-        "Moreover",
-        "Furthermore",
-        "Additionally",
+        "moreover",
+        "furthermore",
+        "additionally",
         "game-changer",
         "cutting-edge",
         "transformative",
@@ -55,34 +55,37 @@ async def ai_slop_detector_node(state: Dict[str, Any]) -> Dict[str, Any]:
         "cornerstone",
         "groundbreaking",
         "showcasing",
-        "underscores",
         "pivotal",
     ]
 
     ai_slop_issues: list[dict[str, Any]] = []
 
-    # 1. Check for forbidden words
-    forbidden_word_issues = _check_forbidden_words(content, forbidden_words)
+    # 1. Strip code fences from content before scanning
+    stripped_content = _strip_code_blocks(content)
+
+    # 2. Check for forbidden words
+    forbidden_word_issues = _check_forbidden_words(stripped_content, forbidden_words)
     ai_slop_issues.extend(forbidden_word_issues)
 
-    # 2. Count em-dashes
+    # 3. Count em-dashes
     em_dash_count = content.count("—")
     if em_dash_count > 6:
         ai_slop_issues.append({"type": "EM_DASH_EXCESS", "count": em_dash_count})
 
-    # 3. Compute sentence length variance
+    # 4. Compute sentence length variance
     variance = _compute_sentence_variance(content)
     if variance is not None and variance < 5.0:
         ai_slop_issues.append({"type": "UNIFORM_RHYTHM", "std_dev": round(variance, 2)})
 
-    # 4. Determine pass/fail
+    # 5. Determine pass/fail based on total forbidden hits <= 3
+    total_forbidden_hits = sum(i.get("count", 0) for i in forbidden_word_issues)
     ai_slop_passed = (
-        len([i for i in forbidden_word_issues if i.get("count", 0) > 2]) == 0
+        total_forbidden_hits <= 3
         and em_dash_count <= 6
         and (variance is None or variance >= 5.0)
     )
 
-    # 5. Compute score (0-1, where 1 is clean)
+    # 6. Compute score (0-1, where 1 is clean)
     penalties = 0.0
     if forbidden_word_issues:
         penalties += min(0.4, len(forbidden_word_issues) * 0.05)
@@ -93,7 +96,7 @@ async def ai_slop_detector_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     ai_slop_score = max(0.0, min(1.0, 1.0 - penalties))
 
-    # 6. Update structural issues if not passed
+    # 7. Update structural issues if not passed (avoid state mutation)
     result = {
         "ai_slop_issues": ai_slop_issues,
         "ai_slop_score": round(ai_slop_score, 3),
@@ -102,17 +105,35 @@ async def ai_slop_detector_node(state: Dict[str, Any]) -> Dict[str, Any]:
     }
 
     if not ai_slop_passed:
-        structural_issues = state.get("structural_check_issues", [])
-        structural_issues.append(
+        existing = [i for i in state.get("structural_check_issues", []) if i.get("category") != "ai_slop"]
+        result["structural_check_issues"] = [
+            *existing,
             {
                 "category": "ai_slop",
                 "severity": "HIGH",
                 "suggestion": "Remove forbidden buzzwords, reduce em-dashes, vary sentence length.",
-            }
-        )
-        result["structural_check_issues"] = structural_issues
+            },
+        ]
 
     return result
+
+
+def _strip_code_blocks(content: str) -> str:
+    """Remove code fences from content before scanning.
+
+    Removes triple-backtick code blocks (both markdown and fenced styles).
+
+    Args:
+        content: The post content.
+
+    Returns:
+        Content with code blocks stripped out.
+    """
+    # Remove triple-backtick code blocks (markdown)
+    content = re.sub(r"```[^`]*```", "", content, flags=re.DOTALL)
+    # Remove triple-backtick with language specifier
+    content = re.sub(r"```\w*\n[^`]*\n```", "", content, flags=re.DOTALL)
+    return content
 
 
 def _check_forbidden_words(

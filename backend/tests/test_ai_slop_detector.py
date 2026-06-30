@@ -196,3 +196,101 @@ class TestAISlopDetectorNode:
                 if i.get("category") == "ai_slop"
             ]
             assert len(ai_slop_struct_issues) > 0
+
+    @pytest.mark.asyncio
+    async def test_no_state_mutation_on_revision_loop(self) -> None:
+        """ai_slop_detector_node should not mutate state structural_check_issues on revision cycles."""
+        from app.agents.nodes.ai_slop_detector import ai_slop_detector_node
+        from app.agents.content_generator import GeneratedPost
+
+        # Content with 4 forbidden hits total (delve appears 4 times) which fails on first pass
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content="Let me delve into this. We delve deeper. Delve more. Delve now. But the approach is good.",
+            tags=[],
+            image_suggestions=[],
+        )
+
+        initial_state = {
+            "run_id": "test-123",
+            "post": mock_post,
+            "structural_check_issues": [],
+        }
+
+        # First call — should fail and add to structural_check_issues
+        result1 = await ai_slop_detector_node(initial_state)
+        assert "structural_check_issues" in result1
+        first_cycle_issues_count = len(result1["structural_check_issues"])
+        assert first_cycle_issues_count == 1
+
+        # Second call (revision cycle) with the output from first as input
+        # The state now has the structural_check_issues from first call
+        state_after_first = {
+            "run_id": "test-123",
+            "post": mock_post,
+            "structural_check_issues": result1["structural_check_issues"],
+        }
+
+        result2 = await ai_slop_detector_node(state_after_first)
+        assert "structural_check_issues" in result2
+        second_cycle_issues_count = len(result2["structural_check_issues"])
+
+        # If there's a mutation bug, second call would have 2 issues (appended to the mutated list)
+        # With the fix (using spread operator), we should still have only 1 issue
+        assert second_cycle_issues_count == 1
+
+    @pytest.mark.asyncio
+    async def test_code_fence_content_not_scanned_fixed(self) -> None:
+        """ai_slop_detector_node should skip scanning content inside code fences."""
+        from app.agents.nodes.ai_slop_detector import ai_slop_detector_node
+        from app.agents.content_generator import GeneratedPost
+
+        # "leverage" is a forbidden word, but only inside a code block
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content="This article is clean. Here is a code example: ```leverage()``` that should not trigger.",
+            tags=[],
+            image_suggestions=[],
+        )
+
+        state = {"run_id": "test-123", "post": mock_post}
+
+        result = await ai_slop_detector_node(state)
+
+        forbidden_word_issues = [
+            i for i in result["ai_slop_issues"] if i["type"] == "FORBIDDEN_WORD"
+        ]
+        # "leverage" in code block should not trigger
+        leverage_issues = [i for i in forbidden_word_issues if i["word"] == "leverage"]
+        assert len(leverage_issues) == 0
+
+    @pytest.mark.asyncio
+    async def test_total_forbidden_threshold_fixed(self) -> None:
+        """ai_slop_detector_node fails on total forbidden word threshold (>3)."""
+        from app.agents.nodes.ai_slop_detector import ai_slop_detector_node
+        from app.agents.content_generator import GeneratedPost
+
+        # 4 different forbidden words each appearing once = total of 4 hits
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content="Let me delve into this. We leverage resources. This is transformative. Pivotal moment. But the approach works well and is different from others.",
+            tags=[],
+            image_suggestions=[],
+        )
+
+        state = {"run_id": "test-123", "post": mock_post}
+
+        result = await ai_slop_detector_node(state)
+
+        # 4 total hits across different words should fail (threshold is 3)
+        # Check that ai_slop_passed is False
+        assert result["ai_slop_passed"] is False
+        # Verify we detected 4 forbidden word hits
+        forbidden_word_issues = [
+            i for i in result["ai_slop_issues"] if i["type"] == "FORBIDDEN_WORD"
+        ]
+        total_hits = sum(i.get("count", 0) for i in forbidden_word_issues)
+        assert total_hits == 4

@@ -97,15 +97,15 @@ async def truth_enforcer_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     # 5. Update structural issues if not passed
     if not truth_enforcer_passed:
-        structural_issues = state.get("structural_check_issues", [])
-        structural_issues.append(
+        existing = [i for i in state.get("structural_check_issues", []) if i.get("category") != "unattributed_number"]
+        result["structural_check_issues"] = [
+            *existing,
             {
                 "category": "unattributed_number",
                 "severity": "HIGH",
                 "suggestion": f"Numbers {', '.join(unattributed_numbers)} lack attribution. Add source URL or measurement context (e.g., 'I measured', 'per my test').",
-            }
-        )
-        result["structural_check_issues"] = structural_issues
+            },
+        ]
 
     return result
 
@@ -120,9 +120,12 @@ def _get_sentence_for_position(content: str, position: int) -> str:
     Returns:
         The sentence containing the position plus 1 sentence before/after for context.
     """
+
     def _is_sentence_boundary(text: str, idx: int) -> bool:
         """True only when punctuation is followed by whitespace or end-of-string (not URLs/decimals)."""
-        return text[idx] in ".!?" and (idx + 1 >= len(text) or text[idx + 1] in " \n\r\t")
+        return text[idx] in ".!?" and (
+            idx + 1 >= len(text) or text[idx + 1] in " \n\r\t"
+        )
 
     # Find sentence start (previous . ! or ? followed by whitespace)
     start = position

@@ -7,7 +7,7 @@ sidebar_position: 2
 
 # Pipeline Overview
 
-The pipeline is a directed LangGraph graph with 16 nodes. Each node is a Python async function that calls one or more LLM-backed agents via `ainvoke`. The graph state flows through every node in sequence, with one conditional branch for the quality revision loop.
+The pipeline is a directed LangGraph graph with 18 nodes. Each node is a Python async function that calls one or more LLM-backed agents via `ainvoke`. The graph state flows through every node in sequence, with one conditional branch for the quality revision loop.
 
 ## Node sequence
 
@@ -21,12 +21,15 @@ The pipeline is a directed LangGraph graph with 16 nodes. Each node is a Python 
 | 6 | `intro_ab_testing` | Produces two intro variants (direct vs. story-led) for A/B evaluation |
 | 7 | `series_coherence` | (Optional) Checks narrative consistency when the post belongs to a series |
 | 8 | `fact_check` | Verifies factual claims against the research corpus; flags low-confidence statements |
-| 9 | `quality_analysis` | G-Eval rubric: scores depth, clarity, accuracy, hook, and actionability (0–1 each) |
-| 10 | `revision_loop` | Conditional: if overall score < threshold, routes back to `content_generation` (max 6 cycles) |
-| 11 | `close_optimization` | Rewrites the conclusion for stronger CTA and reader retention |
-| 12 | `image_enrichment` | Suggests section headers and alt-text for Unsplash/DALL-E image placement |
-| 13 | `format` | Converts the article to Medium-compatible Markdown with correct heading hierarchy |
-| 14 | `finalize` | Assembles final payload: title, body, tags, canonical URL, series metadata |
+| 9 | `ai_slop_check` | Detects forbidden buzzwords, em-dash excess, and uniform rhythm patterns |
+| 10 | `truth_enforcement` | Flags numbers >10 that lack a URL or personal-measurement anchor |
+| 11 | `human_voice_check` | Scores first-person density, contractions, and sentence variance (threshold ≥0.45) |
+| 12 | `quality_analysis` | G-Eval rubric: scores depth, clarity, accuracy, hook, and actionability (0–1 each) |
+| 13 | `revision_loop` | Conditional: if overall score < threshold, routes back to `content_generation` (max 6 cycles) |
+| 14 | `close_optimization` | Rewrites the conclusion for stronger CTA and reader retention |
+| 15 | `image_enrichment` | Suggests section headers and alt-text for Unsplash/DALL-E image placement |
+| 16 | `format` | Converts the article to Medium-compatible Markdown with correct heading hierarchy |
+| 17 | `finalize` | Assembles final payload: title, body, tags, canonical URL, series metadata |
 
 ## Flowchart
 
@@ -40,7 +43,10 @@ flowchart TD
     title_optimization --> intro_ab_testing
     intro_ab_testing --> series_coherence
     series_coherence --> fact_check
-    fact_check --> quality_analysis
+    fact_check --> ai_slop_check
+    ai_slop_check --> truth_enforcement
+    truth_enforcement --> human_voice_check
+    human_voice_check --> quality_analysis
     quality_analysis --> revision_check{Score ≥ threshold?}
     revision_check -- No, cycle ≤ 6 --> content_generation
     revision_check -- Yes --> close_optimization

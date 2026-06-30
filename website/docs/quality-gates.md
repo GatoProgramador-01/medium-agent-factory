@@ -136,3 +136,31 @@ Every pass through `quality_analysis` writes a document to the `quality_snapshot
 ```
 
 This enables post-run analysis: which dimension improves fastest? Which topics consistently require more revision cycles? The data feeds future prompt iterations.
+
+## Sprint 25: Deterministic Quality Nodes
+
+Three new nodes run deterministically (no LLM calls) before the quality gate:
+
+### AI Slop Detector
+Scans post content after stripping code fences. Checks:
+- **Forbidden buzzwords**: delve, tapestry, leverage, moreover, furthermore, game-changer, cutting-edge, transformative, revolutionize, seamless, synergy, cornerstone, groundbreaking, showcasing, pivotal
+- **Em-dash excess**: flags if `—` appears more than 6 times
+- **Uniform rhythm**: flags if sentence length std-dev < 5 words
+
+**Pass criteria**: total forbidden word occurrences ≤3 AND em-dashes ≤6 AND std-dev ≥5
+
+### Truth Enforcer
+Extracts every number >10 from the post. For each number, it checks the sentence window for attribution anchors: a URL (`http`/`https`), or a personal-measurement phrase (`I measured`, `I found`, `my setup`, `per my`, `I ran`, `I observed`, `my experiment`, `I profiled`).
+
+**Pass criteria**: 0 unattributed numbers
+
+### Human Voice Scorer
+Computes 4 metrics, returns weighted score 0–1:
+- sentence_length_variance × 0.4
+- personal_pronoun_density (I/my/me/we/our per 100 words) × 0.3
+- contraction_rate (I've/you're/it's/don't etc per 100 words) × 0.2
+- em_dash_penalty × 0.1
+
+**Pass criteria**: score ≥0.45 (calibrated for first-person technical writing)
+
+All three nodes write to `structural_check_issues` using a replace-not-accumulate pattern — re-running after revision replaces the previous entry for that category, preventing duplicate issues across revision cycles.

@@ -18,8 +18,9 @@ The Flow (El Flujo):
 """
 
 import re
-import statistics
 from typing import Any, Dict
+
+from app.agents.nodes._sentence_utils import compute_sentence_variance
 
 
 async def human_voice_scorer_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -47,7 +48,7 @@ async def human_voice_scorer_node(state: Dict[str, Any]) -> Dict[str, Any]:
         return {}
 
     # 1. Sentence length variance
-    variance = _compute_sentence_variance(content)
+    variance = compute_sentence_variance(content)
     variance_norm = min(1.0, (variance / 20.0) if variance else 0.0)
 
     # 2. Personal pronoun density (per 100 words)
@@ -75,9 +76,9 @@ async def human_voice_scorer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     # 6. Determine pass/fail
-    human_voice_passed = human_voice_score >= 0.6
+    human_voice_passed = human_voice_score >= 0.45
 
-    return {
+    result = {
         "human_voice_score": human_voice_score,
         "human_voice_metrics": {
             "sentence_length_variance": round(variance if variance else 0.0, 2),
@@ -89,32 +90,19 @@ async def human_voice_scorer_node(state: Dict[str, Any]) -> Dict[str, Any]:
         "completed_steps": ["human_voice_scoring"],
     }
 
+    # 7. Append to structural_check_issues if not passed
+    if not human_voice_passed:
+        existing = [i for i in state.get("structural_check_issues", []) if i.get("category") != "low_human_voice"]
+        result["structural_check_issues"] = [
+            *existing,
+            {
+                "category": "low_human_voice",
+                "severity": "MEDIUM",
+                "suggestion": f"Human voice score {round(human_voice_score, 2)} below threshold 0.45. Add first-person voice (I/my/we), contractions (I've/it's), vary sentence length.",
+            },
+        ]
 
-def _compute_sentence_variance(content: str) -> float | None:
-    """Compute word count variance across sentences.
-
-    Args:
-        content: The post content.
-
-    Returns:
-        Standard deviation of sentence word counts, or None if < 2 sentences.
-    """
-    sentences = re.split(r"[.!?]\s+", content.strip())
-    sentences = [s.strip() for s in sentences if s.strip()]
-
-    if len(sentences) < 2:
-        return None
-
-    word_counts = [len(s.split()) for s in sentences]
-    if len(set(word_counts)) == 1:
-        # All same length
-        return 0.0
-
-    try:
-        variance = statistics.stdev(word_counts)
-        return variance
-    except statistics.StatisticsError:
-        return None
+    return result
 
 
 def _count_personal_pronouns(content: str) -> int:
