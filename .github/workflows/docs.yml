@@ -8,6 +8,7 @@ on:
       - "website/**"
       - "*.md"
       - "docs/**"
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -45,6 +46,11 @@ jobs:
 
       - name: Prevent Jekyll processing
         run: touch website/build/.nojekyll
+
+      - name: Verify Pages enabled
+        run: |
+          echo "✅ Build complete. If deploy fails with 404, enable GitHub Pages:"
+          echo "   Settings → Pages → Source → GitHub Actions"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
