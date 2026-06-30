@@ -363,3 +363,74 @@ class TestCopyEditorNode:
         assert "completed_steps" in result
         assert isinstance(result["completed_steps"], list)
         assert "copy_edit_check" in result["completed_steps"]
+
+
+class TestCopyEditorScoreCap:
+    """Test that the heading bonus cap prevents bad copy from passing via heading consistency."""
+
+    @pytest.mark.asyncio
+    async def test_high_penalty_cannot_be_rescued_by_heading_bonus(self) -> None:
+        """Post with em_dash=4, repeated_pairs=3, exclamation_rate>=3%, heading_consistency=1.0
+        must score below 0.55 — the heading bonus cap (0.10 when total_penalties>0.30) prevents
+        a genuinely bad post from passing on heading consistency alone."""
+        from app.agents.nodes.copy_editor_node import copy_editor_node
+        from app.agents.content_generator import GeneratedPost
+
+        # Build content that produces:
+        #   em_dash_issues    = 4  → penalty = 4 * 0.04 = 0.16
+        #   repeated_pairs    = 3  → penalty = 3 * 0.05 = 0.15
+        #   exclamation_rate >= 3% → penalty = 0.30 (capped)
+        #   total_penalties   = 0.61  (> 0.30 → cap kicks in)
+        #   heading_bonus     capped at 0.10 (not 0.15)
+        #   score = 1.0 - 0.61 + (0.10 - 0.15) = 0.34  → FAIL
+        # Headings are all Title Case (heading_consistency_score = 1.0).
+        words = " ".join(["word"] * 100)  # 100 filler words to control rate denominator
+        exclamations = "Amazing! " * 5    # 5 exclamation marks in ~10 words → high rate
+        em_dashes = (
+            "first—second third—fourth fifth—sixth seventh—eighth "  # 4 \w—\w patterns
+        )
+        repeated = "the the same same is is "  # 3 repeated word pairs
+
+        content = (
+            "## The First Heading\n\n"
+            "## The Second Heading\n\n"
+            "## The Third Heading\n\n"
+            f"{exclamations}{em_dashes}{repeated}{words}"
+        )
+
+        mock_post = GeneratedPost(
+            title="Test Article",
+            subtitle="",
+            content=content,
+            tags=[],
+            image_suggestions=[],
+        )
+
+        state = {"run_id": "test-cap-123", "post": mock_post}
+
+        result = await copy_editor_node(state)
+
+        metrics = result["copy_edit_metrics"]
+        # Verify the post actually has the three issues we designed it to have
+        assert metrics["em_dash_spacing_issues"] >= 4, (
+            f"Expected >= 4 em-dash issues, got {metrics['em_dash_spacing_issues']}"
+        )
+        assert metrics["repeated_word_pairs"] >= 3, (
+            f"Expected >= 3 repeated pairs, got {metrics['repeated_word_pairs']}"
+        )
+        assert metrics["exclamation_rate"] >= 3.0, (
+            f"Expected exclamation_rate >= 3.0, got {metrics['exclamation_rate']}"
+        )
+        assert metrics["heading_consistency_score"] == 1.0, (
+            f"Expected perfect heading consistency, got {metrics['heading_consistency_score']}"
+        )
+        assert metrics["total_penalties"] > 0.30, (
+            f"Expected total_penalties > 0.30 to trigger cap, got {metrics['total_penalties']}"
+        )
+
+        # The critical assertion: heading bonus cap must prevent this post from passing
+        assert result["copy_edit_score"] < 0.55, (
+            f"Expected copy_edit_score < 0.55 but got {result['copy_edit_score']}. "
+            f"The heading bonus cap is not working — bad copy is passing via heading consistency."
+        )
+        assert result["copy_edit_passed"] is False

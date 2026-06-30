@@ -49,8 +49,11 @@ class TestRevisionLoopIncludesFactCheck:
         assert ("structure_check", "copy_edit_check") in self.edges, (
             "structure_check must feed copy_edit_check (Sprint 29)"
         )
-        assert ("copy_edit_check", "quality_analysis") in self.edges, (
-            "copy_edit_check must always feed into quality_analysis"
+        assert ("copy_edit_check", "sme_review_check") in self.edges, (
+            "copy_edit_check must feed sme_review_check (Sprint 30)"
+        )
+        assert ("sme_review_check", "quality_analysis") in self.edges, (
+            "sme_review_check must always feed into quality_analysis"
         )
 
     def test_revision_loop_does_not_bypass_fact_check(self):
@@ -67,7 +70,7 @@ class TestFactCheckGraphConnectivity:
 
     def test_all_paths_to_quality_analysis_pass_through_fact_check(self):
         predecessors = {src for src, tgt in self.edges if tgt == "quality_analysis"}
-        # copy_edit_check is last in chain: fact_check → ai_slop_check → truth_enforcement → human_voice_check → line_edit_check → structure_check → copy_edit_check → quality_analysis
-        assert predecessors == {"copy_edit_check"}, (
-            f"Only copy_edit_check should feed quality_analysis directly, got: {predecessors}"
+        # sme_review_check is last in chain: fact_check → ai_slop_check → truth_enforcement → human_voice_check → line_edit_check → structure_check → copy_edit_check → sme_review_check → quality_analysis
+        assert predecessors == {"sme_review_check"}, (
+            f"Only sme_review_check should feed quality_analysis directly, got: {predecessors}"
         )

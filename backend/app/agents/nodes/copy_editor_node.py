@@ -174,19 +174,25 @@ async def copy_editor_node(state: Dict[str, Any]) -> Dict[str, Any]:
     repetition_penalty = min(0.20, repeated_pairs * 0.05)
     em_dash_penalty = min(0.20, em_dash_issues * 0.04)
 
-    # Bonus for consistent headings (perfect headings add +0.15, none subtract -0.15)
+    total_penalties = exclamation_penalty + repetition_penalty + em_dash_penalty
+
+    # Bonus for consistent headings (perfect headings add +0.15, none subtract -0.15).
+    # Cap: when total_penalties exceed 0.30, the heading bonus is capped at 0.10 to
+    # prevent multi-category bad copy from passing on heading consistency alone.
+    # Without the cap, a post with em_dash_issues=4 + repeated_pairs=3 + exclamation
+    # rate ≥ 3% can still score ~0.58 with heading_consistency=1.0.
     heading_bonus = heading_consistency_score * 0.30
+    if total_penalties > 0.30:
+        effective_bonus = min(0.10, heading_bonus)
+    else:
+        effective_bonus = heading_bonus
 
     copy_edit_score = round(
         max(
             0.0,
             min(
                 1.0,
-                1.0
-                - exclamation_penalty
-                - repetition_penalty
-                - em_dash_penalty
-                + (heading_bonus - 0.15),
+                1.0 - total_penalties + (effective_bonus - 0.15),
             ),
         ),
         3,
@@ -202,6 +208,7 @@ async def copy_editor_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "exclamation_rate": round(exclamation_rate, 2),
             "em_dash_spacing_issues": em_dash_issues,
             "repeated_word_pairs": repeated_pairs,
+            "total_penalties": round(total_penalties, 3),
         },
         "completed_steps": ["copy_edit_check"],
     }
