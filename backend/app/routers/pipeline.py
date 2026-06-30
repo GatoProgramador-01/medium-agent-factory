@@ -24,7 +24,7 @@ class PipelineRequest(BaseModel):
     grounding_context: str = Field(default="", max_length=12000)
 
 
-@limiter.limit("2/hour")
+@limiter.limit("2/hour")  # type: ignore[untyped-decorator]
 @router.post("/run")
 async def trigger_pipeline(
     request: Request,
@@ -53,7 +53,7 @@ async def trigger_pipeline(
     return {"run_id": run_id, "message": "Pipeline started"}
 
 
-@limiter.limit("2/hour")
+@limiter.limit("2/hour")  # type: ignore[untyped-decorator]
 @router.post("/run/sync")
 async def trigger_pipeline_sync(
     request: Request,

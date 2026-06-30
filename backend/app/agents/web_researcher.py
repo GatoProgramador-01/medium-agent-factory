@@ -10,7 +10,7 @@ and the pipeline continues exactly as before — no hard dependency.
 
 import asyncio
 import json
-from typing import Any
+from typing import Any, cast
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -23,7 +23,7 @@ from app.config import settings
 try:
     from tavily import TavilyClient
 except ImportError:  # pragma: no cover
-    TavilyClient = None  # type: ignore[assignment, misc]
+    TavilyClient = None
 
 
 # ── Pydantic models ────────────────────────────────────────────────────────────
@@ -120,7 +120,7 @@ async def _run_search(query: str) -> list[dict[str, Any]]:
         max_results=5,
         include_answer=False,
     )
-    return response.get("results", [])
+    return cast(list[dict[str, Any]], response.get("results", []))
 
 
 async def _synthesize(

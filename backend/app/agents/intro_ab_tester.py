@@ -7,7 +7,7 @@ hook quality without rewriting the body.
 
 import inspect
 import json
-from typing import Any
+from typing import Any, cast
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, field_validator
@@ -111,10 +111,10 @@ async def run_intro_ab_test(
             IntroABTestResult
         )
         if inspect.isawaitable(chain):
-            chain = await chain  # type: ignore[assignment]
+            chain = await chain
         return await chain.ainvoke(messages)  # type: ignore[return-value]
 
     output = await _invoke()
     if output is None:
         raise ValueError("intro_ab_tester: LLM returned None - structured output failed")
-    return output
+    return cast(IntroABTestResult, output)

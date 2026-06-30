@@ -1,6 +1,8 @@
 from typing import Any, Dict
+
 from app.agents.logger import log_step
 from app.agents.web_researcher import research_topic
+
 
 async def research_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Performs web research for the post topic using Tavily search.

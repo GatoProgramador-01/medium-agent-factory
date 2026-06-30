@@ -1,10 +1,9 @@
 import os
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -44,7 +43,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(
     RateLimitExceeded,
-    _rate_limit_exceeded_handler,  # type: ignore[arg-type]
+    cast(Any, _rate_limit_exceeded_handler),
 )
 
 app.add_middleware(SecurityHeadersMiddleware)

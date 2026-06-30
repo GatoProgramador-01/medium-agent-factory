@@ -6,7 +6,7 @@ revised content body when the post drifts from its assigned role.
 
 import inspect
 import json
-from typing import Any
+from typing import Any, cast
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, field_validator
@@ -109,7 +109,7 @@ async def run_series_coherence_check(
             SeriesCoherenceResult
         )
         if inspect.isawaitable(chain):
-            chain = await chain  # type: ignore[assignment]
+            chain = await chain
         return await chain.ainvoke(messages)  # type: ignore[return-value]
 
     output = await _invoke()
@@ -117,4 +117,4 @@ async def run_series_coherence_check(
         raise ValueError(
             "series_coherence_checker: LLM returned None - structured output failed"
         )
-    return output
+    return cast(SeriesCoherenceResult, output)

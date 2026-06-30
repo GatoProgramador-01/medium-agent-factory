@@ -1,5 +1,7 @@
 from typing import Any, Dict
+
 from app.models.post import PostStatus
+
 
 async def content_generation_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Generates the initial draft Medium post using Claude Haiku.
@@ -29,14 +31,14 @@ async def content_generation_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "post" (GeneratedPost), "revision_count" (0), and
         "completed_steps" log. Or "errors" dict on failure.
     """
-    from app.agents.orchestrator import log_step, settings, generate_initial_post
+    from app.agents.orchestrator import generate_initial_post, log_step, settings
     run_id = state["run_id"]
     topic = state.get("refined_topic") or state["custom_topic"]
 
     await log_step(
         run_id,
         "content_generator",
-        f'Generating initial draft (Claude Haiku)...',
+        'Generating initial draft (Claude Haiku)...',
         data={"model": settings.worker_model, "topic": state["custom_topic"]},
     )
     try:
@@ -78,7 +80,11 @@ async def content_generation_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
 async def _fetch_and_format_exemplar(topic: str, run_id: str) -> str:
     """Finds and formats a past high-scoring post as few-shot context."""
-    from app.agents.orchestrator import find_exemplar, format_exemplar_injection, log_step
+    from app.agents.orchestrator import (
+        find_exemplar,
+        format_exemplar_injection,
+        log_step,
+    )
     exemplar = await find_exemplar(topic)
     if exemplar:
         await log_step(
@@ -95,7 +101,7 @@ async def _fetch_and_format_exemplar(topic: str, run_id: str) -> str:
     return ""
 
 
-def _build_editorial_locks_block(topic_brief: dict) -> str:
+def _build_editorial_locks_block(topic_brief: dict[str, Any]) -> str:
     """Compiles the Chief Editor's non-negotiable structural constraints."""
     parts = []
     if topic_brief.get("hook_seed"):
@@ -123,7 +129,7 @@ def _build_editorial_locks_block(topic_brief: dict) -> str:
     return ""
 
 
-def _merge_context_sources(state: dict, editorial_block: str) -> str:
+def _merge_context_sources(state: dict[str, Any], editorial_block: str) -> str:
     """Merges grounding context and research results with editorial brief blocks."""
     grounding_context = state.get("grounding_context", "").strip()
     trend_context = state.get("trend_context", "").strip()

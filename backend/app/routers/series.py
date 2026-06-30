@@ -18,7 +18,7 @@ class SeriesRequest(BaseModel):
     context: str = Field(default="", max_length=1000)
 
 
-@limiter.limit("1/hour")
+@limiter.limit("1/hour")  # type: ignore[untyped-decorator]
 @router.post("/run")
 async def trigger_series(
     request: Request,

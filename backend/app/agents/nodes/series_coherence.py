@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+
 async def series_coherence_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Checks whether a series installment fits its assigned series role.
 
@@ -28,9 +29,9 @@ async def series_coherence_node(state: Dict[str, Any]) -> Dict[str, Any]:
         "completed_steps". Returns empty dict for standalone posts or errors.
     """
     from app.agents.orchestrator import (
+        enforce_paragraph_sentence_limit,
         log_step,
         run_series_coherence_check,
-        enforce_paragraph_sentence_limit,
     )
 
     run_id = state["run_id"]
@@ -39,7 +40,7 @@ async def series_coherence_node(state: Dict[str, Any]) -> Dict[str, Any]:
     if not post or not series_context:
         return {}
 
-    topic_brief: dict | None = state.get("topic_brief")
+    topic_brief: dict[str, Any] | None = state.get("topic_brief")
     refined_angle = (topic_brief or {}).get("refined_angle", "") if topic_brief else ""
 
     await log_step(

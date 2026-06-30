@@ -27,6 +27,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from langchain_core.exceptions import OutputParserException
 from tenacity import (
     before_sleep_log,
     retry,
@@ -41,7 +42,6 @@ logger = logging.getLogger(__name__)
 # Build the retryable exception tuple at import time.
 # anthropic exceptions are optional — not imported if USE_LOCAL_LLM=true.
 # OutputParserException covers DeepSeek skipping a tool call (returns None → guard raises).
-from langchain_core.exceptions import OutputParserException
 
 _RETRYABLE: tuple[type[BaseException], ...] = (
     ConnectionError,

@@ -114,7 +114,7 @@ async def run_close_optimization(
         )
         # with_structured_output is sync in LangChain; AsyncMock in tests returns a coroutine
         if inspect.isawaitable(chain):
-            chain = await chain  # type: ignore[assignment]
+            chain = await chain
         return await chain.ainvoke(messages)  # type: ignore[return-value]
 
     output: CloseOptimizationResult | None = await _invoke()

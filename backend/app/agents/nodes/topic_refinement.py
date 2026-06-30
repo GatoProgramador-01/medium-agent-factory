@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+
 async def topic_refinement_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Refines raw topic + research into a structured editorial brief.
 

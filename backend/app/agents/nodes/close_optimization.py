@@ -1,5 +1,7 @@
 from typing import Any, Dict
+
 import app.agents.close_optimizer as _close_optimizer_module
+
 
 async def close_optimization_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Replaces the post's last paragraph with a stronger, more specific close.
@@ -32,7 +34,7 @@ async def close_optimization_node(state: Dict[str, Any]) -> Dict[str, Any]:
     if not content:
         return {}
 
-    topic_brief: dict | None = state.get("topic_brief")
+    topic_brief: dict[str, Any] | None = state.get("topic_brief")
     refined_angle = (topic_brief or {}).get("refined_angle", "") if topic_brief else ""
 
     try:

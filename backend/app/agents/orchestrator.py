@@ -6,74 +6,138 @@ Defines the pipeline state, compiled graph, and entrypoint runners.
 import operator
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
-# Imports from individual node files to preserve API compatibility
-from app.agents.nodes import (
-    research_node,
-    repo_analysis_node,
-    topic_refinement_node,
-    content_generation_node,
-    title_optimization_node,
-    intro_ab_testing_node,
-    series_coherence_node,
-    fact_check_node,
-    quality_analysis_node,
-    content_revision_node,
-    close_optimization_node,
-    image_description_enrichment_node,
-    format_node,
-    finalize_node,
-    _gate_check,
-    _compute_publication_recommendation,
-)
-
-# Export run_series from its standalone runner module
-from app.agents.series_runner import run_series
-
-# Re-expose original imports to ensure full compatibility with unit test mocks/patches
 from app.agents.content_generator import (
-    GeneratedPost,
-    enforce_paragraph_sentence_limit,
-    expand_post,
-    generate_initial_post,
-    revise_post,
+    GeneratedPost as GeneratedPost,
 )
-from app.agents.post_processor import inject_captions, merge_sources_sections
+from app.agents.content_generator import (
+    enforce_paragraph_sentence_limit as enforce_paragraph_sentence_limit,
+)
+from app.agents.content_generator import (
+    expand_post as expand_post,
+)
+from app.agents.content_generator import (
+    generate_initial_post as generate_initial_post,
+)
+from app.agents.content_generator import (
+    revise_post as revise_post,
+)
 from app.agents.exemplar_store import (
-    EXEMPLAR_THRESHOLD,
-    find_exemplar,
-    format_exemplar_injection,
-    save_exemplar,
+    EXEMPLAR_THRESHOLD as EXEMPLAR_THRESHOLD,
+)
+from app.agents.exemplar_store import (
+    find_exemplar as find_exemplar,
+)
+from app.agents.exemplar_store import (
+    format_exemplar_injection as format_exemplar_injection,
+)
+from app.agents.exemplar_store import (
+    save_exemplar as save_exemplar,
 )
 from app.agents.fact_checker import (
-    extract_claims,
-    inject_hyperlinks,
-    results_to_issues,
-    run_fact_check,
-    verify_claims,
+    extract_claims as extract_claims,
 )
-from app.agents.image_description_enricher import run_image_description_enrichment
-from app.agents.intro_ab_tester import run_intro_ab_test
-from app.agents.read_ratio_analyzer import format_factors_breakdown
-import app.agents.close_optimizer as _close_optimizer_module
-from app.agents.series_coherence_checker import run_series_coherence_check
-from app.agents.title_optimizer import run_title_optimization
-from app.agents.formatter import format_post
-from app.agents.logger import log_step
-from app.agents.quality_analyzer import run_quality_analysis
-from app.agents.structural_checker import run_structural_checks
-from app.agents.publication_matcher import run_publication_matching
-from app.agents.series_planner import plan_series
-from app.agents.web_researcher import research_topic
-from app.config import settings
-from app.database import get_db
-from app.models.post import PostStatus, QualityIssue, QualityReport, VerificationResult
-from app.agents.repo_analyzer import RepoAnalyzer
-from app.agents.topic_refiner import run_topic_refinement
+from app.agents.fact_checker import (
+    inject_hyperlinks as inject_hyperlinks,
+)
+from app.agents.fact_checker import (
+    results_to_issues as results_to_issues,
+)
+from app.agents.fact_checker import (
+    verify_claims as verify_claims,
+)
+from app.agents.formatter import format_post as format_post
+from app.agents.intro_ab_tester import run_intro_ab_test as run_intro_ab_test
+from app.agents.logger import log_step as log_step
+
+# Imports from individual node files to preserve API compatibility
+from app.agents.nodes import (
+    _gate_check as _gate_check,
+)
+from app.agents.nodes import (
+    close_optimization_node as close_optimization_node,
+)
+from app.agents.nodes import (
+    content_generation_node as content_generation_node,
+)
+from app.agents.nodes import (
+    content_revision_node as content_revision_node,
+)
+from app.agents.nodes import (
+    fact_check_node as fact_check_node,
+)
+from app.agents.nodes import (
+    finalize_node as finalize_node,
+)
+from app.agents.nodes import (
+    format_node as format_node,
+)
+from app.agents.nodes import (
+    image_description_enrichment_node as image_description_enrichment_node,
+)
+from app.agents.nodes import (
+    intro_ab_testing_node as intro_ab_testing_node,
+)
+from app.agents.nodes import (
+    quality_analysis_node as quality_analysis_node,
+)
+from app.agents.nodes import (
+    repo_analysis_node as repo_analysis_node,
+)
+from app.agents.nodes import (
+    research_node as research_node,
+)
+from app.agents.nodes import (
+    series_coherence_node as series_coherence_node,
+)
+from app.agents.nodes import (
+    title_optimization_node as title_optimization_node,
+)
+from app.agents.nodes import (
+    topic_refinement_node as topic_refinement_node,
+)
+from app.agents.post_processor import (
+    inject_captions as inject_captions,
+)
+from app.agents.post_processor import (
+    merge_sources_sections as merge_sources_sections,
+)
+from app.agents.publication_matcher import (
+    run_publication_matching as run_publication_matching,
+)
+from app.agents.quality_analyzer import run_quality_analysis as run_quality_analysis
+from app.agents.repo_analyzer import RepoAnalyzer as RepoAnalyzer
+from app.agents.series_coherence_checker import (
+    run_series_coherence_check as run_series_coherence_check,
+)
+from app.agents.series_runner import run_series as run_series
+from app.agents.nodes.finalize import (
+    _compute_publication_recommendation as _compute_publication_recommendation,
+)
+from app.agents.structural_checker import run_structural_checks as run_structural_checks
+from app.agents.title_optimizer import run_title_optimization as run_title_optimization
+from app.agents.topic_refiner import run_topic_refinement as run_topic_refinement
+
+# Re-expose original imports to ensure full compatibility with unit test mocks/patches
+from app.config import settings as settings
+from app.database import get_db as get_db
+from app.models.post import (
+    PostStatus as PostStatus,
+)
+from app.models.post import (
+    QualityIssue as QualityIssue,
+)
+from app.models.post import (
+    QualityReport as QualityReport,
+)
+from app.models.post import (
+    VerificationResult as VerificationResult,
+)
+
 
 class PipelineState(TypedDict):
     run_id: str
@@ -84,8 +148,7 @@ class PipelineState(TypedDict):
     series_context: str  # angle + hook_seed injected by run_series; "" for standalone runs
     trend_context: str  # populated by research_node; "" when Tavily unavailable
     refined_topic: str | None  # formatted_brief from topic_refiner; used by content_generation
-    topic_brief: dict | None  # TopicBrief as dict for MongoDB storage
-
+    topic_brief: dict[str, Any] | None  # TopicBrief as dict for MongoDB storage
     post: GeneratedPost | None
     quality_report: QualityReport | None
     pull_quote: str | None
@@ -104,7 +167,7 @@ class PipelineState(TypedDict):
     series_coherence_score: float | None
     image_enrichment_changes: list[str]
     repo_path: str | None          # optional local repo for RepoAnalyzer grounding; None = skip
-    evidence_brief: dict | None    # EvidenceBrief.model_dump() from repo_analysis_node; None when skipped
+    evidence_brief: dict[str, Any] | None    # EvidenceBrief.model_dump() from repo_analysis_node; None when skipped
 
 
 def route_after_quality(state: PipelineState) -> str:
@@ -169,20 +232,20 @@ def build_graph() -> Any:
         A compiled LangGraph CompiledGraph ready for ainvoke.
     """
     g = StateGraph(PipelineState)
-    g.add_node("repo_analysis", repo_analysis_node)
-    g.add_node("research", research_node)
-    g.add_node("topic_refinement", topic_refinement_node)
-    g.add_node("content_generation", content_generation_node)
-    g.add_node("intro_ab_testing", intro_ab_testing_node)
-    g.add_node("series_coherence", series_coherence_node)
-    g.add_node("title_optimization", title_optimization_node)
-    g.add_node("fact_check", fact_check_node)
-    g.add_node("quality_analysis", quality_analysis_node)
-    g.add_node("revision", content_revision_node)
-    g.add_node("close_optimization", close_optimization_node)
-    g.add_node("image_description_enrichment", image_description_enrichment_node)
-    g.add_node("format", format_node)
-    g.add_node("finalize", finalize_node)
+    g.add_node("repo_analysis", cast(Any, repo_analysis_node))
+    g.add_node("research", cast(Any, research_node))
+    g.add_node("topic_refinement", cast(Any, topic_refinement_node))
+    g.add_node("content_generation", cast(Any, content_generation_node))
+    g.add_node("intro_ab_testing", cast(Any, intro_ab_testing_node))
+    g.add_node("series_coherence", cast(Any, series_coherence_node))
+    g.add_node("title_optimization", cast(Any, title_optimization_node))
+    g.add_node("fact_check", cast(Any, fact_check_node))
+    g.add_node("quality_analysis", cast(Any, quality_analysis_node))
+    g.add_node("revision", cast(Any, content_revision_node))
+    g.add_node("close_optimization", cast(Any, close_optimization_node))
+    g.add_node("image_description_enrichment", cast(Any, image_description_enrichment_node))
+    g.add_node("format", cast(Any, format_node))
+    g.add_node("finalize", cast(Any, finalize_node))
 
     g.add_edge(START, "repo_analysis")
     g.add_edge("repo_analysis", "research")

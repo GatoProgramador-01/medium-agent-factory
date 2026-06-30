@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+
 async def title_optimization_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Generates 3–5 optimised title variants and selects the strongest one.
 
@@ -34,7 +35,7 @@ async def title_optimization_node(state: Dict[str, Any]) -> Dict[str, Any]:
     if not post:
         return {}
 
-    topic_brief: dict | None = state.get("topic_brief")
+    topic_brief: dict[str, Any] | None = state.get("topic_brief")
     refined_angle = (topic_brief or {}).get("refined_angle", "") if topic_brief else ""
 
     await log_step(

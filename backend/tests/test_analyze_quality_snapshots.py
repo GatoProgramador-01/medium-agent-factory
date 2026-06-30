@@ -99,7 +99,7 @@ def _patch_mongo(mock_runs: list[dict]):
             pass
 
     return patch(
-        "analyze_quality_snapshots.AsyncIOMotorClient",
+        "app.scripts.analyze_quality_snapshots.AsyncIOMotorClient",
         return_value=MockClient(),
     )
 

@@ -1,5 +1,7 @@
 from typing import Any, Dict
+
 from app.config import settings
+
 
 async def fact_check_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Extracts and verifies factual claims in the post using Tavily.
@@ -30,11 +32,11 @@ async def fact_check_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Returns empty lists if fact_check_enabled is False or no post.
     """
     from app.agents.orchestrator import (
-        log_step,
         extract_claims,
-        verify_claims,
         inject_hyperlinks,
+        log_step,
         results_to_issues,
+        verify_claims,
     )
 
     run_id = state["run_id"]

@@ -15,10 +15,10 @@ def inject_captions(content: str) -> str:
     """
     pattern = r"\[IMAGE: ([^\]]*?)\]"
 
-    def _add_caption(m: re.Match) -> str:
+    def _add_caption(m: re.Match[str]) -> str:
         inner = m.group(1)
         if "| caption:" in inner:
-            return m.group(0)
+            return str(m.group(0))
         # Keep existing structure, append caption placeholder
         return f"[IMAGE: {inner} | caption: Image source: see References]"
 

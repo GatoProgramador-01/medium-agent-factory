@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+
 async def intro_ab_testing_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Replaces the draft opening with the strongest A/B-tested intro.
 
@@ -26,14 +27,18 @@ async def intro_ab_testing_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with updated "post", "intro_variants", and "completed_steps".
         Returns empty dict on error so the original intro is preserved.
     """
-    from app.agents.orchestrator import log_step, run_intro_ab_test, enforce_paragraph_sentence_limit
+    from app.agents.orchestrator import (
+        enforce_paragraph_sentence_limit,
+        log_step,
+        run_intro_ab_test,
+    )
 
     run_id = state["run_id"]
     post = state.get("post")
     if not post or not post.content:
         return {}
 
-    topic_brief: dict | None = state.get("topic_brief")
+    topic_brief: dict[str, Any] | None = state.get("topic_brief")
     refined_angle = (topic_brief or {}).get("refined_angle", "") if topic_brief else ""
 
     await log_step(

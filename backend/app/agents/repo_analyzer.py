@@ -9,11 +9,10 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
 from app.models.evidence_brief import EvidenceBrief
-
 
 _TEXT_EXTENSIONS = {
     ".md",
@@ -179,7 +178,7 @@ def _detect_stack(files: list[Path], texts: dict[str, str]) -> list[str]:
     rels = {str(p).replace("\\", "/").lower() for p in files}
     blob = "\n".join(texts.values()).lower()
     stack: list[str] = []
-    checks = [
+    checks: list[tuple[str, Callable[[], bool]]] = [
         ("typescript", lambda: any(p.endswith(".ts") or p.endswith(".tsx") for p in rels)),
         ("python", lambda: any(p.endswith(".py") for p in rels)),
         ("node", lambda: "package.json" in {Path(p).name for p in rels}),

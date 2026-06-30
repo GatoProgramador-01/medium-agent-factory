@@ -14,7 +14,7 @@ Priority order (first true wins):
     default              →  ChatAnthropic (supervisor_model / worker_model from config)
 """
 
-from typing import Any
+from typing import Any, Literal
 
 from langchain_core.language_models import BaseChatModel
 from pydantic import SecretStr
@@ -89,9 +89,13 @@ def get_llm(role: str = "worker", **kwargs: Any) -> BaseChatModel:
         # - json_mode → reliable for all schemas; BUT LangChain does NOT inject the field
         #   schema into the prompt (only sets response_format). We must inject it ourselves
         #   or DeepSeek wraps the whole output under a single generic key like {"post":"..."}.
-        class _DeepSeekChatOpenAI(ChatOpenAI):  # type: ignore[misc]
+        class _DeepSeekChatOpenAI(ChatOpenAI):
             def with_structured_output(  # type: ignore[override]
-                self, schema: Any, *, method: str = "json_mode", **kw: Any
+                self,
+                schema: Any,
+                *,
+                method: Literal["function_calling", "json_mode", "json_schema"] = "json_mode",
+                **kw: Any,
             ) -> Any:
                 import json as _json
 
@@ -116,8 +120,9 @@ def get_llm(role: str = "worker", **kwargs: Any) -> BaseChatModel:
                         return messages
                     for i, m in enumerate(messages):
                         if isinstance(m, SystemMessage):
+                            content_str = m.content if isinstance(m.content, str) else str(m.content)
                             patched = SystemMessage(
-                                content=m.content + "\n\n" + schema_block
+                                content=content_str + "\n\n" + schema_block
                             )
                             return messages[:i] + [patched] + messages[i + 1 :]
                     return [SystemMessage(content=schema_block)] + messages
@@ -131,7 +136,7 @@ def get_llm(role: str = "worker", **kwargs: Any) -> BaseChatModel:
 
                 return RunnableLambda(_inject_schema) | inner | RunnableLambda(_guard)
 
-        return _DeepSeekChatOpenAI(  # type: ignore[call-arg]
+        return _DeepSeekChatOpenAI(
             model=settings.deepseek_model,
             api_key=SecretStr(settings.deepseek_api_key),
             base_url="https://api.deepseek.com/v1",

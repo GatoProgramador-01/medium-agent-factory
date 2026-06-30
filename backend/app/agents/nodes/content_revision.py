@@ -1,8 +1,10 @@
 from typing import Any, Dict
-from app.models.post import PostStatus
+
+from app.agents.llm_factory import get_model_name as _get_model_name
 from app.agents.nodes.quality_analysis import _gate_check
 from app.agents.read_ratio_analyzer import format_factors_breakdown
-from app.agents.llm_factory import get_model_name as _get_model_name
+from app.models.post import PostStatus
+
 
 async def content_revision_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Revises the post based on quality gate failures and the analyzer's feedback.
@@ -32,7 +34,7 @@ async def content_revision_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "post" (revised GeneratedPost), "revision_count" (incremented),
         and "completed_steps". Or "errors" dict on failure.
     """
-    from app.agents.orchestrator import log_step, settings, expand_post, revise_post
+    from app.agents.orchestrator import log_step, settings
     run_id = state["run_id"]
     post = state["post"]
     report = state["quality_report"]
@@ -96,7 +98,7 @@ async def content_revision_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
 def _build_sticky_issues_summary(state: Dict[str, Any]) -> str:
     """Builds a summary of what previous cycles failed to fix to alert the reviser."""
-    quality_history: list = state.get("quality_history", [])
+    quality_history: list[dict[str, Any]] = state.get("quality_history", [])
     prior_cycle_summary = ""
     if len(quality_history) >= 2:
         lines = ["\u26a0 PRIOR REVISION HISTORY — THESE ISSUES WERE NOT RESOLVED:\n"]
@@ -130,7 +132,7 @@ async def _execute_expansion_strategy(run_id: str, post: Any, report: Any, revis
     post.content = post.content + "\n\n" + new_section
     word_count_new = len(post.content.split())
     
-    from app.agents.orchestrator import log_step, _upsert_post
+    from app.agents.orchestrator import _upsert_post, log_step
     await log_step(
         run_id,
         "content_generator",
@@ -147,7 +149,7 @@ async def _execute_rewrite_strategy(
     run_id: str,
     post: Any,
     report: Any,
-    gate_failures: list,
+    gate_failures: list[str],
     revision_number: int,
     prior_cycle_summary: str
 ) -> Any:
@@ -180,7 +182,7 @@ async def _execute_rewrite_strategy(
     )
     word_count = len(revised.content.split())
     
-    from app.agents.orchestrator import log_step, _upsert_post
+    from app.agents.orchestrator import _upsert_post, log_step
     await log_step(
         run_id,
         "content_generator",

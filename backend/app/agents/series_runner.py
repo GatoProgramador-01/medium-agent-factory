@@ -1,9 +1,11 @@
 import uuid
 from datetime import UTC, datetime
 from typing import Any, Dict
-from app.database import get_db
+
 from app.agents.logger import log_step
 from app.agents.series_planner import plan_series
+from app.database import get_db
+
 
 async def run_series(
     theme: str,

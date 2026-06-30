@@ -1,5 +1,7 @@
 from typing import Any, Dict
+
 from app.models.post import PostStatus
+
 
 async def format_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Applies deterministic formatting to the final approved post version.
@@ -29,7 +31,7 @@ async def format_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "post" (formatted), "pull_quote" (str), "format_changes"
         (list of applied changes), and "completed_steps". Or "errors" on failure.
     """
-    from app.agents.orchestrator import log_step, inject_hyperlinks, format_post
+    from app.agents.orchestrator import format_post, inject_hyperlinks, log_step
 
     run_id = state["run_id"]
     post = state["post"]

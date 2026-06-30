@@ -1,7 +1,9 @@
 import asyncio
 from datetime import UTC, datetime
-from typing import Any, Dict, List, Tuple
-from app.models.post import PostStatus, QualityReport, VerificationResult
+from typing import Any, Dict, List
+
+from app.models.post import PostStatus, VerificationResult
+
 
 async def finalize_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Persists the approved post to MongoDB and computes publication recommendation.
@@ -31,7 +33,12 @@ async def finalize_node(state: Dict[str, Any]) -> Dict[str, Any]:
         Dict with "completed_steps", "recommended_publication" (bool), and
         "publication_confidence" (float 0.0–1.0).
     """
-    from app.agents.orchestrator import get_db, log_step, inject_captions, merge_sources_sections
+    from app.agents.orchestrator import (
+        get_db,
+        inject_captions,
+        log_step,
+        merge_sources_sections,
+    )
 
     run_id = state["run_id"]
     qr = state.get("quality_report")
@@ -89,7 +96,7 @@ async def finalize_node(state: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _build_quality_database_fields(qr: Any, history: list, revision_count: int) -> dict:
+def _build_quality_database_fields(qr: Any, history: list[dict[str, Any]], revision_count: int) -> dict[str, Any]:
     """Builds the database update fields based on the quality report."""
     fields = {
         "status": str(PostStatus.APPROVED),
@@ -119,7 +126,7 @@ def _build_quality_database_fields(qr: Any, history: list, revision_count: int) 
     return fields
 
 
-def _extract_verified_sources(fc_results: List[VerificationResult]) -> list:
+def _extract_verified_sources(fc_results: List[VerificationResult]) -> list[dict[str, Any]]:
     """Collects and groups all verified fact-check sources into database-ready documents."""
     return [
         {
@@ -136,7 +143,7 @@ def _extract_verified_sources(fc_results: List[VerificationResult]) -> list:
 
 async def _save_exemplar_if_qualified(run_id: str, post: Any, qr: Any) -> None:
     """Saves the article into our exemplar collection if it meets high quality metrics."""
-    from app.agents.orchestrator import EXEMPLAR_THRESHOLD, save_exemplar, log_step
+    from app.agents.orchestrator import EXEMPLAR_THRESHOLD, log_step, save_exemplar
     score = qr.score
     if score >= EXEMPLAR_THRESHOLD:
         try:
@@ -165,7 +172,7 @@ async def _save_exemplar_if_qualified(run_id: str, post: Any, qr: Any) -> None:
             )
 
 
-def _compute_publication_recommendation(state: dict) -> tuple[bool, float]:
+def _compute_publication_recommendation(state: dict[str, Any]) -> tuple[bool, float]:
     """Compute publication recommendation and confidence score.
 
     Returns (recommended, confidence) where:
@@ -240,7 +247,7 @@ async def _run_non_blocking_pub_matcher(
     topic_brief: Any
 ) -> None:
     """Matches the post to the top-3 publications in the background."""
-    from app.agents.orchestrator import run_publication_matching, get_db, log_step
+    from app.agents.orchestrator import get_db, log_step, run_publication_matching
     try:
         refined_angle = (topic_brief or {}).get("refined_angle", "") if topic_brief else ""
         result = await run_publication_matching(
@@ -260,9 +267,9 @@ async def _run_non_blocking_pub_matcher(
                         {
                             "name": pub.name,
                             "fit_score": pub.fit_score,
-                            "rationale": pub.rationale,
+                            "rationale": pub.why,
                         }
-                        for pub in result.publications
+                        for pub in result.matches
                     ]
                 }
             },

@@ -7,7 +7,7 @@ raise polish without preventing publication.
 
 import inspect
 import json
-from typing import Any
+from typing import Any, cast
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, field_validator
@@ -118,7 +118,7 @@ async def run_image_description_enrichment(
             ImageEnrichmentResult
         )
         if inspect.isawaitable(chain):
-            chain = await chain  # type: ignore[assignment]
+            chain = await chain
         return await chain.ainvoke(messages)  # type: ignore[return-value]
 
     output = await _invoke()
@@ -126,4 +126,4 @@ async def run_image_description_enrichment(
         raise ValueError(
             "image_description_enricher: LLM returned None - structured output failed"
         )
-    return output
+    return cast(ImageEnrichmentResult, output)

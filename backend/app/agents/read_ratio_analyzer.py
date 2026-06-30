@@ -116,7 +116,7 @@ def _measure_structure(content: str) -> dict[str, Any]:
     sent_lengths = [len(s.split()) for s in all_sents if len(s.split()) >= 3]
     if len(sent_lengths) >= 5:
         mean = sum(sent_lengths) / len(sent_lengths)
-        std = (sum((l - mean) ** 2 for l in sent_lengths) / len(sent_lengths)) ** 0.5
+        std = (sum((length - mean) ** 2 for length in sent_lengths) / len(sent_lengths)) ** 0.5
         sentence_cv = std / mean if mean > 0 else 0.0
     else:
         sentence_cv = 0.0

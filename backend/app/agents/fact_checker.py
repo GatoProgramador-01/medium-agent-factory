@@ -30,7 +30,6 @@ from app.agents.llm_factory import get_llm
 from app.config import settings
 from app.models.post import AtomicClaim, QualityIssue, VerificationResult
 
-
 # ── Pydantic output model for LLM extraction ──────────────────────────────────
 
 class _ClaimList(BaseModel):
@@ -112,7 +111,7 @@ async def _tavily_search(query: str, max_results: int = 3) -> dict[str, Any]:
     """
     if not settings.tavily_api_key:
         return {"results": []}
-    from tavily import AsyncTavilyClient  # type: ignore[import-untyped]
+    from tavily import AsyncTavilyClient
     client = AsyncTavilyClient(api_key=settings.tavily_api_key)
     raw = await client.search(query=query, max_results=max_results)
     return raw if isinstance(raw, dict) else {"results": []}
@@ -216,7 +215,6 @@ def inject_hyperlinks(content: str, results: list[VerificationResult]) -> str:
         if result.verdict != "SUPPORTED" or not result.source_url:
             continue
         claim_text = result.claim.text
-        title = result.source_title or result.source_url
         linked = f"[{claim_text}]({result.source_url})"
         if claim_text in annotated and f"]({result.source_url})" not in annotated:
             annotated = annotated.replace(claim_text, linked, 1)

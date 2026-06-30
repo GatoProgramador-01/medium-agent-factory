@@ -1,6 +1,8 @@
 from typing import Any, Dict
-from app.agents.logger import log_step
+
 from app.agents.image_description_enricher import run_image_description_enrichment
+from app.agents.logger import log_step
+
 
 async def image_description_enrichment_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Improves image placeholders and image suggestions before formatting.
@@ -32,7 +34,7 @@ async def image_description_enrichment_node(state: Dict[str, Any]) -> Dict[str, 
     if not post or not post.content:
         return {}
 
-    topic_brief: dict | None = state.get("topic_brief")
+    topic_brief: dict[str, Any] | None = state.get("topic_brief")
     refined_angle = (topic_brief or {}).get("refined_angle", "") if topic_brief else ""
 
     await log_step(
