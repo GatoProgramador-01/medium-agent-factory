@@ -129,6 +129,22 @@ async def quality_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 level="warning",
                 data={"sme_score": state.get("sme_score"), "sme_metrics": state.get("sme_metrics")},
             )
+        if state.get("engagement_passed") is False:
+            await log_step(
+                run_id,
+                "quality_analyzer",
+                f"engagement_optimizer FAILED — engagement_score={state.get('engagement_score', 0):.3f}",
+                level="warning",
+                data={"engagement_score": state.get("engagement_score"), "engagement_metrics": state.get("engagement_metrics")},
+            )
+        if state.get("readability_passed") is False:
+            await log_step(
+                run_id,
+                "quality_analyzer",
+                f"readability_scorer FAILED — readability_score={state.get('readability_score', 0):.3f}",
+                level="warning",
+                data={"readability_score": state.get("readability_score"), "readability_metrics": state.get("readability_metrics")},
+            )
 
         # 3. Evaluate quality gates
         passed, gate_failures = _gate_check(report)

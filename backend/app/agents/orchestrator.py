@@ -80,6 +80,8 @@ from app.agents.nodes.copy_editor_node import (
     copy_editor_node as copy_editor_node,
 )
 from app.agents.nodes.sme_reviewer_node import sme_reviewer_node
+from app.agents.nodes.engagement_optimizer_node import engagement_optimizer_node
+from app.agents.nodes.readability_scorer_node import readability_scorer_node
 from app.agents.nodes import (
     content_generation_node as content_generation_node,
 )
@@ -208,6 +210,12 @@ class PipelineState(TypedDict):
     sme_score: float | None
     sme_metrics: dict[str, Any] | None
     sme_passed: bool | None
+    engagement_score: float | None
+    engagement_metrics: dict[str, Any] | None
+    engagement_passed: bool | None
+    readability_score: float | None
+    readability_metrics: dict[str, Any] | None
+    readability_passed: bool | None
 
 
 def route_after_quality(state: PipelineState) -> str:
@@ -305,6 +313,8 @@ def build_graph() -> Any:
     g.add_node("structure_check", cast(Any, structure_validator_node))
     g.add_node("copy_edit_check", cast(Any, copy_editor_node))
     g.add_node("sme_review_check", sme_reviewer_node)
+    g.add_node("engagement_check", engagement_optimizer_node)
+    g.add_node("readability_check", readability_scorer_node)
     g.add_node("quality_analysis", cast(Any, quality_analysis_node))
     g.add_node("revision", cast(Any, content_revision_node))
     g.add_node("close_optimization", cast(Any, close_optimization_node))
@@ -327,7 +337,9 @@ def build_graph() -> Any:
     g.add_edge("line_edit_check", "structure_check")
     g.add_edge("structure_check", "copy_edit_check")
     g.add_edge("copy_edit_check", "sme_review_check")
-    g.add_edge("sme_review_check", "quality_analysis")
+    g.add_edge("sme_review_check", "engagement_check")
+    g.add_edge("engagement_check", "readability_check")
+    g.add_edge("readability_check", "quality_analysis")
     g.add_conditional_edges(
         "quality_analysis",
         route_after_quality,
@@ -454,6 +466,12 @@ async def run_pipeline(
         "sme_score": None,
         "sme_metrics": None,
         "sme_passed": None,
+        "engagement_score": None,
+        "engagement_metrics": None,
+        "engagement_passed": None,
+        "readability_score": None,
+        "readability_metrics": None,
+        "readability_passed": None,
     }
 
     final_state = await pipeline.ainvoke(initial_state)
