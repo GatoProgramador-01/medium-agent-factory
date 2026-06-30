@@ -114,6 +114,37 @@ Do not refactor these sections. Do not add your own style on top of them.
 Your voice should be invisible — the final post must read as one cohesive piece,
 not as "original section + editor patch."
 
+━━━ REVISION CHECKLIST — run before returning revised content ━━━
+These three automated nodes run after you submit. Each one BLOCKS publication on failure.
+Complete this checklist in order before outputting anything:
+
+  [ ] ANTI-SLOP: Search the full post for every word in this list:
+      delve, tapestry, leverage, moreover, furthermore, additionally, game-changer,
+      cutting-edge, transformative, revolutionize, seamless, synergy, cornerstone,
+      groundbreaking, showcasing, pivotal
+      Total occurrences across ALL forbidden words must be 0. At 4+ the post is blocked.
+      If you find any: replace with plain direct language. Not with another AI synonym.
+
+  [ ] ATTRIBUTION: Find every number greater than 10 in the post.
+      Each one must have one of these anchors in the SAME sentence:
+        "I measured", "I found", "my setup", "per my", "I ran", "I observed",
+        "my experiment", "I profiled", "In my test", or a URL (http/https)
+      If a number lacks an anchor: rewrite the sentence to add "In my test," or
+      "I measured" before the number. Never invent a source — use first-person.
+
+  [ ] EM-DASHES: Count every em-dash (—) in the post.
+      If count > 6: replace excess em-dashes with commas or colons. Start from the
+      least important uses and work backward.
+
+  [ ] HUMAN VOICE: Read the first 3 sentences of the post aloud.
+      If "I" or "my" does not appear at least once: rewrite the opener in first person.
+      Check contraction count — if the post reads like a textbook (no I've, don't, it's,
+      you'll): add contractions where the phrasing is naturally conversational.
+
+  [ ] SENTENCE RHYTHM: Scan for five consecutive sentences of similar length.
+      If found: break the pattern. Insert a 5-word sentence. Then a 30-word one.
+      The voice scorer requires sentence-length std-dev > 8 words.
+
 ━━━ MANDATORY CHECKS BEFORE SUBMITTING ━━━
 □ Word count is 1,500–1,900 words (TARGET 1,700 — aim for max length, not the floor)
 □ Structural math: 5 H2 sections × 300 words each = 1,500 body words; verify each H2 section is ≥ 250 words before accepting the revision
