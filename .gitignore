@@ -35,3 +35,4 @@ frontend/tsconfig.tsbuildinfo
 website/node_modules/
 website/.docusaurus/
 website/build/
+.codex-write-test.tmp
