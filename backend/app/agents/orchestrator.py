@@ -59,7 +59,16 @@ from app.agents.nodes import (
     _gate_check as _gate_check,
 )
 from app.agents.nodes import (
+    ai_slop_detector_node as ai_slop_detector_node,
+)
+from app.agents.nodes import (
     close_optimization_node as close_optimization_node,
+)
+from app.agents.nodes import (
+    human_voice_scorer_node as human_voice_scorer_node,
+)
+from app.agents.nodes import (
+    truth_enforcer_node as truth_enforcer_node,
 )
 from app.agents.nodes import (
     content_generation_node as content_generation_node,
@@ -168,6 +177,15 @@ class PipelineState(TypedDict):
     image_enrichment_changes: list[str]
     repo_path: str | None          # optional local repo for RepoAnalyzer grounding; None = skip
     evidence_brief: dict[str, Any] | None    # EvidenceBrief.model_dump() from repo_analysis_node; None when skipped
+    structural_check_issues: list[dict[str, Any]]  # accumulated by ai_slop, truth_enforcer nodes
+    ai_slop_issues: list[dict[str, Any]]
+    ai_slop_score: float
+    ai_slop_passed: bool
+    unattributed_numbers: list[str]
+    truth_enforcer_passed: bool
+    human_voice_score: float
+    human_voice_metrics: dict[str, Any]
+    human_voice_passed: bool
 
 
 def route_after_quality(state: PipelineState) -> str:
@@ -240,6 +258,9 @@ def build_graph() -> Any:
     g.add_node("series_coherence", cast(Any, series_coherence_node))
     g.add_node("title_optimization", cast(Any, title_optimization_node))
     g.add_node("fact_check", cast(Any, fact_check_node))
+    g.add_node("ai_slop_check", cast(Any, ai_slop_detector_node))
+    g.add_node("truth_enforcement", cast(Any, truth_enforcer_node))
+    g.add_node("human_voice_check", cast(Any, human_voice_scorer_node))
     g.add_node("quality_analysis", cast(Any, quality_analysis_node))
     g.add_node("revision", cast(Any, content_revision_node))
     g.add_node("close_optimization", cast(Any, close_optimization_node))
@@ -255,7 +276,10 @@ def build_graph() -> Any:
     g.add_edge("intro_ab_testing", "series_coherence")
     g.add_edge("series_coherence", "title_optimization")
     g.add_edge("title_optimization", "fact_check")
-    g.add_edge("fact_check", "quality_analysis")
+    g.add_edge("fact_check", "ai_slop_check")
+    g.add_edge("ai_slop_check", "truth_enforcement")
+    g.add_edge("truth_enforcement", "human_voice_check")
+    g.add_edge("human_voice_check", "quality_analysis")
     g.add_conditional_edges(
         "quality_analysis",
         route_after_quality,

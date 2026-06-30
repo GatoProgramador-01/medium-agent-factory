@@ -1,3 +1,6 @@
+from app.agents.nodes.ai_slop_detector import (
+    ai_slop_detector_node as ai_slop_detector_node,
+)
 from app.agents.nodes.close_optimization import (
     close_optimization_node as close_optimization_node,
 )
@@ -13,6 +16,9 @@ from app.agents.nodes.finalize import (
 )
 from app.agents.nodes.finalize import finalize_node as finalize_node
 from app.agents.nodes.format import format_node as format_node
+from app.agents.nodes.human_voice_scorer import (
+    human_voice_scorer_node as human_voice_scorer_node,
+)
 from app.agents.nodes.image_description import (
     image_description_enrichment_node as image_description_enrichment_node,
 )
@@ -33,4 +39,7 @@ from app.agents.nodes.title_optimization import (
 )
 from app.agents.nodes.topic_refinement import (
     topic_refinement_node as topic_refinement_node,
+)
+from app.agents.nodes.truth_enforcer_node import (
+    truth_enforcer_node as truth_enforcer_node,
 )
