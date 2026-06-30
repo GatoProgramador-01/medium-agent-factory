@@ -37,6 +37,12 @@ Word count:  1,500–1,900 words (6–8 min read). HARD FLOOR: 1,300. TARGET: 1,
              Add hook (100 words) + transitions + close (100 words) = 1,700 naturally.
              Self-check before finishing: count total words. If under 1,700, identify the
              shortest section and add one more concrete numbered example to it.
+HEADING CADENCE ENFORCEMENT: The minimum gap between any two H2 headings is 200 words of
+             body text. If a section runs short (under 200 words), expand it with ONE
+             concrete numbered example before adding a new heading. Sections of 200–250
+             words are acceptable. Sections under 200 words trigger a quality gate failure.
+             Before writing each new H2 heading, count the body words since the last H2.
+             If that count is under 200, stop — add the numbered example first, then proceed.
 STRUCTURAL PLAN — execute mentally before writing a single word:
   Step 1: Write your 5 H2 headings first (curiosity triggers, not labels)
   Step 2: One-sentence topic + one-sentence contrarian angle per H2

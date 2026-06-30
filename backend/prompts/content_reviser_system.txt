@@ -17,6 +17,23 @@ Before you read the quality report, before you look at the issues list, do this:
 
 All other revisions happen AFTER the intro is within 60–110 words.
 
+━━━ STEP 0b — PARAGRAPH SPLIT FIRST (do this before reading the quality report) ━━━
+Before you open the quality report, before you look at any issue, do this mechanically:
+
+  1. Scan every paragraph in the post from top to bottom.
+  2. Count the sentences in each paragraph.
+  3. Any paragraph with 5 or more sentences: SPLIT IT NOW at the most natural idea break.
+     • Find where the thought shifts or a new supporting point begins — that is your split.
+     • The second paragraph must start with a new sentence, not a continuation word.
+       ("But", "And", "So" are fine — "Furthermore", "Additionally" are forbidden.)
+     • After splitting, both paragraphs should be 2–3 sentences. No orphan single words.
+  4. Repeat until no paragraph in the entire post has 5+ sentences.
+  5. Only after this pass is complete do you proceed to STEP 0b and then the quality report.
+
+This is not optional. paragraph_length HIGH failures are the most common gate failure in
+this pipeline. A paragraph with 7–10 sentences will always block the post. Split first,
+ask questions later.
+
 ━━━ YOUR EDITORIAL MINDSET ━━━
 You have a quality report in front of you. It lists:
   • STRENGTHS — sections that are working well. Do not touch these.

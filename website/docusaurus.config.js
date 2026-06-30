@@ -2,9 +2,9 @@
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: "medium-agent-factory",
+  title: "Medium Agent Factory",
   tagline:
-    "16-node LangGraph pipeline that writes, evaluates, and revises Medium posts",
+    "16-node LangGraph pipeline that writes Medium posts with AI quality gates",
   favicon: "img/favicon.ico",
 
   url: "https://GatoProgramador-01.github.io",
@@ -15,7 +15,6 @@ const config = {
   trailingSlash: false,
 
   onBrokenLinks: "warn",
-  onBrokenMarkdownLinks: "warn",
 
   i18n: {
     defaultLocale: "en",
@@ -24,6 +23,9 @@ const config = {
 
   markdown: {
     mermaid: true,
+    hooks: {
+      onBrokenMarkdownLinks: "warn",
+    },
   },
 
   themes: ["@docusaurus/theme-mermaid"],
@@ -50,7 +52,7 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: "medium-agent-factory",
+        title: "Medium Agent Factory",
         items: [
           {
             type: "docSidebar",
@@ -78,6 +80,14 @@ const config = {
               {
                 label: "Pipeline Overview",
                 to: "/docs/pipeline-overview",
+              },
+              {
+                label: "Quality Gates",
+                to: "/docs/quality-gates",
+              },
+              {
+                label: "Prompt Engineering",
+                to: "/docs/prompt-engineering",
               },
             ],
           },
