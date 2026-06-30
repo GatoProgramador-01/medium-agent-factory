@@ -172,7 +172,7 @@ The three new Sprint 25 nodes require **zero LLM calls** — they enforce qualit
 | Approach | Cost | Latency | Reliability |
 |----------|------|---------|-------------|
 | LLM-as-judge | ~$0.005/call | 2-5s | Variable |
-| Deterministic node | $0 | <1ms | 100% |
+| Deterministic node | $0 | &lt;1ms | 100% |
 
 When writing prompts for content generators, keep these rules in mind — the detectors will catch violations regardless:
 1. Every number >10 must have an attribution anchor in the same sentence
