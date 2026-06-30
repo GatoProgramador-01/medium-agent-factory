@@ -57,7 +57,46 @@ async def quality_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
         # 2. Add local structural and factual checks
         structural_issues = run_structural_checks(post.content)
         fact_issues: List[QualityIssue] = state.get("fact_check_issues") or []
-        report.issues = structural_issues + fact_issues + report.issues
+
+        # Merge issues accumulated by upstream nodes (ai_slop, truth_enforcer, human_voice)
+        state_structural_issues = state.get("structural_check_issues") or []
+        node_issues: List[QualityIssue] = [
+            QualityIssue(
+                category=entry.get("category", "ai_pattern"),
+                severity=entry.get("severity", "high").lower(),
+                location="",
+                suggestion=entry.get("suggestion", ""),
+            )
+            for entry in state_structural_issues
+        ]
+
+        report.issues = structural_issues + fact_issues + node_issues + report.issues
+
+        # Log upstream node gate failures for monitoring visibility
+        if state.get("ai_slop_passed") is False:
+            await log_step(
+                run_id,
+                "quality_analyzer",
+                "ai_slop_check_failed — upstream ai_slop_detector flagged content",
+                level="warning",
+                data={"ai_slop_score": state.get("ai_slop_score"), "ai_slop_issues": state.get("ai_slop_issues")},
+            )
+        if state.get("truth_enforcer_passed") is False:
+            await log_step(
+                run_id,
+                "quality_analyzer",
+                "truth_enforcer_failed — unattributed numbers detected",
+                level="warning",
+                data={"unattributed_numbers": state.get("unattributed_numbers")},
+            )
+        if state.get("human_voice_passed") is False:
+            await log_step(
+                run_id,
+                "quality_analyzer",
+                "human_voice_check_failed — low human voice score",
+                level="warning",
+                data={"human_voice_score": state.get("human_voice_score"), "human_voice_metrics": state.get("human_voice_metrics")},
+            )
 
         # 3. Evaluate quality gates
         passed, gate_failures = _gate_check(report)
